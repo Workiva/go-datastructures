@@ -1,0 +1,49 @@
+package bitarray
+
+// BitArray represents a structure that can be used to
+// quickly check for existence when using a large number
+// of items in a very memory efficient way.
+type BitArray interface {
+	// SetBit sets the bit at the given position.  This
+	// function returns an error if the position is out
+	// of range.  A sparse bit array never returns an error.
+	SetBit(k uint64) error
+	// GetBit gets the bit at the given position.  This
+	// function returns an error if the position is out
+	// of range.  A sparse bit array never returns an error.
+	GetBit(k uint64) (bool, error)
+	// ClearBit clears the bit at the given position.  This
+	// function returns an error if the position is out
+	// of range.  A sparse bit array never returns an error.
+	ClearBit(k uint64) error
+	// Reset sets all values to zero.
+	Reset()
+	// Blocks returns an iterator to be used to iterate
+	// over the bit array.
+	Blocks() Iterator
+	// Equals returns a bool indicating equality between the
+	// two bit arrays.
+	Equals(other BitArray) bool
+	// Intersects returns a bool indicating if the other bit
+	// array intersects with this bit array.
+	Intersects(other BitArray) bool
+	// Capacity returns either the given capacity of the bit array
+	// in the case of a dense bit array or the highest possible
+	// seen capacity of the sparse array.
+	Capacity() uint64
+	// Or will bitwise or the two bitarrays and return a new bitarray
+	// representing the result.
+	Or(other BitArray) BitArray
+	// ToNums converts this bit array to the list of numbers contained
+	// within it.
+	ToNums() []uint64
+}
+
+// Iterator defines methods used to iterate over a bit array.
+type Iterator interface {
+	// Next moves the pointer to the next block.  Returns
+	// false when no blocks remain.
+	Next() bool
+	// Value returns the next block and its index
+	Value() (uint64, block)
+}
