@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Workiva/gotable/structures/queue"
+	"github.com/Workiva/go-datastructures/queue"
 )
 
 type ExecutionGraph struct {
