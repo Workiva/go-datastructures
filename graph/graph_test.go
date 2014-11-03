@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Workiva/gotable/structures/bitarray"
+	"github.com/Workiva/go-datastructures/bitarray"
 )
 
 func checkLayers(tb testing.TB, expected, result []Nodes) {
