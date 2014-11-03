@@ -1,4 +1,4 @@
-package main
+package datastructures
 
 import (
 	_ "github.com/Workiva/go-datastructures/augmentedtree"
