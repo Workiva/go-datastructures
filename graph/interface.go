@@ -30,7 +30,7 @@ type IDependencyProvider interface {
 	// MaxNode returns the highest node ID possible.
 	MaxNode() uint64
 	// GetDependencies will return a bit array representing the dependencies of the provided node.
-	GetDependencies(node INode) []bitarray.BitArray
+	GetDependencies(node INode) bitarray.BitArray
 	// GetDependents will return a list of all nodes that depend in some
 	// way on the provided nodes.
 	GetDependents(nodes Nodes) Nodes
