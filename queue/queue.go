@@ -31,6 +31,7 @@ func (items *items) get(number int64) []interface{} {
 		}
 
 		returnItems = append(returnItems, (*items)[i])
+		(*items)[i] = nil
 		index++
 	}
 
