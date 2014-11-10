@@ -15,8 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Workiva/gotable/structures/bitarray"
-	"github.com/Workiva/gotable/structures/queue"
+	"github.com/Workiva/go-datastructures/bitarray"
+	"github.com/Workiva/go-datastructures/queue"
 )
 
 const (
@@ -358,11 +358,8 @@ func flatten(dp IDependencyProvider, nodes Nodes) ([]Nodes, Nodes, int64) {
 					node := items[0].(INode)
 					okToAdd := true
 					deps := dp.GetDependencies(node)
-					for _, dep := range deps {
-						if deps != nil && !ba.Intersects(dep) {
-							okToAdd = false
-							break
-						}
+					if deps != nil && !ba.Intersects(deps) {
+						okToAdd = false
 					}
 
 					if okToAdd {

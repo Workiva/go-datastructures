@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Workiva/gotable/structures/bitarray"
+	"github.com/Workiva/go-datastructures/bitarray"
 )
 
 func checkLayers(tb testing.TB, expected, result []Nodes) {
@@ -28,13 +28,13 @@ func TestGetSimpleSubgraph(t *testing.T) {
 	n1 := newTestNode(0)
 	n2 := newTestNode(1)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(n1.ID())
-			return []bitarray.BitArray{ba}
+			return ba
 		} else {
-			return []bitarray.BitArray{ba}
+			return ba
 		}
 	}
 
@@ -52,8 +52,8 @@ func TestGetSubgraphSingleLayer(t *testing.T) {
 	n1 := newTestNode(0)
 	n2 := newTestNode(1)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
-		return []bitarray.BitArray{bitarray.NewBitArray(dp.MaxNode())}
+	dp.baFactory = func(node INode) bitarray.BitArray {
+		return bitarray.NewBitArray(dp.MaxNode())
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
@@ -73,10 +73,10 @@ func TestGetSubgraphExternalDependency(t *testing.T) {
 
 	n1 := newTestNode(0)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		ba.SetBit(1)
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1})
@@ -93,7 +93,7 @@ func TestGetSubgraphWithAllCircularDependencies(t *testing.T) {
 	n1 := newTestNode(0)
 	n2 := newTestNode(1)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n1 {
 			ba.SetBit(1)
@@ -101,7 +101,7 @@ func TestGetSubgraphWithAllCircularDependencies(t *testing.T) {
 			ba.SetBit(0)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
@@ -123,7 +123,7 @@ func TestGetSubgraphWithMixedCirculars(t *testing.T) {
 	n2 := newTestNode(1)
 	n3 := newTestNode(2)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(2)
@@ -131,7 +131,7 @@ func TestGetSubgraphWithMixedCirculars(t *testing.T) {
 			ba.SetBit(1)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2, n3})
@@ -155,8 +155,8 @@ func TestGetSubgraphResetsCircularState(t *testing.T) {
 	n2 := newTestNode(1)
 	n2.SetCircular(true)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
-		return []bitarray.BitArray{bitarray.NewBitArray(dp.MaxNode())}
+	dp.baFactory = func(node INode) bitarray.BitArray {
+		return bitarray.NewBitArray(dp.MaxNode())
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
@@ -182,7 +182,7 @@ func TestGetSubgraphResetsMixedCircular(t *testing.T) {
 	n3 := newTestNode(2)
 	n3.SetCircular(true)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(0)
@@ -190,7 +190,7 @@ func TestGetSubgraphResetsMixedCircular(t *testing.T) {
 			ba.SetBit(1)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2, n3})
@@ -206,10 +206,10 @@ func BenchmarkGetSubgraph(b *testing.B) {
 	numItems := uint64(1000)
 
 	nodes := make(Nodes, 0, numItems)
-	dependencyMap := make(map[uint64][]bitarray.BitArray, numItems)
+	dependencyMap := make(map[uint64]bitarray.BitArray, numItems)
 	dp := newTestDependencyProvider()
 	dp.maxNode = numItems
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		return dependencyMap[node.ID()]
 	}
 
@@ -221,7 +221,7 @@ func BenchmarkGetSubgraph(b *testing.B) {
 			ba.SetBit(j)
 		}
 
-		dependencyMap[n.ID()] = []bitarray.BitArray{ba}
+		dependencyMap[n.ID()] = ba
 		nodes = append(nodes, n)
 	}
 
@@ -270,7 +270,7 @@ func TestGraphFromNodes(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(0)
@@ -281,7 +281,7 @@ func TestGraphFromNodes(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	graph := FromNodes(dp, Nodes{n1, n2, n3, n4})
@@ -308,7 +308,7 @@ func TestGetEntireSubgraphFromGraph(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(0)
@@ -319,7 +319,7 @@ func TestGetEntireSubgraphFromGraph(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	graph := FromNodes(dp, Nodes{n1, n2, n3, n4})
@@ -346,7 +346,7 @@ func TestGetSmallSubgraphFromGraph(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(0)
@@ -357,7 +357,7 @@ func TestGetSmallSubgraphFromGraph(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	graph := FromNodes(dp, Nodes{n1, n2, n3, n4})
@@ -381,7 +381,7 @@ func TestAddNodesWithNoDependents(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(0)
@@ -392,7 +392,7 @@ func TestAddNodesWithNoDependents(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, nil)
@@ -427,13 +427,13 @@ func TestAddNodesWithDependents(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
-		return []bitarray.BitArray{bitarray.NewBitArray(dp.maxNode)}
+	dp.baFactory = func(node INode) bitarray.BitArray {
+		return bitarray.NewBitArray(dp.maxNode)
 	}
 
 	g := FromNodes(dp, Nodes{n2})
 	dp.dependents = Nodes{n2}
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.MaxNode())
 		if node == n2 {
 			ba.SetBit(0)
@@ -444,7 +444,7 @@ func TestAddNodesWithDependents(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	eg := g.AddNodes(dp, Nodes{n1, n3, n4})
@@ -474,14 +474,14 @@ func TestAddNodesWithCircularDependents(t *testing.T) {
 	n2 := newTestNode(1)
 	n3 := newTestNode(2)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.maxNode)
 		if node == n1 {
 			ba.SetBit(1)
 		} else {
 			ba.SetBit(0)
 		}
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
@@ -538,7 +538,7 @@ func TestRemoveNodes(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.maxNode)
 		if node == n2 || node == n3 {
 			ba.SetBit(0)
@@ -547,7 +547,7 @@ func TestRemoveNodes(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2, n3, n4})
@@ -580,7 +580,7 @@ func TestRemoveNodesWithCircular(t *testing.T) {
 	n3 := newTestNode(2)
 	n4 := newTestNode(3)
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.maxNode)
 		if node == n1 {
 			ba.SetBit(3)
@@ -592,14 +592,14 @@ func TestRemoveNodesWithCircular(t *testing.T) {
 			ba.SetBit(2)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2, n3, n4})
 	assert.Equal(t, -1, g.maxLayer)
 	assert.Equal(t, -1, g.positions.highestSeen())
 
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		ba := bitarray.NewBitArray(dp.maxNode)
 		if node == n2 {
 			ba.SetBit(0)
@@ -607,7 +607,7 @@ func TestRemoveNodesWithCircular(t *testing.T) {
 			ba.SetBit(1)
 		}
 
-		return []bitarray.BitArray{ba}
+		return ba
 	}
 
 	eg := g.RemoveNodes(dp, Nodes{n4})
@@ -634,10 +634,10 @@ func BenchmarkPreIndexedFlattening(b *testing.B) {
 	numItems := uint64(1000)
 
 	nodes := make(Nodes, 0, numItems)
-	dependencyMap := make(map[uint64][]bitarray.BitArray, numItems)
+	dependencyMap := make(map[uint64]bitarray.BitArray, numItems)
 	dp := newTestDependencyProvider()
 	dp.maxNode = numItems
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		return dependencyMap[node.ID()]
 	}
 
@@ -649,7 +649,7 @@ func BenchmarkPreIndexedFlattening(b *testing.B) {
 			ba.SetBit(j)
 		}
 
-		dependencyMap[n.ID()] = []bitarray.BitArray{ba}
+		dependencyMap[n.ID()] = ba
 		nodes = append(nodes, n)
 	}
 
@@ -666,10 +666,10 @@ func BenchmarkFlattening(b *testing.B) {
 	numItems := uint64(1000)
 
 	nodes := make(Nodes, 0, numItems)
-	dependencyMap := make(map[uint64][]bitarray.BitArray, numItems)
+	dependencyMap := make(map[uint64]bitarray.BitArray, numItems)
 	dp := newTestDependencyProvider()
 	dp.maxNode = numItems
-	dp.baFactory = func(node INode) []bitarray.BitArray {
+	dp.baFactory = func(node INode) bitarray.BitArray {
 		return dependencyMap[node.ID()]
 	}
 
@@ -681,7 +681,7 @@ func BenchmarkFlattening(b *testing.B) {
 			ba.SetBit(j)
 		}
 
-		dependencyMap[n.ID()] = []bitarray.BitArray{ba}
+		dependencyMap[n.ID()] = ba
 		nodes = append(nodes, n)
 	}
 
