@@ -3,7 +3,7 @@ package augmentedtree
 import (
 	"sync"
 
-	"github.com/Workiva/gotable/structures/bitarray"
+	"github.com/Workiva/go-datastructures/bitarray"
 )
 
 var bitarrayPool = sync.Pool{
