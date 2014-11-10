@@ -1,6 +1,6 @@
 package graph
 
-import "github.com/Workiva/gotable/structures/bitarray"
+import "github.com/Workiva/go-datastructures/bitarray"
 
 // IExecutionGraph represents a subgraph that can have some function
 // applied across the nodes.

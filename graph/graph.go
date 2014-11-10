@@ -15,8 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Workiva/gotable/structures/bitarray"
-	"github.com/Workiva/gotable/structures/queue"
+	"github.com/Workiva/go-datastructures/bitarray"
+	"github.com/Workiva/go-datastructures/queue"
 )
 
 const (

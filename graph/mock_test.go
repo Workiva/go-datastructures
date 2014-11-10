@@ -1,6 +1,6 @@
 package graph
 
-import "github.com/Workiva/gotable/structures/bitarray"
+import "github.com/Workiva/go-datastructures/bitarray"
 
 type testDependencyProvider struct {
 	baFactory  func(node INode) []bitarray.BitArray
