@@ -176,25 +176,16 @@ type Graph struct {
 
 // GetSubgraph will return an execution graph that needs to be calculated
 // based on the supplied nodes.
-func (g *Graph) GetSubgraph(dp IDependencyProvider, nodes Nodes) *ExecutionGraph {
-	if float64(len(nodes))/float64(len(g.positions)) > goldenRatio {
-		// a large proportion of the graph needs to be recalculated
-		layers, circulars := g.positions.flatten(nodes)
-		flattened := make([]Nodes, 0, len(layers))
-		size := int64(len(circulars))
-		for _, layer := range layers {
-			flattened = append(flattened, layer.nodes)
-			size += int64(len(layer.nodes))
-		}
-
-		return &ExecutionGraph{
-			size:      size,
-			toApply:   flattened,
-			circulars: circulars,
-		}
+func (g *Graph) GetSubgraph(nodes Nodes) *ExecutionGraph {
+	// a large proportion of the graph needs to be recalculated
+	layers, circulars := g.positions.flatten(nodes)
+	flattened := make([]Nodes, 0, len(layers))
+	size := int64(len(circulars))
+	for _, layer := range layers {
+		flattened = append(flattened, layer.nodes)
+		size += int64(len(layer.nodes))
 	}
 
-	flattened, circulars, size := flatten(dp, nodes)
 	return &ExecutionGraph{
 		size:      size,
 		toApply:   flattened,

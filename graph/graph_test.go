@@ -39,7 +39,7 @@ func TestGetSimpleSubgraph(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
-	eg := g.GetSubgraph(dp, Nodes{n1, n2})
+	eg := g.GetSubgraph(Nodes{n1, n2})
 
 	assert.Equal(t, 2, eg.Size())
 	checkLayers(t, []Nodes{Nodes{n1}, Nodes{n2}}, eg.toApply)
@@ -57,7 +57,7 @@ func TestGetSubgraphSingleLayer(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
-	eg := g.GetSubgraph(dp, Nodes{n1, n2})
+	eg := g.GetSubgraph(Nodes{n1, n2})
 
 	assert.Equal(t, 2, eg.Size())
 	if !assert.Len(t, eg.toApply, 1) {
@@ -80,7 +80,7 @@ func TestGetSubgraphExternalDependency(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1})
-	eg := g.GetSubgraph(dp, Nodes{n1})
+	eg := g.GetSubgraph(Nodes{n1})
 
 	assert.Equal(t, 1, eg.Size())
 	checkLayers(t, []Nodes{Nodes{n1}}, eg.toApply)
@@ -105,7 +105,7 @@ func TestGetSubgraphWithAllCircularDependencies(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
-	eg := g.GetSubgraph(dp, Nodes{n1, n2})
+	eg := g.GetSubgraph(Nodes{n1, n2})
 
 	assert.Equal(t, 2, eg.Size())
 	assert.Len(t, eg.circulars, 2)
@@ -135,7 +135,7 @@ func TestGetSubgraphWithMixedCirculars(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2, n3})
-	eg := g.GetSubgraph(dp, Nodes{n1, n2, n3})
+	eg := g.GetSubgraph(Nodes{n1, n2, n3})
 
 	assert.Equal(t, 3, eg.Size())
 	checkLayers(t, []Nodes{Nodes{n1}}, eg.toApply)
@@ -160,7 +160,7 @@ func TestGetSubgraphResetsCircularState(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2})
-	eg := g.GetSubgraph(dp, Nodes{n1, n2})
+	eg := g.GetSubgraph(Nodes{n1, n2})
 
 	assert.Equal(t, 2, eg.Size())
 	if !assert.Len(t, eg.toApply, 1) {
@@ -194,7 +194,7 @@ func TestGetSubgraphResetsMixedCircular(t *testing.T) {
 	}
 
 	g := FromNodes(dp, Nodes{n1, n2, n3})
-	eg := g.GetSubgraph(dp, Nodes{n1, n2, n3})
+	eg := g.GetSubgraph(Nodes{n1, n2, n3})
 
 	assert.Equal(t, 3, eg.Size())
 	checkLayers(t, []Nodes{Nodes{n1}, Nodes{n2}, Nodes{n3}}, eg.toApply)
@@ -230,7 +230,7 @@ func BenchmarkGetSubgraph(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		g.GetSubgraph(dp, nodes)
+		g.GetSubgraph(nodes)
 	}
 }
 
@@ -324,7 +324,7 @@ func TestGetEntireSubgraphFromGraph(t *testing.T) {
 
 	graph := FromNodes(dp, Nodes{n1, n2, n3, n4})
 
-	eg := graph.GetSubgraph(dp, Nodes{n1, n2, n3, n4})
+	eg := graph.GetSubgraph(Nodes{n1, n2, n3, n4})
 	if !assert.Len(t, eg.toApply, 2) {
 		return
 	}
@@ -362,7 +362,7 @@ func TestGetSmallSubgraphFromGraph(t *testing.T) {
 
 	graph := FromNodes(dp, Nodes{n1, n2, n3, n4})
 
-	eg := graph.GetSubgraph(dp, Nodes{n1})
+	eg := graph.GetSubgraph(Nodes{n1})
 	if !assert.Len(t, eg.toApply, 1) {
 		return
 	}
