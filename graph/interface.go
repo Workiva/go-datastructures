@@ -7,12 +7,23 @@ import "github.com/Workiva/go-datastructures/bitarray"
 type IExecutionGraph interface {
 	// ParallelRecursivelyApply will apply the provided function in a parallel
 	// fashion to the nodes of this graph.  Return false to halt application.
-	ParallelRecursivelyApply(fn func(node INode) bool)
+	ParallelRecursivelyApply(fn func(node INode))
 	// RecursivelyApply will apply the supplied function in linear fashion.
 	// Return false to halt application.
-	RecursivelyApply(fn func(node INode) bool)
+	RecursivelyApply(fn func(node INode))
 	// Size returns the number of nodes in this graph.
 	Size() int64
+	// Circulars returns the circulars that are part of this execution graph.
+	Circulars() Nodes
+	// NumLayers returns the number of layers in this graph.
+	NumLayers() uint64
+	// Layer returns the layer at the specified index.  If the index
+	// is out of bounds, an error is returned.
+	Layer(index uint64) (Nodes, error)
+	// ParallelApplyLayer will (in parallel) apply the provided function
+	// to the nodes at the given index.  Returns an error if nodes
+	// do not exist at the given index.
+	ParallelApplyLayer(index uint64, fn func(INode)) error
 }
 
 // INode represents an object that can live within the graph.
