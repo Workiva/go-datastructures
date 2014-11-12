@@ -31,6 +31,7 @@ func (items *priorityItems) get(number int) []Item {
 		}
 
 		returnItems = append(returnItems, (*items)[i])
+		(*items)[i] = nil
 		index++
 	}
 
