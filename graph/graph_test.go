@@ -691,3 +691,40 @@ func BenchmarkFlattening(b *testing.B) {
 		flatten(dp, nodes)
 	}
 }
+
+func TestGetLowestNode(t *testing.T) {
+	dp := newTestDependencyProvider()
+	dp.maxNode = 2
+
+	n1 := newTestNode(0)
+	n2 := newTestNode(1)
+	n3 := newTestNode(2)
+
+	dp.baFactory = func(node INode) bitarray.BitArray {
+		ba := bitarray.NewBitArray(dp.MaxNode())
+		if node == n2 {
+			ba.SetBit(n1.ID())
+		} else if node == n3 {
+			ba.SetBit(n2.ID())
+		}
+
+		return ba
+	}
+
+	g := FromNodes(dp, Nodes{n1, n2, n3})
+
+	result := g.GetLowestNodes(Nodes{n1, n2, n3})
+	assert.Equal(t, Nodes{n1}, result)
+
+	result = g.GetLowestNodes(Nodes{n3, n2, n1})
+	assert.Equal(t, Nodes{n1}, result)
+
+	result = g.GetLowestNodes(Nodes{n3, n2})
+	assert.Equal(t, Nodes{n2}, result)
+
+	result = g.GetLowestNodes(Nodes{n3})
+	assert.Equal(t, Nodes{n3}, result)
+
+	result = g.GetLowestNodes(nil)
+	assert.Nil(t, result)
+}

@@ -193,6 +193,43 @@ func (g *Graph) GetSubgraph(nodes Nodes) *ExecutionGraph {
 	}
 }
 
+// GetLowestNodes will return a list of nodes that match
+// the lowest layer of the nodes provided.
+func (g *Graph) GetLowestNodes(nodes Nodes) Nodes {
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	toReturn := make(Nodes, 0, len(nodes))
+	isSet := false
+	lowest := int64(0)
+
+	for _, node := range nodes {
+		nb := g.positions[node.ID()]
+		if nb == nil {
+			log.Printf(`Node flattened that hasn't been added: %+v`, node)
+			continue
+		}
+
+		if !isSet {
+			isSet = true
+			toReturn = append(toReturn, node)
+			lowest = nb.position
+			continue
+		}
+
+		if nb.position == lowest {
+			toReturn = append(toReturn, node)
+		} else if nb.position < lowest {
+			toReturn = toReturn[:0]
+			toReturn = append(toReturn, node)
+			lowest = nb.position
+		}
+	}
+
+	return toReturn
+}
+
 // AddNodes will add the provided nodes to the flattened index
 // of the graph and return an execution graph that is ready to
 // be calculated.
