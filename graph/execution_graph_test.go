@@ -33,9 +33,8 @@ func TestParallelRecursivelyApply(t *testing.T) {
 
 	numCalls := int64(0)
 
-	g.ParallelRecursivelyApply(func(INode) bool {
+	g.ParallelRecursivelyApply(func(INode) {
 		atomic.AddInt64(&numCalls, 1)
-		return true
 	})
 
 	if numCalls != expectedNumCalls {
@@ -56,9 +55,8 @@ func TestParallelRecursivelyApplyOneLayer(t *testing.T) {
 	g.toApply = []Nodes{nodes}
 	numCalls := int64(0)
 
-	g.ParallelRecursivelyApply(func(INode) bool {
+	g.ParallelRecursivelyApply(func(INode) {
 		atomic.AddInt64(&numCalls, 1)
-		return true
 	})
 
 	if numCalls != int64(numItems) {
@@ -73,23 +71,12 @@ func TestRecursivelyApply(t *testing.T) {
 
 	numCalls := 0
 
-	g.RecursivelyApply(func(node INode) bool {
+	g.RecursivelyApply(func(node INode) {
 		numCalls++
-		return true
 	})
 
 	if numCalls != 2 {
 		t.Errorf(`Expected num calls: %d, received: %d`, 2, numCalls)
-	}
-
-	numCalls = 0
-	g.RecursivelyApply(func(node INode) bool {
-		numCalls++
-		return false
-	})
-
-	if numCalls != 1 {
-		t.Errorf(`Expected num calls: %d, received: %d`, 1, numCalls)
 	}
 }
 
@@ -101,9 +88,8 @@ func TestApplyWithCirculars(t *testing.T) {
 
 	numCalls := 0
 
-	g.RecursivelyApply(func(node INode) bool {
+	g.RecursivelyApply(func(node INode) {
 		numCalls++
-		return true
 	})
 
 	assert.Equal(t, 3, numCalls)
@@ -138,10 +124,70 @@ func TestParallelApplyWithCirculars(t *testing.T) {
 
 	numCalls := int64(0)
 
-	g.ParallelRecursivelyApply(func(INode) bool {
+	g.ParallelRecursivelyApply(func(INode) {
 		atomic.AddInt64(&numCalls, 1)
-		return true
 	})
 
 	assert.Equal(t, expectedNumCalls, numCalls)
+}
+
+func TestCirculars(t *testing.T) {
+	g := newExecutionGraph()
+	nodes := Nodes{newTestNode(1)}
+	g.circulars = nodes
+
+	assert.Equal(t, nodes, g.Circulars())
+}
+
+func TestLayer(t *testing.T) {
+	eg := newExecutionGraph()
+	n1 := Nodes{newTestNode(1)}
+	n2 := Nodes{newTestNode(2)}
+
+	eg.toApply = []Nodes{n1, n2}
+
+	result, err := eg.Layer(0)
+	assert.Equal(t, n1, result)
+	assert.Nil(t, err)
+
+	result, err = eg.Layer(2)
+	assert.NotNil(t, err)
+	assert.Nil(t, result)
+}
+
+func TestNumLayers(t *testing.T) {
+	eg := newExecutionGraph()
+	n1 := Nodes{newTestNode(1)}
+	n2 := Nodes{newTestNode(2)}
+
+	assert.Equal(t, 0, eg.NumLayers())
+
+	eg.toApply = []Nodes{n1, n2}
+
+	assert.Equal(t, 2, eg.NumLayers())
+}
+
+func TestApplyLayer(t *testing.T) {
+	eg := newExecutionGraph()
+	n0 := newTestNode(0)
+	n1 := newTestNode(1)
+
+	eg.toApply = []Nodes{Nodes{n0}, Nodes{n1}}
+
+	var called INode
+
+	err := eg.ParallelApplyLayer(0, func(n INode) {
+		called = n
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, n0, called)
+	called = nil
+
+	err = eg.ParallelApplyLayer(3, func(n INode) {
+		called = n
+	})
+
+	assert.Nil(t, called)
+	assert.NotNil(t, err)
 }
