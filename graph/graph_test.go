@@ -728,3 +728,32 @@ func TestGetLowestNode(t *testing.T) {
 	result = g.GetLowestNodes(nil)
 	assert.Nil(t, result)
 }
+
+func TestFindUniqueDependencies(t *testing.T) {
+	dp := newTestDependencyProvider()
+	dp.maxNode = 2
+
+	n1 := newTestNode(0)
+	n2 := newTestNode(1)
+	n3 := newTestNode(2)
+
+	dp.baFactory = func(node INode) bitarray.BitArray {
+		ba := bitarray.NewBitArray(dp.MaxNode())
+		if node == n2 {
+			ba.SetBit(n1.ID())
+		} else if node == n3 {
+			ba.SetBit(n2.ID())
+			ba.SetBit(n1.ID())
+		}
+
+		return ba
+	}
+
+	g := FromNodes(dp, Nodes{n1, n2, n3})
+
+	result := g.findUniqueDependencies(dp, Nodes{n2, n3})
+	assert.Equal(t, Nodes{n1}, result)
+
+	result = g.findUniqueDependencies(dp, nil)
+	assert.Nil(t, result)
+}

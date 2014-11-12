@@ -256,6 +256,59 @@ func (g *Graph) AddNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph {
 	}
 }
 
+func (g *Graph) findUniqueDependencies(dp IDependencyProvider, nodes Nodes) Nodes {
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	ba := bitarray.NewSparseBitArray()
+	for _, node := range nodes {
+		ba.SetBit(node.ID())
+	}
+	ids := make([]uint64, 0, len(nodes))
+	chunks := nodes.Split()
+	var lock sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(chunks))
+	for _, chunk := range chunks {
+		go func(nodes Nodes) {
+			for _, node := range nodes {
+				deps := dp.GetDependencies(node)
+				if deps == nil {
+					continue
+				}
+
+				uints := deps.ToNums()
+				lock.Lock()
+				for _, id := range uints {
+					if ok, _ := ba.GetBit(id); ok {
+						continue
+					}
+
+					ids = append(ids, id)
+					ba.SetBit(id)
+				}
+				lock.Unlock()
+			}
+			wg.Done()
+		}(chunk)
+	}
+
+	wg.Wait()
+
+	deps := make(Nodes, 0, len(ids))
+	for _, id := range ids {
+		nb := g.positions[id]
+		if nb == nil {
+			continue
+		}
+
+		deps = append(deps, nb.INode)
+	}
+
+	return deps
+}
+
 // RemoveNodes will remove the provided nodes from the graph.
 func (g *Graph) RemoveNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph {
 	if len(nodes) == 0 {
