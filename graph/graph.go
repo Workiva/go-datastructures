@@ -100,6 +100,34 @@ func (positions positions) lowest(nodes Nodes) int64 {
 	return lowest
 }
 
+func (positions positions) highest(nodes Nodes) int64 {
+	if len(nodes) == 0 {
+		return -1
+	}
+
+	firstRun := true
+	highest := int64(-1)
+
+	for _, node := range nodes {
+		nb := positions[node.ID()]
+		if nb == nil {
+			continue
+		}
+
+		if firstRun {
+			firstRun = false
+			highest = nb.position
+			continue
+		}
+
+		if nb.position > highest {
+			highest = nb.position
+		}
+	}
+
+	return highest
+}
+
 // returns the highest position seen in the index
 func (positions positions) highestSeen() int64 {
 	highest := int64(-1)
@@ -172,6 +200,7 @@ func (positions positions) flatten(nodes Nodes) (layers, Nodes) {
 type Graph struct {
 	positions positions
 	maxLayer  int64
+	numItems  uint64
 }
 
 // GetSubgraph will return an execution graph that needs to be calculated
@@ -235,6 +264,7 @@ func (g *Graph) GetLowestNodes(nodes Nodes) Nodes {
 // be calculated.
 func (g *Graph) AddNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph {
 	dependentNodes := dp.GetDependents(nodes)
+
 	highest := nodes.Highest()
 
 	// want to make sure we don't overflow here
@@ -243,7 +273,11 @@ func (g *Graph) AddNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph {
 		g.positions = append(g.positions, make(positions, diff+1)...)
 	}
 
-	lowest := g.positions.lowest(dependentNodes)
+	var lowest int64
+	if len(g.positions) > 0 && uint64(len(dependentNodes)) < g.numItems {
+		dependencyNodes := g.findUniqueDependencies(dp, nodes)
+		lowest = g.positions.highest(dependencyNodes) + 1
+	}
 
 	dependentNodes = append(dependentNodes, nodes...)
 	flattened, circulars, size := flatten(dp, dependentNodes)
@@ -317,6 +351,9 @@ func (g *Graph) RemoveNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph
 
 	lowest := g.positions.lowest(nodes)
 	for _, node := range nodes {
+		if g.positions[node.ID()] != nil {
+			g.numItems--
+		}
 		g.positions[node.ID()] = nil // kill these first
 	}
 
@@ -353,6 +390,9 @@ func (g *Graph) insert(flattened []Nodes, circulars Nodes, offset int64) {
 	maxLayer := int64(-1)
 	for i, nodes := range flattened {
 		for _, node := range nodes {
+			if g.positions[node.ID()] == nil {
+				g.numItems++
+			}
 			g.positions[node.ID()] = &bundle{
 				INode:    node,
 				position: int64(i) + offset,
