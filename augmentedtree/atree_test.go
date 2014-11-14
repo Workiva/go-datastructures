@@ -96,12 +96,12 @@ func checkRedBlack(tb testing.TB, node *node, dimension int) (int64, int64, int6
 	return 0, node.min, node.max
 }
 
-func TestSimpleInsertNilRoot(t *testing.T) {
+func TestSimpleAddNilRoot(t *testing.T) {
 	it := newTree(1)
 
 	iv := constructSingleDimensionInterval(5, 10, 0)
 
-	it.Insert(iv)
+	it.Add(iv)
 
 	expected := newNode(iv, 5, 10, 1)
 	expected.red = false
@@ -111,17 +111,17 @@ func TestSimpleInsertNilRoot(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 }
 
-func TestSimpleInsertRootLeft(t *testing.T) {
+func TestSimpleAddRootLeft(t *testing.T) {
 	it := newTree(1)
 
 	iv := constructSingleDimensionInterval(5, 10, 0)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedRoot := newNode(iv, 4, 11, 1)
 	expectedRoot.red = false
 
 	iv = constructSingleDimensionInterval(4, 11, 1)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedChild := newNode(iv, 4, 11, 1)
 	expectedRoot.children[0] = expectedChild
@@ -131,17 +131,17 @@ func TestSimpleInsertRootLeft(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 }
 
-func TestSimpleInsertRootRight(t *testing.T) {
+func TestSimpleAddRootRight(t *testing.T) {
 	it := newTree(1)
 
 	iv := constructSingleDimensionInterval(5, 10, 0)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedRoot := newNode(iv, 5, 11, 1)
 	expectedRoot.red = false
 
 	iv = constructSingleDimensionInterval(7, 11, 1)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedChild := newNode(iv, 7, 11, 1)
 	expectedRoot.children[1] = expectedChild
@@ -151,23 +151,23 @@ func TestSimpleInsertRootRight(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 }
 
-func TestInsertRootLeftAndRight(t *testing.T) {
+func TestAddRootLeftAndRight(t *testing.T) {
 	it := newTree(1)
 
 	iv := constructSingleDimensionInterval(5, 10, 0)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedRoot := newNode(iv, 4, 12, 1)
 	expectedRoot.red = false
 
 	iv = constructSingleDimensionInterval(4, 11, 1)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedLeft := newNode(iv, 4, 11, 1)
 	expectedRoot.children[0] = expectedLeft
 
 	iv = constructSingleDimensionInterval(7, 12, 1)
-	it.Insert(iv)
+	it.Add(iv)
 
 	expectedRight := newNode(iv, 7, 12, 1)
 	expectedRoot.children[1] = expectedRight
@@ -177,12 +177,12 @@ func TestInsertRootLeftAndRight(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 }
 
-func TestInsertRebalanceInOrder(t *testing.T) {
+func TestAddRebalanceInOrder(t *testing.T) {
 	it := newTree(1)
 
 	for i := int64(0); i < 10; i++ {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
-		it.insert(iv)
+		it.add(iv)
 	}
 
 	checkRedBlack(t, it.root, 1)
@@ -191,12 +191,12 @@ func TestInsertRebalanceInOrder(t *testing.T) {
 	assert.Equal(t, 10, it.Len())
 }
 
-func TestInsertRebalanceOutOfOrder(t *testing.T) {
+func TestAddRebalanceOutOfOrder(t *testing.T) {
 	it := newTree(1)
 
 	for i := int64(9); i >= 0; i-- {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
-		it.insert(iv)
+		it.add(iv)
 	}
 
 	checkRedBlack(t, it.root, 1)
@@ -205,14 +205,14 @@ func TestInsertRebalanceOutOfOrder(t *testing.T) {
 	assert.Equal(t, 10, it.Len())
 }
 
-func TestInsertRebalanceRandomOrder(t *testing.T) {
+func TestAddRebalanceRandomOrder(t *testing.T) {
 	it := newTree(1)
 
 	starts := []int64{0, 4, 2, 1, 3}
 
 	for _, start := range starts {
 		iv := constructSingleDimensionInterval(start, start+1, uint64(start))
-		it.insert(iv)
+		it.add(iv)
 	}
 
 	checkRedBlack(t, it.root, 1)
@@ -221,13 +221,13 @@ func TestInsertRebalanceRandomOrder(t *testing.T) {
 	assert.Equal(t, 5, it.Len())
 }
 
-func TestInsertLargeNumberOfItems(t *testing.T) {
+func TestAddLargeNumberOfItems(t *testing.T) {
 	numItems := int64(1000)
 	it := newTree(1)
 
 	for i := int64(0); i < numItems; i++ {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
-		it.insert(iv)
+		it.add(iv)
 	}
 
 	checkRedBlack(t, it.root, 1)
@@ -236,7 +236,7 @@ func TestInsertLargeNumberOfItems(t *testing.T) {
 	assert.Equal(t, numItems, it.Len())
 }
 
-func BenchmarkInsertItems(b *testing.B) {
+func BenchmarkAddItems(b *testing.B) {
 	numItems := int64(1000)
 	intervals := make(Intervals, 0, numItems)
 
@@ -249,7 +249,7 @@ func BenchmarkInsertItems(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		it := newTree(1)
-		it.Insert(intervals...)
+		it.Add(intervals...)
 	}
 }
 
@@ -263,7 +263,7 @@ func BenchmarkQueryItems(b *testing.B) {
 	}
 
 	it := newTree(1)
-	it.Insert(intervals...)
+	it.Add(intervals...)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -277,13 +277,13 @@ func constructSingleDimensionQueryTestTree() (
 	it := newTree(1)
 
 	iv1 := constructSingleDimensionInterval(5, 10, 0)
-	it.Insert(iv1)
+	it.Add(iv1)
 
 	iv2 := constructSingleDimensionInterval(4, 5, 1)
-	it.Insert(iv2)
+	it.Add(iv2)
 
 	iv3 := constructSingleDimensionInterval(7, 12, 2)
-	it.Insert(iv3)
+	it.Add(iv3)
 
 	return it, iv1, iv2, iv3
 }
@@ -354,7 +354,7 @@ func TestAllQuery(t *testing.T) {
 func TestQueryDuplicate(t *testing.T) {
 	it, _, iv2, _ := constructSingleDimensionQueryTestTree()
 	iv4 := constructSingleDimensionInterval(4, 5, 3)
-	it.Insert(iv4)
+	it.Add(iv4)
 
 	result := it.Query(constructSingleDimensionInterval(4, 5, 0))
 
@@ -365,7 +365,7 @@ func TestQueryDuplicate(t *testing.T) {
 func TestRootDelete(t *testing.T) {
 	it := newTree(1)
 	iv := constructSingleDimensionInterval(1, 5, 1)
-	it.insert(iv)
+	it.add(iv)
 
 	it.Delete(iv)
 
@@ -421,7 +421,7 @@ func TestDeleteRebalanceInOrder(t *testing.T) {
 
 	for i := int64(0); i < 10; i++ {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
-		it.insert(iv)
+		it.add(iv)
 		if i == 5 {
 			toDelete = iv
 		}
@@ -441,7 +441,7 @@ func TestDeleteRebalanceOutOfOrder(t *testing.T) {
 	var toDelete *mockInterval
 	for i := int64(9); i >= 0; i-- {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
-		it.insert(iv)
+		it.add(iv)
 		if i == 5 {
 			toDelete = iv
 		}
@@ -463,7 +463,7 @@ func TestDeleteRebalanceRandomOrder(t *testing.T) {
 	var toDelete *mockInterval
 	for _, start := range starts {
 		iv := constructSingleDimensionInterval(start, start+1, uint64(start))
-		it.insert(iv)
+		it.add(iv)
 		if start == 1 {
 			toDelete = iv
 		}
@@ -497,7 +497,7 @@ func BenchmarkDeleteItems(b *testing.B) {
 	trees := make([]*tree, 0, b.N)
 	for i := 0; i < b.N; i++ {
 		it := newTree(1)
-		it.Insert(intervals...)
+		it.Add(intervals...)
 		trees = append(trees, it)
 	}
 
@@ -530,19 +530,19 @@ func TestMin(t *testing.T) {
 	assert.Equal(t, 0, it.Min(1))
 }
 
-func TestInsertDuplicateRanges(t *testing.T) {
+func TestAddDuplicateRanges(t *testing.T) {
 	it := newTree(1)
 	iv1 := constructSingleDimensionInterval(0, 10, 1)
 	iv2 := constructSingleDimensionInterval(0, 10, 2)
 	iv3 := constructSingleDimensionInterval(0, 10, 3)
 
-	it.Insert(iv1, iv2, iv3)
+	it.Add(iv1, iv2, iv3)
 	it.Delete(iv1, iv2, iv3)
 
 	assert.Equal(t, 0, it.Len())
 }
 
-func TestInsertDeleteDuplicatesRebalanceInOrder(t *testing.T) {
+func TestAddDeleteDuplicatesRebalanceInOrder(t *testing.T) {
 	it := newTree(1)
 
 	intervals := make(Intervals, 0, 10)
@@ -552,13 +552,13 @@ func TestInsertDeleteDuplicatesRebalanceInOrder(t *testing.T) {
 		intervals = append(intervals, iv)
 	}
 
-	it.Insert(intervals...)
+	it.Add(intervals...)
 	it.Delete(intervals...)
 
 	assert.Equal(t, 0, it.Len())
 }
 
-func TestInsertDeleteDuplicatesRebalanceReverseOrder(t *testing.T) {
+func TestAddDeleteDuplicatesRebalanceReverseOrder(t *testing.T) {
 	it := newTree(1)
 
 	intervals := make(Intervals, 0, 10)
@@ -568,13 +568,13 @@ func TestInsertDeleteDuplicatesRebalanceReverseOrder(t *testing.T) {
 		intervals = append(intervals, iv)
 	}
 
-	it.Insert(intervals...)
+	it.Add(intervals...)
 	it.Delete(intervals...)
 
 	assert.Equal(t, 0, it.Len())
 }
 
-func TestInsertDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
+func TestAddDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
 	it := newTree(1)
 
 	starts := []int{0, 4, 2, 1, 3}
@@ -585,7 +585,7 @@ func TestInsertDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
 		intervals = append(intervals, iv)
 	}
 
-	it.Insert(intervals...)
+	it.Add(intervals...)
 	it.Delete(intervals...)
 
 	assert.Equal(t, 0, it.Len())

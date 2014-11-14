@@ -19,15 +19,15 @@ type multiDimensionalTree struct {
 	chunks     []trees
 }
 
-// Insert will insert the provided intervals into the tree.
-func (mdt *multiDimensionalTree) Insert(intervals ...Interval) {
+// Add will insert the provided intervals into the tree.
+func (mdt *multiDimensionalTree) Add(intervals ...Interval) {
 	var wg sync.WaitGroup
 	wg.Add(len(mdt.chunks))
 
 	for _, chunk := range mdt.chunks {
 		go func(trees trees) {
 			for _, tree := range trees {
-				tree.Insert(intervals...)
+				tree.Add(intervals...)
 			}
 
 			wg.Done()

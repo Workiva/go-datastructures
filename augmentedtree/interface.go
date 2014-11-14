@@ -23,8 +23,8 @@ type Interval interface {
 // the returned tree could be a single dimension or many
 // dimensions.
 type Tree interface {
-	// Inserts will add the provided intervals to the tree.
-	Insert(intervals ...Interval)
+	// Add will add the provided intervals to the tree.
+	Add(intervals ...Interval)
 	// Len returns the number of intervals in the tree.
 	Len() uint64
 	// Max returns the rightmost bound in the tree at the provided dimension.

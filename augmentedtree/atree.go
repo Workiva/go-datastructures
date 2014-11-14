@@ -121,8 +121,8 @@ func (tree *tree) Len() uint64 {
 	return tree.number
 }
 
-// insert will add the provided interval to the tree.
-func (tree *tree) insert(iv Interval) {
+// add will add the provided interval to the tree.
+func (tree *tree) add(iv Interval) {
 	if tree.root == nil {
 		tree.root = newNode(
 			iv, iv.LowAtDimension(tree.dimension),
@@ -195,10 +195,10 @@ func (tree *tree) insert(iv Interval) {
 	tree.root.red = false
 }
 
-// Insert will add the provided intervals to this tree.
-func (tree *tree) Insert(intervals ...Interval) {
+// Add will add the provided intervals to this tree.
+func (tree *tree) Add(intervals ...Interval) {
 	for _, iv := range intervals {
-		tree.insert(iv)
+		tree.add(iv)
 	}
 }
 
