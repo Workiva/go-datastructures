@@ -112,3 +112,39 @@ func (nodes *orderedNodes) getOrAdd(entry Entry,
 	(*nodes)[i] = node
 	return node, true
 }
+
+func (nodes orderedNodes) flatten(entries *Entries) {
+	for _, node := range nodes {
+		if node.orderedNodes != nil {
+			node.orderedNodes.flatten(entries)
+		} else {
+			*entries = append(*entries, node.entry)
+		}
+	}
+}
+
+func (nodes *orderedNodes) insert(insertDimension, dimension, maxDimension uint64,
+	index, number int64, modified, deleted *Entries) {
+
+	lastDimension := isLastDimension(maxDimension, dimension)
+	if insertDimension == dimension {
+		i := nodes.search(index)
+		for j := i; j < len(*nodes); j++ {
+			(*nodes)[j].value += number
+			if lastDimension {
+				*modified = append(*modified, (*nodes)[j].entry)
+			} else {
+				(*nodes)[j].orderedNodes.flatten(modified)
+			}
+		}
+
+		return
+	}
+
+	for _, node := range *nodes {
+		node.orderedNodes.insert(
+			insertDimension, dimension+1, maxDimension,
+			index, number, modified, deleted,
+		)
+	}
+}

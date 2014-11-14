@@ -143,6 +143,29 @@ func (ot *orderedTree) Query(interval Interval) Entries {
 	return entries
 }
 
+// InsertAtDimension will increment items at and above the given index
+// by the number provided.  Provide a negative number to to decrement.
+// Returned are two lists.  The first list is a list of entries that
+// were moved.  The second is a list entries that were deleted.  These
+// lists are exclusive.
+func (ot *orderedTree) InsertAtDimension(dimension uint64,
+	index, number int64) (Entries, Entries) {
+
+	// TODO: perhaps return an error here?
+	if dimension > ot.dimensions {
+		return nil, nil
+	}
+
+	modified := make(Entries, 0, 100)
+	deleted := make(Entries, 0, 100)
+
+	ot.top.insert(dimension, 1, ot.dimensions,
+		index, number, &modified, &deleted,
+	)
+
+	return modified, deleted
+}
+
 func newOrderedTree(dimensions uint64) *orderedTree {
 	return &orderedTree{
 		dimensions: dimensions,

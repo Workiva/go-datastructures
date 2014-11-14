@@ -33,4 +33,10 @@ type RangeTree interface {
 	// cancel iteration.  Altering the entry in such a way that its location
 	// changes will result in undefined behavior.
 	Apply(interval Interval, fn func(Entry) bool)
+	// InsertAtDimension will increment items at and above the given index
+	// by the number provided.  Provide a negative number to to decrement.
+	// Returned are two lists.  The first list is a list of entries that
+	// were moved.  The second is a list entries that were deleted.  These
+	// lists are exclusive.
+	InsertAtDimension(dimension uint64, index, number int64) (Entries, Entries)
 }
