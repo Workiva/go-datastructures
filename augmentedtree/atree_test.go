@@ -637,7 +637,7 @@ func TestInsertMultipleAtDimension(t *testing.T) {
 func TestInsertAtLowestIndex(t *testing.T) {
 	tree, ivs := constructSingleDimensionTestTree(3)
 
-	modified, deleted := tree.Insert(1, 0, 1)
+	modified, deleted := tree.Insert(1, -1, 1)
 	assert.Equal(t, ivs[0:], modified)
 	assert.Len(t, deleted, 0)
 
@@ -696,4 +696,31 @@ func TestDeleteBelowLowestIndex(t *testing.T) {
 	checkRedBlack(t, tree.root, 1)
 	assert.Equal(t, 0, tree.root.min)
 	assert.Equal(t, 12, tree.root.max)
+}
+
+func TestInsertDeletesInterval(t *testing.T) {
+	tree, ivs := constructSingleDimensionTestTree(3)
+
+	modified, deleted := tree.Insert(1, 0, -10)
+	assert.Equal(t, ivs[1:], modified)
+	assert.Equal(t, ivs[:1], deleted)
+
+	result := tree.Query(constructSingleDimensionInterval(2, 10, 0))
+	assert.Len(t, result, 0)
+
+	result = tree.Query(constructSingleDimensionInterval(0, 2, 0))
+	assert.Equal(t, ivs[1:], result)
+
+	checkRedBlack(t, tree.root, 1)
+	assert.Equal(t, 2, tree.Len())
+	assert.Equal(t, 0, tree.root.min)
+	assert.Equal(t, 2, tree.root.max)
+}
+
+func TestInsertInvalidDimension(t *testing.T) {
+	tree, _ := constructSingleDimensionTestTree(3)
+
+	modified, deleted := tree.Insert(2, 0, 1)
+	assert.Len(t, deleted, 0)
+	assert.Len(t, modified, 0)
 }

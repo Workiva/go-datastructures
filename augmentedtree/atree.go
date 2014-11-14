@@ -321,8 +321,11 @@ func (tree *tree) Insert(dimension uint64,
 			n.high += count
 			mod = true
 		}
-		if n.low >= index {
+		if n.low > index {
 			n.low += count
+			if n.low < index {
+				n.low = index
+			}
 			mod = true
 		}
 
@@ -333,7 +336,7 @@ func (tree *tree) Insert(dimension uint64,
 		}
 	})
 
-	tree.number -= uint64(len(deleted))
+	tree.Delete(deleted...)
 
 	return modified, deleted
 }
