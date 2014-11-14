@@ -488,3 +488,38 @@ func TestAddDeleteDuplicatesRebalanceRandomOrderMultiDimensions(t *testing.T) {
 	assert.Equal(t, 0, it.dimensions[0].Len())
 	assert.Equal(t, 0, it.dimensions[1].Len())
 }
+
+func TestInsertPositiveMultipleDimensions(t *testing.T) {
+	// 5,10,4,5,7,12
+	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
+
+	modified, deleted := it.Insert(2, 0, 1)
+	assert.Len(t, deleted, 0)
+	assert.Equal(t, Intervals{iv2, iv1, iv3}, modified)
+
+	results := it.Query(constructMultiDimensionInterval(
+		0, &dimension{0, 100}, &dimension{0, 6}),
+	)
+	assert.NotContains(t, results, iv1)
+
+	checkMultiDimensionalRedBlack(t, it)
+}
+
+func TestDeleteShiftMultipleDimensions(t *testing.T) {
+	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
+
+	modified, deleted := it.Insert(2, 7, -12)
+	assert.Equal(t, Intervals{iv1}, modified)
+	assert.Equal(t, Intervals{iv3}, deleted)
+
+	for _, tree := range it.dimensions {
+		assert.Equal(t, 2, tree.Len())
+	}
+
+	result := it.Query(
+		constructMultiDimensionInterval(
+			0, &dimension{0, 10}, &dimension{0, 10},
+		),
+	)
+	assert.Equal(t, Intervals{iv2, iv1}, result)
+}

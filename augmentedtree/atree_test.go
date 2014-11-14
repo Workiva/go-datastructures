@@ -724,3 +724,39 @@ func TestInsertInvalidDimension(t *testing.T) {
 	assert.Len(t, deleted, 0)
 	assert.Len(t, modified, 0)
 }
+
+func TestDeleteMiddleOfRange(t *testing.T) {
+	tree, ivs := constructSingleDimensionTestTree(3)
+
+	modified, deleted := tree.Insert(1, 5, -10)
+	assert.Equal(t, ivs, modified)
+	assert.Len(t, deleted, 0)
+
+	checkRedBlack(t, tree.root, 1)
+	assert.Equal(t, 0, tree.root.min)
+	assert.Equal(t, 5, tree.root.max)
+}
+
+func BenchmarkInsertPositive(b *testing.B) {
+	numItems := 1000
+
+	tree, _ := constructSingleDimensionTestTree(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Insert(1, 0, 1)
+	}
+}
+
+func BenchmarkInsertNegative(b *testing.B) {
+	numItems := 1000
+
+	tree, _ := constructSingleDimensionTestTree(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Insert(1, 0, int64(numItems))
+	}
+}
