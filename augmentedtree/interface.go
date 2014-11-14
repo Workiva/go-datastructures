@@ -45,5 +45,5 @@ type Tree interface {
 	// intervals are automatically removed from the tree.  The tree
 	// does not alter the ranges on the intervals themselves, the consumer
 	// is expected to do that.
-	//Insert(dimension uint64, index, count int64) (Intervals, Intervals)
+	Insert(dimension uint64, index, count int64) (Intervals, Intervals)
 }
