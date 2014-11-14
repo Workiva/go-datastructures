@@ -127,15 +127,31 @@ func (nodes *orderedNodes) insert(insertDimension, dimension, maxDimension uint6
 	index, number int64, modified, deleted *Entries) {
 
 	lastDimension := isLastDimension(maxDimension, dimension)
+
 	if insertDimension == dimension {
 		i := nodes.search(index)
+		var toDelete []int
+
 		for j := i; j < len(*nodes); j++ {
 			(*nodes)[j].value += number
+			if (*nodes)[j].value < index {
+				toDelete = append(toDelete, j)
+				if lastDimension {
+					*deleted = append(*deleted, (*nodes)[j].entry)
+				} else {
+					(*nodes)[j].orderedNodes.flatten(deleted)
+				}
+				continue
+			}
 			if lastDimension {
 				*modified = append(*modified, (*nodes)[j].entry)
 			} else {
 				(*nodes)[j].orderedNodes.flatten(modified)
 			}
+		}
+
+		for _, index := range toDelete {
+			nodes.deleteAt(index)
 		}
 
 		return

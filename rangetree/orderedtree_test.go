@@ -387,3 +387,147 @@ func TestInsertMultiplePositiveIndexSecondDimension(t *testing.T) {
 	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{3, 10}))
 	assert.Equal(t, entries[1:], result)
 }
+
+func TestInsertNegativeIndexFirstDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(1, 1, -1)
+	assert.Equal(t, entries[1:2], deleted)
+	assert.Equal(t, entries[2:], modified)
+
+	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
+	assert.Equal(t, entries[2:], result)
+
+	result = tree.Query(constructMockInterval(dimension{2, 10}, dimension{1, 10}))
+	assert.Len(t, result, 0)
+}
+
+func TestInsertNegativeIndexSecondDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(2, 1, -1)
+	assert.Equal(t, entries[1:2], deleted)
+	assert.Equal(t, entries[2:], modified)
+
+	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
+	assert.Equal(t, entries[2:], result)
+
+	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
+	assert.Len(t, result, 0)
+}
+
+func TestInsertNegativeIndexOutOfBoundsFirstDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(1, 4, -1)
+	assert.Len(t, modified, 0)
+	assert.Len(t, deleted, 0)
+
+	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
+
+	assert.Equal(t, entries, result)
+}
+
+func TestInsertNegativeIndexOutOfBoundsSecondDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(2, 4, -1)
+	assert.Len(t, modified, 0)
+	assert.Len(t, deleted, 0)
+
+	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
+
+	assert.Equal(t, entries, result)
+}
+
+func TestInsertMultipleNegativeIndexFirstDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(1, 1, -2)
+	assert.Equal(t, entries[1:], deleted)
+	assert.Len(t, modified, 0)
+
+	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
+	assert.Len(t, result, 0)
+}
+
+func TestInsertMultipleNegativeIndexSecondDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(2, 1, -2)
+	assert.Equal(t, entries[1:], deleted)
+	assert.Len(t, modified, 0)
+
+	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
+	assert.Len(t, result, 0)
+}
+
+func TestInsertInvalidDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(3, 1, -1)
+	assert.Len(t, modified, 0)
+	assert.Len(t, deleted, 0)
+
+	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
+	assert.Equal(t, entries, result)
+}
+
+func TestInsertInvalidNumber(t *testing.T) {
+	tree, entries := constructMultiDimensionalOrderedTree(3)
+
+	modified, deleted := tree.InsertAtDimension(1, 1, 0)
+	assert.Len(t, modified, 0)
+	assert.Len(t, deleted, 0)
+
+	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
+	assert.Equal(t, entries, result)
+}
+
+func BenchmarkInsertFirstDimension(b *testing.B) {
+	numItems := uint64(100000)
+
+	tree, _ := constructMultiDimensionalOrderedTree(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.InsertAtDimension(1, 0, 1)
+	}
+}
+
+func BenchmarkInsertSecondDimension(b *testing.B) {
+	numItems := uint64(100000)
+
+	tree, _ := constructMultiDimensionalOrderedTree(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.InsertAtDimension(2, 0, 1)
+	}
+}
+
+func BenchmarkDeleteFirstDimension(b *testing.B) {
+	numItems := uint64(100000)
+
+	tree, _ := constructMultiDimensionalOrderedTree(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.InsertAtDimension(1, 0, -1)
+	}
+}
+
+func BenchmarkDeleteSecondDimension(b *testing.B) {
+	numItems := uint64(100000)
+
+	tree, _ := constructMultiDimensionalOrderedTree(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.InsertAtDimension(2, 0, -1)
+	}
+}

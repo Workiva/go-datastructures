@@ -152,7 +152,7 @@ func (ot *orderedTree) InsertAtDimension(dimension uint64,
 	index, number int64) (Entries, Entries) {
 
 	// TODO: perhaps return an error here?
-	if dimension > ot.dimensions {
+	if dimension > ot.dimensions || number == 0 {
 		return nil, nil
 	}
 
