@@ -13,7 +13,7 @@ func (nodes orderedNodes) search(value int64) int {
 	)
 }
 
-func (nodes *orderedNodes) insertAt(i int, node *node) bool {
+func (nodes *orderedNodes) addAt(i int, node *node) bool {
 	if i == len(*nodes) {
 		*nodes = append(*nodes, node)
 		return false
@@ -32,9 +32,9 @@ func (nodes *orderedNodes) insertAt(i int, node *node) bool {
 	return false
 }
 
-func (nodes *orderedNodes) insert(node *node) bool {
+func (nodes *orderedNodes) add(node *node) bool {
 	i := nodes.search(node.value)
-	return nodes.insertAt(i, node)
+	return nodes.addAt(i, node)
 }
 
 func (nodes *orderedNodes) deleteAt(i int) {
@@ -89,7 +89,7 @@ func (nodes orderedNodes) get(value int64) (*node, int) {
 	return nil, i
 }
 
-func (nodes *orderedNodes) getOrInsert(entry Entry,
+func (nodes *orderedNodes) getOrAdd(entry Entry,
 	dimension, lastDimension uint64) (*node, bool) {
 
 	isLastDimension := isLastDimension(lastDimension, dimension)

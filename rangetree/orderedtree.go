@@ -24,13 +24,13 @@ func (ot *orderedTree) needNextDimension() bool {
 	return ot.dimensions > 1
 }
 
-func (ot *orderedTree) insert(entry Entry) {
+func (ot *orderedTree) add(entry Entry) {
 	var node *node
 	list := &ot.top
 
 	for i := uint64(1); i <= ot.dimensions; i++ {
 		if isLastDimension(ot.dimensions, i) {
-			overwritten := list.insert(
+			overwritten := list.add(
 				newNode(entry.ValueAtDimension(i), entry, false),
 			)
 			if !overwritten {
@@ -38,19 +38,19 @@ func (ot *orderedTree) insert(entry Entry) {
 			}
 			break
 		}
-		node, _ = list.getOrInsert(entry, i, ot.dimensions)
+		node, _ = list.getOrAdd(entry, i, ot.dimensions)
 		list = &node.orderedNodes
 	}
 }
 
-// Insert will add the provided entries to the tree.
-func (ot *orderedTree) Insert(entries ...Entry) {
+// Add will add the provided entries to the tree.
+func (ot *orderedTree) Add(entries ...Entry) {
 	for _, entry := range entries {
 		if entry == nil {
 			continue
 		}
 
-		ot.insert(entry)
+		ot.add(entry)
 	}
 }
 
