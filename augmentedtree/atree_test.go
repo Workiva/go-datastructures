@@ -652,3 +652,48 @@ func TestInsertAtLowestIndex(t *testing.T) {
 	assert.Equal(t, 1, tree.root.min)
 	assert.Equal(t, 13, tree.root.max)
 }
+
+func TestDeleteSingleAtDimension(t *testing.T) {
+	tree, ivs := constructSingleDimensionTestTree(3)
+
+	modified, deleted := tree.Insert(1, 10, -1)
+	assert.Equal(t, ivs[1:], modified)
+	assert.Len(t, deleted, 0)
+
+	result := tree.Query(constructSingleDimensionInterval(10, 20, 0))
+	assert.Equal(t, ivs[2:], result)
+
+	result = tree.Query(constructSingleDimensionInterval(9, 20, 0))
+	assert.Equal(t, ivs, result)
+
+	checkRedBlack(t, tree.root, 1)
+
+	assert.Equal(t, 0, tree.root.min)
+	assert.Equal(t, 11, tree.root.max)
+}
+
+func TestDeleteBelowLowestIndex(t *testing.T) {
+	tree := newTree(1)
+
+	ivs := make(Intervals, 0, 3)
+	for i := int64(0); i < 3; i++ {
+		iv := constructSingleDimensionInterval(i+1, i+11, uint64(i))
+		ivs = append(ivs, iv)
+	}
+
+	tree.Add(ivs...)
+
+	modified, deleted := tree.Insert(1, 0, -1)
+	assert.Equal(t, ivs, modified)
+	assert.Len(t, deleted, 0)
+
+	result := tree.Query(constructSingleDimensionInterval(0, 1, 0))
+	assert.Equal(t, ivs[:1], result)
+
+	result = tree.Query(constructSingleDimensionInterval(0, 10, 0))
+	assert.Equal(t, ivs, result)
+
+	checkRedBlack(t, tree.root, 1)
+	assert.Equal(t, 0, tree.root.min)
+	assert.Equal(t, 12, tree.root.max)
+}
