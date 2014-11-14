@@ -163,6 +163,8 @@ func (ot *orderedTree) InsertAtDimension(dimension uint64,
 		index, number, &modified, &deleted,
 	)
 
+	ot.number -= uint64(len(deleted))
+
 	return modified, deleted
 }
 

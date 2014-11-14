@@ -400,6 +400,7 @@ func TestInsertNegativeIndexFirstDimension(t *testing.T) {
 
 	result = tree.Query(constructMockInterval(dimension{2, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
+	assert.Equal(t, 2, tree.Len())
 }
 
 func TestInsertNegativeIndexSecondDimension(t *testing.T) {
@@ -414,6 +415,7 @@ func TestInsertNegativeIndexSecondDimension(t *testing.T) {
 
 	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
 	assert.Len(t, result, 0)
+	assert.Equal(t, 2, tree.Len())
 }
 
 func TestInsertNegativeIndexOutOfBoundsFirstDimension(t *testing.T) {
@@ -426,6 +428,7 @@ func TestInsertNegativeIndexOutOfBoundsFirstDimension(t *testing.T) {
 	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 
 	assert.Equal(t, entries, result)
+	assert.Equal(t, 3, tree.Len())
 }
 
 func TestInsertNegativeIndexOutOfBoundsSecondDimension(t *testing.T) {
@@ -438,6 +441,7 @@ func TestInsertNegativeIndexOutOfBoundsSecondDimension(t *testing.T) {
 	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 
 	assert.Equal(t, entries, result)
+	assert.Equal(t, 3, tree.Len())
 }
 
 func TestInsertMultipleNegativeIndexFirstDimension(t *testing.T) {
@@ -449,6 +453,7 @@ func TestInsertMultipleNegativeIndexFirstDimension(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
+	assert.Equal(t, 1, tree.Len())
 }
 
 func TestInsertMultipleNegativeIndexSecondDimension(t *testing.T) {
@@ -460,6 +465,7 @@ func TestInsertMultipleNegativeIndexSecondDimension(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
+	assert.Equal(t, 1, tree.Len())
 }
 
 func TestInsertInvalidDimension(t *testing.T) {
