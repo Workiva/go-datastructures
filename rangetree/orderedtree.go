@@ -24,13 +24,13 @@ func (ot *orderedTree) needNextDimension() bool {
 	return ot.dimensions > 1
 }
 
-func (ot *orderedTree) insert(entry Entry) {
+func (ot *orderedTree) add(entry Entry) {
 	var node *node
 	list := &ot.top
 
 	for i := uint64(1); i <= ot.dimensions; i++ {
 		if isLastDimension(ot.dimensions, i) {
-			overwritten := list.insert(
+			overwritten := list.add(
 				newNode(entry.ValueAtDimension(i), entry, false),
 			)
 			if !overwritten {
@@ -38,19 +38,19 @@ func (ot *orderedTree) insert(entry Entry) {
 			}
 			break
 		}
-		node, _ = list.getOrInsert(entry, i, ot.dimensions)
+		node, _ = list.getOrAdd(entry, i, ot.dimensions)
 		list = &node.orderedNodes
 	}
 }
 
-// Insert will add the provided entries to the tree.
-func (ot *orderedTree) Insert(entries ...Entry) {
+// Add will add the provided entries to the tree.
+func (ot *orderedTree) Add(entries ...Entry) {
 	for _, entry := range entries {
 		if entry == nil {
 			continue
 		}
 
-		ot.insert(entry)
+		ot.add(entry)
 	}
 }
 
@@ -141,6 +141,31 @@ func (ot *orderedTree) Query(interval Interval) Entries {
 	})
 
 	return entries
+}
+
+// InsertAtDimension will increment items at and above the given index
+// by the number provided.  Provide a negative number to to decrement.
+// Returned are two lists.  The first list is a list of entries that
+// were moved.  The second is a list entries that were deleted.  These
+// lists are exclusive.
+func (ot *orderedTree) InsertAtDimension(dimension uint64,
+	index, number int64) (Entries, Entries) {
+
+	// TODO: perhaps return an error here?
+	if dimension > ot.dimensions || number == 0 {
+		return nil, nil
+	}
+
+	modified := make(Entries, 0, 100)
+	deleted := make(Entries, 0, 100)
+
+	ot.top.insert(dimension, 1, ot.dimensions,
+		index, number, &modified, &deleted,
+	)
+
+	ot.number -= uint64(len(deleted))
+
+	return modified, deleted
 }
 
 func newOrderedTree(dimensions uint64) *orderedTree {

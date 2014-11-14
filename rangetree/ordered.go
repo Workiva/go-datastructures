@@ -13,7 +13,7 @@ func (nodes orderedNodes) search(value int64) int {
 	)
 }
 
-func (nodes *orderedNodes) insertAt(i int, node *node) bool {
+func (nodes *orderedNodes) addAt(i int, node *node) bool {
 	if i == len(*nodes) {
 		*nodes = append(*nodes, node)
 		return false
@@ -32,9 +32,9 @@ func (nodes *orderedNodes) insertAt(i int, node *node) bool {
 	return false
 }
 
-func (nodes *orderedNodes) insert(node *node) bool {
+func (nodes *orderedNodes) add(node *node) bool {
 	i := nodes.search(node.value)
-	return nodes.insertAt(i, node)
+	return nodes.addAt(i, node)
 }
 
 func (nodes *orderedNodes) deleteAt(i int) {
@@ -89,7 +89,7 @@ func (nodes orderedNodes) get(value int64) (*node, int) {
 	return nil, i
 }
 
-func (nodes *orderedNodes) getOrInsert(entry Entry,
+func (nodes *orderedNodes) getOrAdd(entry Entry,
 	dimension, lastDimension uint64) (*node, bool) {
 
 	isLastDimension := isLastDimension(lastDimension, dimension)
@@ -111,4 +111,56 @@ func (nodes *orderedNodes) getOrInsert(entry Entry,
 	copy((*nodes)[i+1:], (*nodes)[i:])
 	(*nodes)[i] = node
 	return node, true
+}
+
+func (nodes orderedNodes) flatten(entries *Entries) {
+	for _, node := range nodes {
+		if node.orderedNodes != nil {
+			node.orderedNodes.flatten(entries)
+		} else {
+			*entries = append(*entries, node.entry)
+		}
+	}
+}
+
+func (nodes *orderedNodes) insert(insertDimension, dimension, maxDimension uint64,
+	index, number int64, modified, deleted *Entries) {
+
+	lastDimension := isLastDimension(maxDimension, dimension)
+
+	if insertDimension == dimension {
+		i := nodes.search(index)
+		var toDelete []int
+
+		for j := i; j < len(*nodes); j++ {
+			(*nodes)[j].value += number
+			if (*nodes)[j].value < index {
+				toDelete = append(toDelete, j)
+				if lastDimension {
+					*deleted = append(*deleted, (*nodes)[j].entry)
+				} else {
+					(*nodes)[j].orderedNodes.flatten(deleted)
+				}
+				continue
+			}
+			if lastDimension {
+				*modified = append(*modified, (*nodes)[j].entry)
+			} else {
+				(*nodes)[j].orderedNodes.flatten(modified)
+			}
+		}
+
+		for _, index := range toDelete {
+			nodes.deleteAt(index)
+		}
+
+		return
+	}
+
+	for _, node := range *nodes {
+		node.orderedNodes.insert(
+			insertDimension, dimension+1, maxDimension,
+			index, number, modified, deleted,
+		)
+	}
 }

@@ -6,14 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOrderedInsert(t *testing.T) {
+func TestOrderedAdd(t *testing.T) {
 	nodes := make(orderedNodes, 0)
 
 	n1 := newNode(4, constructMockEntry(1, 4), false)
 	n2 := newNode(1, constructMockEntry(2, 1), false)
 
-	nodes.insert(n1)
-	nodes.insert(n2)
+	nodes.add(n1)
+	nodes.add(n2)
 
 	assert.Equal(t, orderedNodes{n2, n1}, nodes)
 }
@@ -24,8 +24,8 @@ func TestOrderedDelete(t *testing.T) {
 	n1 := newNode(4, constructMockEntry(1, 4), false)
 	n2 := newNode(1, constructMockEntry(2, 1), false)
 
-	nodes.insert(n1)
-	nodes.insert(n2)
+	nodes.add(n1)
+	nodes.add(n2)
 
 	nodes.delete(n2.value)
 
@@ -42,8 +42,8 @@ func TestApply(t *testing.T) {
 	n1 := newNode(4, constructMockEntry(1, 4), false)
 	n2 := newNode(1, constructMockEntry(2, 1), false)
 
-	ns.insert(n1)
-	ns.insert(n2)
+	ns.add(n1)
+	ns.add(n2)
 
 	results := make(nodes, 0, 2)
 
