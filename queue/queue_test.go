@@ -2,6 +2,7 @@ package queue
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -289,4 +290,29 @@ func TestTakeUntilOnDisposedQueue(t *testing.T) {
 
 	assert.Nil(t, result)
 	assert.IsType(t, DisposedError{}, err)
+}
+
+func TestExecuteInParallel(t *testing.T) {
+	q := New(10)
+	for i := 0; i < 10; i++ {
+		q.Put(i)
+	}
+
+	numCalls := uint64(0)
+
+	ExecuteInParallel(q, func(interface{}) {
+		atomic.AddUint64(&numCalls, 1)
+	})
+
+	assert.Equal(t, 10, numCalls)
+	assert.True(t, q.Disposed())
+}
+
+func TestExecuteInParallelEmptyQueue(t *testing.T) {
+	q := New(1)
+
+	// basically just ensuring we don't deadlock here
+	ExecuteInParallel(q, func(interface{}) {
+		t.Fail()
+	})
 }

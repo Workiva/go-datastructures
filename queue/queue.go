@@ -1,6 +1,10 @@
 package queue
 
-import "sync"
+import (
+	"runtime"
+	"sync"
+	"sync/atomic"
+)
 
 type waiters []*sema
 
@@ -221,4 +225,40 @@ func New(hint int64) *Queue {
 	return &Queue{
 		items: make([]interface{}, 0, hint),
 	}
+}
+
+// ExecuteInParallel will (in parallel) call the provided function
+// with each item in the queue until the queue is exhausted.  When the queue
+// is exhausted execution is complete and all goroutines will be killed.
+// This means that the queue will be disposed so cannot be used again.
+func ExecuteInParallel(q *Queue, fn func(interface{})) {
+	todo, done := uint64(q.Len()), uint64(0)
+	// this is important or we might face an infinite loop
+	if todo == 0 {
+		return
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for {
+				items, err := q.Get(1)
+				if err != nil {
+					break
+				}
+
+				fn(items[0])
+
+				if atomic.AddUint64(&done, 1) == todo {
+					wg.Done()
+					break
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	q.Dispose()
 }
