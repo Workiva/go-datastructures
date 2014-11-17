@@ -19,15 +19,15 @@ type multiDimensionalTree struct {
 	chunks     []trees
 }
 
-// Insert will insert the provided intervals into the tree.
-func (mdt *multiDimensionalTree) Insert(intervals ...Interval) {
+// Add will insert the provided intervals into the tree.
+func (mdt *multiDimensionalTree) Add(intervals ...Interval) {
 	var wg sync.WaitGroup
 	wg.Add(len(mdt.chunks))
 
 	for _, chunk := range mdt.chunks {
 		go func(trees trees) {
 			for _, tree := range trees {
-				tree.Insert(intervals...)
+				tree.Add(intervals...)
 			}
 
 			wg.Done()
@@ -76,6 +76,36 @@ func (mdt *multiDimensionalTree) Min(dimension uint64) int64 {
 	}
 
 	return mdt.dimensions[dimension-1].Min(1)
+}
+
+// Insert will shift intervals in the tree based on the specified
+// index and the specified count.  Dimension specifies where to
+// apply the shift.  Returned is a list of intervals impacted and
+// list of intervals deleted.  Intervals are deleted if the shift
+// makes the interval size zero or less, ie, min >= max.  These
+// intervals are automatically removed from the tree.  The tree
+// does not alter the ranges on the intervals themselves, the consumer
+// is expected to do that.
+func (mdt *multiDimensionalTree) Insert(dimension uint64,
+	index, count int64) (Intervals, Intervals) {
+
+	dimension = dimension - 1
+
+	if dimension >= uint64(len(mdt.dimensions)) { // invalid dimension
+		return nil, nil
+	}
+
+	tree := mdt.dimensions[dimension]
+	modified, deleted := tree.Insert(1, index, count)
+	for i, tree := range mdt.dimensions {
+		if uint64(i) == dimension {
+			continue
+		}
+
+		tree.Delete(deleted...)
+	}
+
+	return modified, deleted
 }
 
 // Query will return a list of intervals that intersect the provided

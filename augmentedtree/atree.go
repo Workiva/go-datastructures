@@ -1,5 +1,7 @@
 package augmentedtree
 
+import "math"
+
 func overlaps(high, otherHigh, low, otherLow int64) bool {
 	return high > otherLow && low < otherHigh
 }
@@ -121,8 +123,8 @@ func (tree *tree) Len() uint64 {
 	return tree.number
 }
 
-// insert will add the provided interval to the tree.
-func (tree *tree) insert(iv Interval) {
+// add will add the provided interval to the tree.
+func (tree *tree) add(iv Interval) {
 	if tree.root == nil {
 		tree.root = newNode(
 			iv, iv.LowAtDimension(tree.dimension),
@@ -195,10 +197,10 @@ func (tree *tree) insert(iv Interval) {
 	tree.root.red = false
 }
 
-// Insert will add the provided intervals to this tree.
-func (tree *tree) Insert(intervals ...Interval) {
+// Add will add the provided intervals to this tree.
+func (tree *tree) Add(intervals ...Interval) {
 	for _, iv := range intervals {
-		tree.insert(iv)
+		tree.add(iv)
 	}
 }
 
@@ -281,6 +283,65 @@ func (tree *tree) delete(iv Interval) {
 	if tree.root != nil {
 		tree.root.red = false
 	}
+}
+
+// Insert will shift intervals in the tree based on the specified
+// index and the specified count.  Dimension specifies where to
+// apply the shift.  Returned is a list of intervals impacted and
+// list of intervals deleted.  Intervals are deleted if the shift
+// makes the interval size zero or less, ie, min >= max.  These
+// intervals are automatically removed from the tree.  The tree
+// does not alter the ranges on the intervals themselves, the consumer
+// is expected to do that.
+func (tree *tree) Insert(dimension uint64,
+	index, count int64) (Intervals, Intervals) {
+
+	if dimension != 1 { // consumer made a mistake
+		return nil, nil
+	}
+
+	if tree.root == nil { // nothing to do
+		return nil, nil
+	}
+
+	modified, deleted := intervalsPool.Get().(Intervals), intervalsPool.Get().(Intervals)
+
+	tree.root.query(math.MinInt64, math.MaxInt64, func(n *node) {
+		if n.max <= index { // won't change min or max in this case
+			return
+		}
+
+		n.max += count
+		if n.min >= index {
+			n.min += count
+		}
+
+		mod := false
+		if n.high > index {
+			n.high += count
+			if n.high < index {
+				n.high = index
+			}
+			mod = true
+		}
+		if n.low > index {
+			n.low += count
+			if n.low < index {
+				n.low = index
+			}
+			mod = true
+		}
+
+		if n.low >= n.high {
+			deleted = append(deleted, n.interval)
+		} else if mod {
+			modified = append(modified, n.interval)
+		}
+	})
+
+	tree.Delete(deleted...)
+
+	return modified, deleted
 }
 
 // Delete will remove the provided intervals from this tree.
