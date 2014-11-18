@@ -263,7 +263,12 @@ func (g *Graph) GetLowestNodes(nodes Nodes) Nodes {
 // of the graph and return an execution graph that is ready to
 // be calculated.
 func (g *Graph) AddNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph {
-	dependentNodes := dp.GetDependents(nodes)
+	var dependentNodes Nodes
+	// if there are no items in the graph then no node added
+	// has a dependent in the graph
+	if g.numItems > 0 {
+		dependentNodes = dp.GetDependents(nodes)
+	}
 
 	highest := nodes.Highest()
 
@@ -384,6 +389,11 @@ func (g *Graph) RemoveNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph
 		circulars: circulars,
 		size:      size,
 	}
+}
+
+// Len returns the number of items in the graph.
+func (g *Graph) Len() uint64 {
+	return g.numItems
 }
 
 func (g *Graph) insert(flattened []Nodes, circulars Nodes, offset int64) {
