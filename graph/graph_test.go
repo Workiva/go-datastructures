@@ -464,6 +464,7 @@ func TestAddNodesWithDependents(t *testing.T) {
 	assert.Len(t, eg.circulars, 2)
 	assert.Contains(t, eg.circulars, n3)
 	assert.Contains(t, eg.circulars, n4)
+	assert.Equal(t, 4, g.Len())
 }
 
 func TestAddNodesWithCircularDependents(t *testing.T) {
@@ -489,6 +490,7 @@ func TestAddNodesWithCircularDependents(t *testing.T) {
 	dp.dependents = Nodes{n2}
 	eg := g.AddNodes(dp, Nodes{n3})
 	assert.Len(t, eg.toApply, 1)
+	assert.Equal(t, 3, g.Len())
 }
 
 func TestPositionsExtractLayers(t *testing.T) {
@@ -569,6 +571,7 @@ func TestRemoveNodes(t *testing.T) {
 	assert.Equal(t, Nodes{n2}, eg.toApply[0])
 	assert.Equal(t, Nodes{n4}, eg.toApply[1])
 	assert.Len(t, eg.circulars, 0)
+	assert.Equal(t, 3, g.Len())
 }
 
 func TestRemoveNodesWithCircular(t *testing.T) {
@@ -628,6 +631,7 @@ func TestRemoveNodesWithCircular(t *testing.T) {
 	assert.Equal(t, Nodes{n3}, eg.toApply[2])
 	assert.Equal(t, 3, eg.size)
 	assert.Len(t, eg.circulars, 0)
+	assert.Equal(t, 3, g.Len())
 }
 
 func BenchmarkPreIndexedFlattening(b *testing.B) {

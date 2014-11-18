@@ -259,6 +259,35 @@ func (g *Graph) GetLowestNodes(nodes Nodes) Nodes {
 	return toReturn
 }
 
+func (g *Graph) insert(flattened []Nodes, circulars Nodes, offset int64) {
+	maxLayer := int64(-1)
+	for i, nodes := range flattened {
+		for _, node := range nodes {
+			if g.positions[node.ID()] == nil {
+				g.numItems++
+			}
+			g.positions[node.ID()] = &bundle{
+				INode:    node,
+				position: int64(i) + offset,
+			}
+		}
+		maxLayer = int64(i) + offset
+	}
+
+	for _, node := range circulars {
+		if g.positions[node.ID()] == nil {
+			g.numItems++
+		}
+		g.positions[node.ID()] = &bundle{
+			INode: node, position: -1,
+		}
+	}
+
+	if maxLayer > g.maxLayer {
+		g.maxLayer = maxLayer
+	}
+}
+
 // AddNodes will add the provided nodes to the flattened index
 // of the graph and return an execution graph that is ready to
 // be calculated.
@@ -394,32 +423,6 @@ func (g *Graph) RemoveNodes(dp IDependencyProvider, nodes Nodes) *ExecutionGraph
 // Len returns the number of items in the graph.
 func (g *Graph) Len() uint64 {
 	return g.numItems
-}
-
-func (g *Graph) insert(flattened []Nodes, circulars Nodes, offset int64) {
-	maxLayer := int64(-1)
-	for i, nodes := range flattened {
-		for _, node := range nodes {
-			if g.positions[node.ID()] == nil {
-				g.numItems++
-			}
-			g.positions[node.ID()] = &bundle{
-				INode:    node,
-				position: int64(i) + offset,
-			}
-		}
-		maxLayer = int64(i) + offset
-	}
-
-	for _, node := range circulars {
-		g.positions[node.ID()] = &bundle{
-			INode: node, position: -1,
-		}
-	}
-
-	if maxLayer > g.maxLayer {
-		g.maxLayer = maxLayer
-	}
 }
 
 // FromNodes will create a new graph from the given nodes.
