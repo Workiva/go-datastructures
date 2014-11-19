@@ -117,3 +117,22 @@ func TestImmutableMultiDimensionBulkAdd(t *testing.T) {
 	assert.Equal(t, entries, result)
 	assert.Equal(t, 3, tree1.Len())
 }
+
+func BenchmarkImmutableMultiDimensionInserts(b *testing.B) {
+	numItems := int64(1000)
+
+	entries := make(Entries, 0, numItems)
+	for i := int64(0); i < numItems; i++ {
+		e := constructMockEntry(uint64(i), i, i)
+		entries = append(entries, e)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree := newImmutableRangeTree(2)
+		for _, e := range entries {
+			tree = tree.Add(e)
+		}
+	}
+}
