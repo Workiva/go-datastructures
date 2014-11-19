@@ -309,3 +309,41 @@ func TestImmutableMultiDimensionBulkDeletes(t *testing.T) {
 	assert.Len(t, result, 0)
 	assert.Equal(t, 0, tree3.Len())
 }
+
+func constructMultiDimensionalImmutableTree(number int64) (*immutableRangeTree, Entries) {
+	tree := newImmutableRangeTree(2)
+	entries := make(Entries, 0, number)
+	for i := int64(0); i < number; i++ {
+		entries = append(entries, constructMockEntry(uint64(i), i, i))
+	}
+
+	return tree.Add(entries...), entries
+}
+
+func TestImmutableInsertPositiveIndexFirstDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalImmutableTree(2)
+
+	tree1, modified, deleted := tree.InsertAtDimension(1, 1, 1)
+	assert.Len(t, deleted, 0)
+	assert.Equal(t, entries[1:], modified)
+
+	result := tree1.Query(constructMockInterval(dimension{2, 10}, dimension{1, 10}))
+	assert.Equal(t, entries[1:], result)
+
+	result = tree.Query(constructMockInterval(dimension{2, 10}, dimension{0, 10}))
+	assert.Len(t, result, 0)
+}
+
+func TestImmutableInsertPositiveIndexSecondDimension(t *testing.T) {
+	tree, entries := constructMultiDimensionalImmutableTree(3)
+
+	tree1, modified, deleted := tree.InsertAtDimension(2, 1, 1)
+	assert.Len(t, deleted, 0)
+	assert.Equal(t, entries[1:], modified)
+
+	result := tree1.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
+	assert.Equal(t, entries[1:], result)
+
+	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
+	assert.Equal(t, entries[2:], result)
+}
