@@ -80,9 +80,9 @@ func (irt *immutableRangeTree) Add(entries ...Entry) *immutableRangeTree {
 
 // InsertAtDimension will increment items at and above the given index
 // by the number provided.  Provide a negative number to to decrement.
-// Returned are two lists.  The first list is a list of entries that
-// were moved.  The second is a list entries that were deleted.  These
-// lists are exclusive.
+// Returned are two lists and the modified tree.  The first list is a
+// list of entries that were moved.  The second is a list entries that
+// were deleted.  These lists are exclusive.
 func (irt *immutableRangeTree) InsertAtDimension(dimension uint64,
 	index, number int64) (*immutableRangeTree, Entries, Entries) {
 
