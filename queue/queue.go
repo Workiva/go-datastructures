@@ -241,7 +241,12 @@ func ExecuteInParallel(q *Queue, fn func(interface{})) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	for i := 0; i < runtime.NumCPU(); i++ {
+	numCPU := 1
+	if runtime.NumCPU() > 1 {
+		numCPU = runtime.NumCPU() - 1
+	}
+
+	for i := 0; i < numCPU; i++ {
 		go func() {
 			for {
 				items, err := q.Get(1)
