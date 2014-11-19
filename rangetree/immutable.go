@@ -78,6 +78,84 @@ func (irt *immutableRangeTree) Add(entries ...Entry) *immutableRangeTree {
 	return tree
 }
 
+type immutableNodeBundle struct {
+	list         *orderedNodes
+	index        int
+	previousNode *node
+	newNode      *node
+}
+
+func (irt *immutableRangeTree) Delete(entries ...Entry) *immutableRangeTree {
+	cache := newCache(irt.dimensions)
+	top := make(orderedNodes, len(irt.top))
+	copy(top, irt.top)
+	deleted := uint64(0)
+	for _, entry := range entries {
+		irt.delete(&top, cache, entry, &deleted)
+	}
+
+	tree := newImmutableRangeTree(irt.dimensions)
+	tree.top = top
+	tree.number = irt.number - deleted
+	return tree
+}
+
+func (irt *immutableRangeTree) delete(top *orderedNodes,
+	cache []slice.Int64Slice, entry Entry, deleted *uint64) {
+
+	path := make([]*immutableNodeBundle, 0, 5)
+	var index int
+	var n *node
+	var local *node
+	list := top
+
+	for i := uint64(1); i <= irt.dimensions; i++ {
+		value := entry.ValueAtDimension(i)
+		local, index = list.get(value)
+		if local == nil { // there's nothing to delete
+			return
+		}
+
+		nb := &immutableNodeBundle{
+			list:         list,
+			index:        index,
+			previousNode: n,
+		}
+		path = append(path, nb)
+		n = local
+		list = &n.orderedNodes
+	}
+
+	*deleted++
+
+	for i := len(path) - 1; i >= 0; i-- {
+		nb := path[i]
+		if nb.previousNode != nil {
+			nodes := make(orderedNodes, len(*nb.list))
+			copy(nodes, *nb.list)
+			nb.list = &nodes
+			if len(*nb.list) == 1 {
+				continue
+			}
+			nn := newNode(
+				nb.previousNode.value,
+				nb.previousNode.entry,
+				!isLastDimension(irt.dimensions, uint64(i)+1),
+			)
+			nn.orderedNodes = nodes
+			path[i-1].newNode = nn
+		}
+	}
+
+	for _, nb := range path {
+		if nb.newNode == nil {
+			nb.list.deleteAt(nb.index)
+		} else {
+			(*nb.list)[nb.index] = nb.newNode
+		}
+	}
+}
+
 func (irt *immutableRangeTree) apply(list orderedNodes, interval Interval,
 	dimension uint64, fn func(*node) bool) bool {
 
