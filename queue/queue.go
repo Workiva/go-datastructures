@@ -1,9 +1,11 @@
 package queue
 
 import (
+	"log"
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type waiters []*sema
@@ -240,8 +242,14 @@ func ExecuteInParallel(q *Queue, fn func(interface{})) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+	t0 := time.Now()
 
-	for i := 0; i < runtime.NumCPU(); i++ {
+	numCPU := 1
+	if runtime.NumCPU() > 1 {
+		numCPU = runtime.NumCPU() - 1
+	}
+
+	for i := 0; i < numCPU; i++ {
 		go func() {
 			for {
 				items, err := q.Get(1)
@@ -261,4 +269,6 @@ func ExecuteInParallel(q *Queue, fn func(interface{})) {
 
 	wg.Wait()
 	q.Dispose()
+
+	log.Printf(`PARALLEL TOOK: %d ms`, time.Since(t0).Nanoseconds()/int64(time.Millisecond))
 }
