@@ -222,3 +222,11 @@ func TestPriorityPeek(t *testing.T) {
 
 	assert.Equal(t, mockItem(1), q.Peek())
 }
+
+func TestInsertDuplicate(t *testing.T) {
+	q := NewPriorityQueue(1)
+	q.Put(mockItem(1))
+	q.Put(mockItem(1))
+
+	assert.Equal(t, 1, q.Len())
+}
