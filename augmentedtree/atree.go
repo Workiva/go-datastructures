@@ -1,5 +1,19 @@
 package augmentedtree
 
+func intervalOverlaps(node *node, low, high int64, interval Interval, maxDimension uint64) bool {
+	if !overlaps(node.high, high, node.low, low) {
+		return false
+	}
+
+	for i := uint64(2); i <= maxDimension; i++ {
+		if !node.interval.OverlapsAtDimension(interval, i) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func overlaps(high, otherHigh, low, otherLow int64) bool {
 	return high > otherLow && low < otherHigh
 }
@@ -26,17 +40,17 @@ type node struct {
 	id                  uint64   // we store the id locally to reduce the number of calls to the method on the interface
 }
 
-func (n *node) query(low, high int64, fn func(node *node)) {
+func (n *node) query(low, high int64, interval Interval, maxDimension uint64, fn func(node *node)) {
 	if n.children[0] != nil && overlaps(n.children[0].max, high, n.children[0].min, low) {
-		n.children[0].query(low, high, fn)
+		n.children[0].query(low, high, interval, maxDimension, fn)
 	}
 
-	if overlaps(n.high, high, n.low, low) {
+	if intervalOverlaps(n, low, high, interval, maxDimension) {
 		fn(n)
 	}
 
 	if n.children[1] != nil && overlaps(n.children[1].max, high, n.children[1].min, low) {
-		n.children[1].query(low, high, fn)
+		n.children[1].query(low, high, interval, maxDimension, fn)
 	}
 }
 
@@ -307,7 +321,7 @@ func (tree *tree) Query(interval Interval) Intervals {
 		ivHigh    = interval.HighAtDimension(tree.dimension)
 	)
 
-	tree.root.query(ivLow, ivHigh, func(node *node) {
+	tree.root.query(ivLow, ivHigh, interval, tree.dimension, func(node *node) {
 		Intervals = append(Intervals, node.interval)
 	})
 
@@ -320,7 +334,7 @@ func (tree *tree) apply(interval Interval, fn func(*node)) {
 	}
 
 	low, high := interval.LowAtDimension(tree.dimension), interval.HighAtDimension(tree.dimension)
-	tree.root.query(low, high, fn)
+	tree.root.query(low, high, interval, tree.dimension, fn)
 }
 
 func isRed(node *node) bool {
