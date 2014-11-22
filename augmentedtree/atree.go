@@ -93,9 +93,9 @@ func newNode(interval Interval, min, max int64, dimension uint64) *node {
 }
 
 type tree struct {
-	root              *node
-	dimension, number uint64
-	dummy             node
+	root                            *node
+	dimension, number, maxDimension uint64
+	dummy                           node
 }
 
 func (tree *tree) resetDummy() {
@@ -321,7 +321,7 @@ func (tree *tree) Query(interval Interval) Intervals {
 		ivHigh    = interval.HighAtDimension(tree.dimension)
 	)
 
-	tree.root.query(ivLow, ivHigh, interval, tree.dimension, func(node *node) {
+	tree.root.query(ivLow, ivHigh, interval, tree.maxDimension, func(node *node) {
 		Intervals = append(Intervals, node.interval)
 	})
 
@@ -334,7 +334,7 @@ func (tree *tree) apply(interval Interval, fn func(*node)) {
 	}
 
 	low, high := interval.LowAtDimension(tree.dimension), interval.HighAtDimension(tree.dimension)
-	tree.root.query(low, high, interval, tree.dimension, fn)
+	tree.root.query(low, high, interval, tree.maxDimension, fn)
 }
 
 func isRed(node *node) bool {
@@ -404,10 +404,11 @@ func takeOpposite(value int) int {
 	return 1 - value
 }
 
-func newTree(dimension uint64) *tree {
+func newTree(maxDimension uint64) *tree {
 	return &tree{
-		dimension: dimension,
-		dummy:     newDummy(),
+		maxDimension: maxDimension,
+		dimension:    1,
+		dummy:        newDummy(),
 	}
 }
 

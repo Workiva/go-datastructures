@@ -134,23 +134,25 @@ func (mdt *multiDimensionalTree) Query(interval Interval) Intervals {
 	return result
 }
 
-func newMultiDimensionalTree(dimensions uint64) *multiDimensionalTree {
-	ts := make(trees, 0, dimensions)
-	for i := uint64(0); i < dimensions; i++ {
-		ts = append(ts, newTree(i+1))
-	}
-
-	split := ts.split()
-	// we're going to remove the empty lists in the case with
-	// a low number of dimensions
-	chunks := make([]trees, 0, len(split))
-	for _, chunk := range split {
-		if len(chunk) == 0 {
-			continue
+func newMultiDimensionalTree(dimensions uint64) *tree {
+	return newTree(2)
+	/*
+		ts := make(trees, 0, dimensions)
+		for i := uint64(0); i < dimensions; i++ {
+			ts = append(ts, newTree(i+1))
 		}
 
-		chunks = append(chunks, chunk)
-	}
+		split := ts.split()
+		// we're going to remove the empty lists in the case with
+		// a low number of dimensions
+		chunks := make([]trees, 0, len(split))
+		for _, chunk := range split {
+			if len(chunk) == 0 {
+				continue
+			}
 
-	return &multiDimensionalTree{dimensions: ts, chunks: chunks}
+			chunks = append(chunks, chunk)
+		}
+
+		return &multiDimensionalTree{dimensions: ts, chunks: chunks}*/
 }
