@@ -16,8 +16,11 @@ import (
 type Item interface {
 	// Compare returns a bool that can be used to determine
 	// ordering in the priority queue.  Assuming the queue
-	// is in ascending order, this should return >= logic.
-	Compare(other Item) bool
+	// is in ascending order, this should return > logic.
+	// Return 1 to indicate this object is greater than the
+	// the other logic, 0 to indicate equality, and -1 to indicate
+	// less than other.
+	Compare(other Item) int
 }
 
 type priorityItems []Item
@@ -45,9 +48,18 @@ func (items *priorityItems) insert(item Item) {
 		return
 	}
 
+	equalFound := false
 	i := sort.Search(len(*items), func(i int) bool {
-		return (*items)[i].Compare(item)
+		result := (*items)[i].Compare(item)
+		if result == 0 {
+			equalFound = true
+		}
+		return result >= 0
 	})
+
+	if equalFound {
+		return
+	}
 
 	if i == len(*items) {
 		*items = append(*items, item)
