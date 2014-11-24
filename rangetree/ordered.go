@@ -164,3 +164,57 @@ func (nodes *orderedNodes) insert(insertDimension, dimension, maxDimension uint6
 		)
 	}
 }
+
+func (nodes orderedNodes) immutableInsert(insertDimension, dimension, maxDimension uint64,
+	index, number int64, modified, deleted *Entries) orderedNodes {
+
+	lastDimension := isLastDimension(maxDimension, dimension)
+
+	cp := make(orderedNodes, len(nodes))
+	copy(cp, nodes)
+
+	if insertDimension == dimension {
+		i := cp.search(index)
+		var toDelete []int
+
+		for j := i; j < len(cp); j++ {
+			nn := newNode(cp[j].value+number, cp[j].entry, !lastDimension)
+			nn.orderedNodes = cp[j].orderedNodes
+			cp[j] = nn
+			if cp[j].value < index {
+				toDelete = append(toDelete, j)
+				if lastDimension {
+					*deleted = append(*deleted, cp[j].entry)
+				} else {
+					cp[j].orderedNodes.flatten(deleted)
+				}
+				continue
+			}
+			if lastDimension {
+				*modified = append(*modified, cp[j].entry)
+			} else {
+				cp[j].orderedNodes.flatten(modified)
+			}
+		}
+
+		for _, index := range toDelete {
+			cp.deleteAt(index)
+		}
+
+		return cp
+	}
+
+	for i := 0; i < len(cp); i++ {
+		oldNode := nodes[i]
+		nn := newNode(oldNode.value, oldNode.entry, !lastDimension)
+		nn.orderedNodes = oldNode.orderedNodes.immutableInsert(
+			insertDimension, dimension+1,
+			maxDimension,
+			index, number,
+			modified, deleted,
+		)
+		cp[i] = nn
+	}
+
+	return cp
+}
