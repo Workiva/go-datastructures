@@ -290,7 +290,7 @@ func insertInterval(dimension uint64, interval Interval, index, count int64) int
 		return 1
 	}
 
-	if index >= low && count*-1 >= high-low {
+	if index <= low && count*-1 >= high-low {
 		return -1
 	}
 
