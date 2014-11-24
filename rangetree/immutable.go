@@ -78,6 +78,31 @@ func (irt *immutableRangeTree) Add(entries ...Entry) *immutableRangeTree {
 	return tree
 }
 
+// InsertAtDimension will increment items at and above the given index
+// by the number provided.  Provide a negative number to to decrement.
+// Returned are two lists and the modified tree.  The first list is a
+// list of entries that were moved.  The second is a list entries that
+// were deleted.  These lists are exclusive.
+func (irt *immutableRangeTree) InsertAtDimension(dimension uint64,
+	index, number int64) (*immutableRangeTree, Entries, Entries) {
+
+	if dimension > irt.dimensions || number == 0 {
+		return irt, nil, nil
+	}
+
+	modified, deleted := make(Entries, 0, 100), make(Entries, 0, 100)
+
+	tree := newImmutableRangeTree(irt.dimensions)
+	tree.top = irt.top.immutableInsert(
+		dimension, 1, irt.dimensions,
+		index, number,
+		&modified, &deleted,
+	)
+	tree.number = irt.number - uint64(len(deleted))
+
+	return tree, modified, deleted
+}
+
 type immutableNodeBundle struct {
 	list         *orderedNodes
 	index        int
