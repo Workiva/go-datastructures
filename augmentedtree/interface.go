@@ -27,10 +27,6 @@ type Tree interface {
 	Add(intervals ...Interval)
 	// Len returns the number of intervals in the tree.
 	Len() uint64
-	// Max returns the rightmost bound in the tree at the provided dimension.
-	Max(dimension uint64) int64
-	// Min returns the leftmost bound in the tree at the provided dimension.
-	Min(dimension uint64) int64
 	// Delete will remove the provided intervals from the tree.
 	Delete(intervals ...Interval)
 	// Query will return a list of intervals that intersect the provided

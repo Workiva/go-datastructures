@@ -120,7 +120,7 @@ func TestSimpleAddNilRoot(t *testing.T) {
 	expected.red = false
 
 	assert.Equal(t, expected, it.root)
-	assert.Equal(t, 1, it.Len())
+	assert.Equal(t, uint64(1), it.Len())
 	checkRedBlack(t, it.root, 1)
 }
 
@@ -140,7 +140,7 @@ func TestSimpleAddRootLeft(t *testing.T) {
 	expectedRoot.children[0] = expectedChild
 
 	assert.Equal(t, expectedRoot, it.root)
-	assert.Equal(t, 2, it.Len())
+	assert.Equal(t, uint64(2), it.Len())
 	checkRedBlack(t, it.root, 1)
 }
 
@@ -160,7 +160,7 @@ func TestSimpleAddRootRight(t *testing.T) {
 	expectedRoot.children[1] = expectedChild
 
 	assert.Equal(t, expectedRoot, it.root)
-	assert.Equal(t, 2, it.Len())
+	assert.Equal(t, uint64(2), it.Len())
 	checkRedBlack(t, it.root, 1)
 }
 
@@ -186,7 +186,7 @@ func TestAddRootLeftAndRight(t *testing.T) {
 	expectedRoot.children[1] = expectedRight
 
 	assert.Equal(t, expectedRoot, it.root)
-	assert.Equal(t, 3, it.Len())
+	assert.Equal(t, uint64(3), it.Len())
 	checkRedBlack(t, it.root, 1)
 }
 
@@ -201,7 +201,7 @@ func TestAddRebalanceInOrder(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Len(t, result, 10)
-	assert.Equal(t, 10, it.Len())
+	assert.Equal(t, uint64(10), it.Len())
 }
 
 func TestAddRebalanceOutOfOrder(t *testing.T) {
@@ -215,7 +215,7 @@ func TestAddRebalanceOutOfOrder(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Len(t, result, 10)
-	assert.Equal(t, 10, it.Len())
+	assert.Equal(t, uint64(10), it.Len())
 }
 
 func TestAddRebalanceRandomOrder(t *testing.T) {
@@ -231,7 +231,7 @@ func TestAddRebalanceRandomOrder(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Len(t, result, 5)
-	assert.Equal(t, 5, it.Len())
+	assert.Equal(t, uint64(5), it.Len())
 }
 
 func TestAddLargeNumberOfItems(t *testing.T) {
@@ -246,7 +246,7 @@ func TestAddLargeNumberOfItems(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, numItems, 0))
 	assert.Len(t, result, int(numItems))
-	assert.Equal(t, numItems, it.Len())
+	assert.Equal(t, uint64(numItems), it.Len())
 }
 
 func BenchmarkAddItems(b *testing.B) {
@@ -385,7 +385,7 @@ func TestRootDelete(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(1, 10, 0))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 0, it.Len())
+	assert.Equal(t, uint64(0), it.Len())
 }
 
 func TestDeleteLeft(t *testing.T) {
@@ -398,7 +398,7 @@ func TestDeleteLeft(t *testing.T) {
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	checkRedBlack(t, it.root, 1)
 	assert.Equal(t, expected, result)
-	assert.Equal(t, 2, it.Len())
+	assert.Equal(t, uint64(2), it.Len())
 }
 
 func TestDeleteRight(t *testing.T) {
@@ -411,7 +411,7 @@ func TestDeleteRight(t *testing.T) {
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	checkRedBlack(t, it.root, 1)
 	assert.Equal(t, expected, result)
-	assert.Equal(t, 2, it.Len())
+	assert.Equal(t, uint64(2), it.Len())
 }
 
 func TestDeleteCenter(t *testing.T) {
@@ -424,7 +424,7 @@ func TestDeleteCenter(t *testing.T) {
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	checkRedBlack(t, it.root, 1)
 	assert.Equal(t, expected, result)
-	assert.Equal(t, 2, it.Len())
+	assert.Equal(t, uint64(2), it.Len())
 }
 
 func TestDeleteRebalanceInOrder(t *testing.T) {
@@ -445,7 +445,7 @@ func TestDeleteRebalanceInOrder(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Len(t, result, 9)
-	assert.Equal(t, 9, it.Len())
+	assert.Equal(t, uint64(9), it.Len())
 }
 
 func TestDeleteRebalanceOutOfOrder(t *testing.T) {
@@ -465,7 +465,7 @@ func TestDeleteRebalanceOutOfOrder(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Len(t, result, 9)
-	assert.Equal(t, 9, it.Len())
+	assert.Equal(t, uint64(9), it.Len())
 }
 
 func TestDeleteRebalanceRandomOrder(t *testing.T) {
@@ -487,7 +487,7 @@ func TestDeleteRebalanceRandomOrder(t *testing.T) {
 	checkRedBlack(t, it.root, 1)
 	result := it.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Len(t, result, 4)
-	assert.Equal(t, 4, it.Len())
+	assert.Equal(t, uint64(4), it.Len())
 }
 
 func TestDeleteEmptyTree(t *testing.T) {
@@ -495,7 +495,7 @@ func TestDeleteEmptyTree(t *testing.T) {
 
 	it.Delete(constructSingleDimensionInterval(0, 1, 1))
 
-	assert.Equal(t, 0, it.Len())
+	assert.Equal(t, uint64(0), it.Len())
 }
 
 func BenchmarkDeleteItems(b *testing.B) {
@@ -521,28 +521,6 @@ func BenchmarkDeleteItems(b *testing.B) {
 	}
 }
 
-func TestMax(t *testing.T) {
-	it, _, _, _ := constructSingleDimensionQueryTestTree()
-
-	assert.Equal(t, 12, it.Max(1))
-	assert.Equal(t, 0, it.Max(2))
-
-	it.root = nil
-
-	assert.Equal(t, 0, it.Max(1))
-}
-
-func TestMin(t *testing.T) {
-	it, _, _, _ := constructSingleDimensionQueryTestTree()
-
-	assert.Equal(t, 4, it.Min(1))
-	assert.Equal(t, 0, it.Min(2))
-
-	it.root = nil
-
-	assert.Equal(t, 0, it.Min(1))
-}
-
 func TestAddDuplicateRanges(t *testing.T) {
 	it := newTree(1)
 	iv1 := constructSingleDimensionInterval(0, 10, 1)
@@ -552,7 +530,7 @@ func TestAddDuplicateRanges(t *testing.T) {
 	it.Add(iv1, iv2, iv3)
 	it.Delete(iv1, iv2, iv3)
 
-	assert.Equal(t, 0, it.Len())
+	assert.Equal(t, uint64(0), it.Len())
 }
 
 func TestAddDeleteDuplicatesRebalanceInOrder(t *testing.T) {
@@ -568,7 +546,7 @@ func TestAddDeleteDuplicatesRebalanceInOrder(t *testing.T) {
 	it.Add(intervals...)
 	it.Delete(intervals...)
 
-	assert.Equal(t, 0, it.Len())
+	assert.Equal(t, uint64(0), it.Len())
 }
 
 func TestAddDeleteDuplicatesRebalanceReverseOrder(t *testing.T) {
@@ -584,7 +562,7 @@ func TestAddDeleteDuplicatesRebalanceReverseOrder(t *testing.T) {
 	it.Add(intervals...)
 	it.Delete(intervals...)
 
-	assert.Equal(t, 0, it.Len())
+	assert.Equal(t, uint64(0), it.Len())
 }
 
 func TestAddDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
@@ -601,7 +579,7 @@ func TestAddDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
 	it.Add(intervals...)
 	it.Delete(intervals...)
 
-	assert.Equal(t, 0, it.Len())
+	assert.Equal(t, uint64(0), it.Len())
 }
 
 func TestInsertSingleAtDimension(t *testing.T) {
@@ -712,7 +690,7 @@ func TestInsertDeletesInterval(t *testing.T) {
 	assert.Equal(t, ivs[1:], result)
 
 	checkRedBlack(t, tree.root, 1)
-	assert.Equal(t, 2, tree.Len())
+	assert.Equal(t, uint64(2), tree.Len())
 	assert.Equal(t, 0, tree.root.min)
 	assert.Equal(t, 2, tree.root.max)
 }

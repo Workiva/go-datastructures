@@ -2,6 +2,24 @@ package augmentedtree
 
 import "math"
 
+func intervalOverlaps(n *node, low, high int64, interval Interval, maxDimension uint64) bool {
+	if !overlaps(n.high, high, n.low, low) {
+		return false
+	}
+
+	if interval == nil {
+		return true
+	}
+
+	for i := uint64(2); i <= maxDimension; i++ {
+		if !n.interval.OverlapsAtDimension(interval, i) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func overlaps(high, otherHigh, low, otherLow int64) bool {
 	return high > otherLow && low < otherHigh
 }
@@ -28,17 +46,17 @@ type node struct {
 	id                  uint64   // we store the id locally to reduce the number of calls to the method on the interface
 }
 
-func (n *node) query(low, high int64, fn func(node *node)) {
+func (n *node) query(low, high int64, interval Interval, maxDimension uint64, fn func(node *node)) {
 	if n.children[0] != nil && overlaps(n.children[0].max, high, n.children[0].min, low) {
-		n.children[0].query(low, high, fn)
+		n.children[0].query(low, high, interval, maxDimension, fn)
 	}
 
-	if overlaps(n.high, high, n.low, low) {
+	if intervalOverlaps(n, low, high, interval, maxDimension) {
 		fn(n)
 	}
 
 	if n.children[1] != nil && overlaps(n.children[1].max, high, n.children[1].min, low) {
-		n.children[1].query(low, high, fn)
+		n.children[1].query(low, high, interval, maxDimension, fn)
 	}
 }
 
@@ -81,41 +99,14 @@ func newNode(interval Interval, min, max int64, dimension uint64) *node {
 }
 
 type tree struct {
-	root              *node
-	dimension, number uint64
-	dummy             node
+	root                 *node
+	maxDimension, number uint64
+	dummy                node
 }
 
 func (tree *tree) resetDummy() {
 	tree.dummy.children[0], tree.dummy.children[1] = nil, nil
 	tree.dummy.red = false
-}
-
-// Max is an extremely quick method for determining the rightmost
-// bound in the tree.
-func (tree *tree) Max(dimension uint64) int64 {
-	if dimension != 1 {
-		return 0
-	}
-
-	if tree.root == nil {
-		return 0
-	}
-
-	return tree.root.max
-}
-
-// Min returns the minimum bound seen in the tree.
-func (tree *tree) Min(dimension uint64) int64 {
-	if dimension != 1 {
-		return 0
-	}
-
-	if tree.root == nil {
-		return 0
-	}
-
-	return tree.root.min
 }
 
 // Len returns the number of items in this tree.
@@ -127,9 +118,9 @@ func (tree *tree) Len() uint64 {
 func (tree *tree) add(iv Interval) {
 	if tree.root == nil {
 		tree.root = newNode(
-			iv, iv.LowAtDimension(tree.dimension),
-			iv.HighAtDimension(tree.dimension),
-			tree.dimension,
+			iv, iv.LowAtDimension(1),
+			iv.HighAtDimension(1),
+			1,
 		)
 		tree.root.red = false
 		tree.number++
@@ -144,8 +135,8 @@ func (tree *tree) add(iv Interval) {
 		dir, last           int
 		otherLast           = 1
 		id                  = iv.ID()
-		max                 = iv.HighAtDimension(tree.dimension)
-		ivLow               = iv.LowAtDimension(tree.dimension)
+		max                 = iv.HighAtDimension(1)
+		ivLow               = iv.LowAtDimension(1)
 		helper              = &dummy
 	)
 
@@ -153,7 +144,7 @@ func (tree *tree) add(iv Interval) {
 	helper.children[1] = tree.root
 	for {
 		if node == nil {
-			node = newNode(iv, ivLow, max, tree.dimension)
+			node = newNode(iv, ivLow, max, 1)
 			parent.children[dir] = node
 			tree.number++
 		} else if isRed(node.children[0]) && isRed(node.children[1]) {
@@ -218,7 +209,7 @@ func (tree *tree) delete(iv Interval) {
 		id                         = iv.ID()
 		dir                        = 1
 		node                       = &dummy
-		ivLow                      = iv.LowAtDimension(tree.dimension)
+		ivLow                      = iv.LowAtDimension(1)
 	)
 
 	node.children[1] = tree.root
@@ -306,7 +297,7 @@ func (tree *tree) Insert(dimension uint64,
 
 	modified, deleted := intervalsPool.Get().(Intervals), intervalsPool.Get().(Intervals)
 
-	tree.root.query(math.MinInt64, math.MaxInt64, func(n *node) {
+	tree.root.query(math.MinInt64, math.MaxInt64, nil, tree.maxDimension, func(n *node) {
 		if n.max <= index { // won't change min or max in this case
 			return
 		}
@@ -364,11 +355,11 @@ func (tree *tree) Query(interval Interval) Intervals {
 
 	var (
 		Intervals = intervalsPool.Get().(Intervals)
-		ivLow     = interval.LowAtDimension(tree.dimension)
-		ivHigh    = interval.HighAtDimension(tree.dimension)
+		ivLow     = interval.LowAtDimension(1)
+		ivHigh    = interval.HighAtDimension(1)
 	)
 
-	tree.root.query(ivLow, ivHigh, func(node *node) {
+	tree.root.query(ivLow, ivHigh, interval, tree.maxDimension, func(node *node) {
 		Intervals = append(Intervals, node.interval)
 	})
 
@@ -380,8 +371,8 @@ func (tree *tree) apply(interval Interval, fn func(*node)) {
 		return
 	}
 
-	low, high := interval.LowAtDimension(tree.dimension), interval.HighAtDimension(tree.dimension)
-	tree.root.query(low, high, fn)
+	low, high := interval.LowAtDimension(1), interval.HighAtDimension(1)
+	tree.root.query(low, high, interval, tree.maxDimension, fn)
 }
 
 func isRed(node *node) bool {
@@ -451,19 +442,15 @@ func takeOpposite(value int) int {
 	return 1 - value
 }
 
-func newTree(dimension uint64) *tree {
+func newTree(maxDimension uint64) *tree {
 	return &tree{
-		dimension: dimension,
-		dummy:     newDummy(),
+		maxDimension: maxDimension,
+		dummy:        newDummy(),
 	}
 }
 
 // New constructs and returns a new interval tree with the max
 // dimensions provided.
 func New(dimensions uint64) Tree {
-	if dimensions == 1 {
-		return newTree(1)
-	}
-
-	return newMultiDimensionalTree(dimensions)
+	return newTree(dimensions)
 }
