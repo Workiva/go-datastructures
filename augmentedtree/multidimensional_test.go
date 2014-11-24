@@ -9,7 +9,7 @@ import (
 func constructMultiDimensionQueryTestTree() (
 	*tree, Interval, Interval, Interval) {
 
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	iv1 := constructMultiDimensionInterval(
 		0, &dimension{low: 5, high: 10}, &dimension{low: 5, high: 10},
@@ -30,7 +30,7 @@ func constructMultiDimensionQueryTestTree() (
 }
 
 func TestRootAddMultipleDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 	iv := constructMultiDimensionInterval(
 		1, &dimension{low: 0, high: 5}, &dimension{low: 1, high: 6},
 	)
@@ -95,7 +95,7 @@ func TestMultipleAddMultipleDimensions(t *testing.T) {
 }
 
 func TestAddRebalanceInOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	for i := int64(0); i < 10; i++ {
 		iv := constructMultiDimensionInterval(
@@ -115,7 +115,7 @@ func TestAddRebalanceInOrderMultiDimensions(t *testing.T) {
 }
 
 func TestAddRebalanceReverseOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	for i := int64(9); i >= 0; i-- {
 		iv := constructMultiDimensionInterval(
@@ -135,7 +135,7 @@ func TestAddRebalanceReverseOrderMultiDimensions(t *testing.T) {
 }
 
 func TestAddRebalanceRandomOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	starts := []int64{0, 4, 2, 1, 3}
 
@@ -158,7 +158,7 @@ func TestAddRebalanceRandomOrderMultiDimensions(t *testing.T) {
 
 func TestAddLargeNumbersMultiDimensions(t *testing.T) {
 	numItems := int64(1000)
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	for i := int64(0); i < numItems; i++ {
 		iv := constructMultiDimensionInterval(
@@ -191,7 +191,7 @@ func BenchmarkAddItemsMultiDimensions(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		it := newMultiDimensionalTree(2)
+		it := newTree(2)
 		it.Add(intervals...)
 	}
 }
@@ -207,7 +207,7 @@ func BenchmarkQueryItemsMultiDimensions(b *testing.B) {
 		intervals = append(intervals, iv)
 	}
 
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 	it.Add(intervals...)
 
 	b.ResetTimer()
@@ -221,7 +221,7 @@ func BenchmarkQueryItemsMultiDimensions(b *testing.B) {
 }
 
 func TestRootDeleteMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 	iv := constructMultiDimensionInterval(
 		0, &dimension{low: 5, high: 10}, &dimension{low: 5, high: 10},
 	)
@@ -283,7 +283,7 @@ func TestDeleteMultiDimensions(t *testing.T) {
 }
 
 func TestDeleteRebalanceInOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	var toDelete *mockInterval
 
@@ -310,7 +310,7 @@ func TestDeleteRebalanceInOrderMultiDimensions(t *testing.T) {
 }
 
 func TestDeleteRebalanceReverseOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	var toDelete *mockInterval
 
@@ -337,7 +337,7 @@ func TestDeleteRebalanceReverseOrderMultiDimensions(t *testing.T) {
 }
 
 func TestDeleteRebalanceRandomOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	starts := []int64{0, 4, 2, 1, 3}
 
@@ -366,7 +366,7 @@ func TestDeleteRebalanceRandomOrderMultiDimensions(t *testing.T) {
 }
 
 func TestDeleteEmptyTreeMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	it.Delete(
 		constructMultiDimensionInterval(
@@ -389,7 +389,7 @@ func BenchmarkDeleteItemsMultiDimensions(b *testing.B) {
 
 	trees := make([]*tree, 0, b.N)
 	for i := 0; i < b.N; i++ {
-		it := newMultiDimensionalTree(2)
+		it := newTree(2)
 		it.Add(intervals...)
 		trees = append(trees, it)
 	}
@@ -402,7 +402,7 @@ func BenchmarkDeleteItemsMultiDimensions(b *testing.B) {
 }
 
 func TestAddDeleteDuplicatesRebalanceInOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	intervals := make(Intervals, 0, 10)
 
@@ -419,7 +419,7 @@ func TestAddDeleteDuplicatesRebalanceInOrderMultiDimensions(t *testing.T) {
 }
 
 func TestAddDeleteDuplicatesRebalanceReverseOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	intervals := make(Intervals, 0, 10)
 
@@ -436,7 +436,7 @@ func TestAddDeleteDuplicatesRebalanceReverseOrderMultiDimensions(t *testing.T) {
 }
 
 func TestAddDeleteDuplicatesRebalanceRandomOrderMultiDimensions(t *testing.T) {
-	it := newMultiDimensionalTree(2)
+	it := newTree(2)
 
 	intervals := make(Intervals, 0, 5)
 	starts := []int{0, 4, 2, 1, 3}
@@ -460,10 +460,15 @@ func TestInsertPositiveMultipleDimensions(t *testing.T) {
 	assert.Len(t, deleted, 0)
 	assert.Equal(t, Intervals{iv2, iv1, iv3}, modified)
 
-	results := it.Query(constructMultiDimensionInterval(
-		0, &dimension{0, 100}, &dimension{0, 6}),
-	)
-	assert.NotContains(t, results, iv1)
-
 	checkRedBlack(t, it.root, 1)
+}
+
+func TestInsertNegativeMultipleDimensions(t *testing.T) {
+	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
+
+	modified, deleted := it.Insert(2, 4, -1)
+	assert.Equal(t, Intervals{iv1, iv3}, modified)
+	assert.Equal(t, Intervals{iv2}, deleted)
+
+	assert.Equal(t, uint64(2), it.Len())
 }

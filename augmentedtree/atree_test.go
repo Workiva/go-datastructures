@@ -695,14 +695,6 @@ func TestInsertDeletesInterval(t *testing.T) {
 	assert.Equal(t, 2, tree.root.max)
 }
 
-func TestInsertInvalidDimension(t *testing.T) {
-	tree, _ := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(2, 0, 1)
-	assert.Len(t, deleted, 0)
-	assert.Len(t, modified, 0)
-}
-
 func TestDeleteMiddleOfRange(t *testing.T) {
 	tree, ivs := constructSingleDimensionTestTree(3)
 

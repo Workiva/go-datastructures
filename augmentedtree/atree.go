@@ -276,6 +276,27 @@ func (tree *tree) delete(iv Interval) {
 	}
 }
 
+// insertInterval returns an int indicating if action needs to be taken
+// with the given interval.  A 1 returned indicates this interval
+// needs to be modified.  A -1 indicates that this interval needs to
+// be deleted.  A 0 indicates this interval requires no action.
+func insertInterval(dimension uint64, interval Interval, index, count int64) int {
+	low, high := interval.LowAtDimension(dimension), interval.HighAtDimension(dimension)
+	if index >= high {
+		return 0
+	}
+
+	if count > 0 {
+		return 1
+	}
+
+	if index >= low && count*-1 >= high-low {
+		return -1
+	}
+
+	return 1
+}
+
 // Insert will shift intervals in the tree based on the specified
 // index and the specified count.  Dimension specifies where to
 // apply the shift.  Returned is a list of intervals impacted and
@@ -287,10 +308,6 @@ func (tree *tree) delete(iv Interval) {
 func (tree *tree) Insert(dimension uint64,
 	index, count int64) (Intervals, Intervals) {
 
-	if dimension != 1 { // consumer made a mistake
-		return nil, nil
-	}
-
 	if tree.root == nil { // nothing to do
 		return nil, nil
 	}
@@ -298,6 +315,17 @@ func (tree *tree) Insert(dimension uint64,
 	modified, deleted := intervalsPool.Get().(Intervals), intervalsPool.Get().(Intervals)
 
 	tree.root.query(math.MinInt64, math.MaxInt64, nil, tree.maxDimension, func(n *node) {
+		if dimension > 1 {
+			action := insertInterval(dimension, n.interval, index, count)
+			switch action {
+			case 1:
+				modified = append(modified, n.interval)
+			case -1:
+				deleted = append(deleted, n.interval)
+			}
+			return
+		}
+
 		if n.max <= index { // won't change min or max in this case
 			return
 		}
