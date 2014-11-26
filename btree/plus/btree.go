@@ -47,6 +47,14 @@ func (tree *btree) Insert(keys ...Key) {
 	}
 }
 
+func (tree *btree) Iterate(key Key) *iterator {
+	if tree.root == nil {
+		return nilIterator()
+	}
+
+	return tree.root.find(key)
+}
+
 func newBTree(nodeSize uint64) *btree {
 	return &btree{
 		nodeSize: nodeSize,

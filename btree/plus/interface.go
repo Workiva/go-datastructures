@@ -10,3 +10,10 @@ type Key interface {
 	// identical including IDs will not be inserted.
 	ID() uint64
 }
+
+// Iterator will be called with matching keys until either false is
+// returned or we run out of keys to iterate.
+type Iterator interface {
+	Next() bool
+	Value() Key
+}

@@ -29,6 +29,13 @@ func split(tree *btree, parent, child node) node {
 
 	p := parent.(*inode)
 	i := p.search(key)
+	// we want to ensure if the children are leaves we set
+	// the left node's left sibling to point to left
+	if cr, ok := left.(*lnode); ok {
+		if i > 0 {
+			p.nodes[i-1].(*lnode).pointer = cr
+		}
+	}
 	p.keys.insertAt(i, key)
 	p.nodes[i] = left
 	p.nodes.insertAt(i+1, right)
@@ -43,6 +50,7 @@ type node interface {
 	// represent the left and right nodes respectively
 	split() (Key, node, node)
 	search(key Key) int
+	find(key Key) *iterator
 }
 
 type nodes []node
@@ -73,6 +81,22 @@ type inode struct {
 
 func (node *inode) search(key Key) int {
 	return node.keys.search(key)
+}
+
+func (node *inode) find(key Key) *iterator {
+	i := node.search(key)
+	log.Printf(`INODE FIND: %+v, i: %d`, node, i)
+	if i == len(node.keys) {
+		return node.nodes[len(node.nodes)-1].find(key)
+	}
+
+	found := node.keys[i]
+	switch found.Compare(key) {
+	case 0 | 1:
+		return node.nodes[i+1].find(key)
+	default:
+		return node.nodes[i].find(key)
+	}
 }
 
 func (n *inode) insert(tree *btree, key Key) bool {
@@ -165,6 +189,28 @@ func (lnode *lnode) insert(tree *btree, key Key) bool {
 	}
 
 	return true
+}
+
+func (node *lnode) find(key Key) *iterator {
+	i := node.search(key)
+	log.Printf(`LEAF FIND: %+v, i: %d`, node, i)
+	if i == len(node.keys) {
+		if node.pointer == nil {
+			return nilIterator()
+		}
+
+		return &iterator{
+			node:  node.pointer,
+			index: -1,
+		}
+	}
+
+	iter := &iterator{
+		node:  node,
+		index: i - 1,
+	}
+	log.Printf(`ITER: %+v`, iter)
+	return iter
 }
 
 func (node *lnode) split() (Key, node, node) {
