@@ -147,3 +147,18 @@ func TestTreeInsert3_4_5WithEarlyDuplicate(t *testing.T) {
 
 	assert.Equal(t, keys, result)
 }
+
+func TestTreeInsert3_4_5WithDuplicateID(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	key := newMockKey(2, 2)
+	tree.Insert(keys...)
+	println(`SHIT STARTS HERE`)
+	tree.Insert(key)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys, result)
+}

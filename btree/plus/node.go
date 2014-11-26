@@ -85,14 +85,13 @@ func (node *inode) search(key Key) int {
 
 func (node *inode) find(key Key) *iterator {
 	i := node.search(key)
-	log.Printf(`INODE FIND: %+v, i: %d`, node, i)
 	if i == len(node.keys) {
 		return node.nodes[len(node.nodes)-1].find(key)
 	}
 
 	found := node.keys[i]
 	switch found.Compare(key) {
-	case 0 | 1:
+	case 0, 1:
 		return node.nodes[i+1].find(key)
 	default:
 		return node.nodes[i].find(key)
@@ -107,7 +106,7 @@ func (n *inode) insert(tree *btree, key Key) bool {
 	} else {
 		match := n.keys[i]
 		switch match.Compare(key) {
-		case 1 | 0:
+		case 1, 0:
 			child = n.nodes[i+1]
 		default:
 			child = n.nodes[i]
@@ -193,7 +192,6 @@ func (lnode *lnode) insert(tree *btree, key Key) bool {
 
 func (node *lnode) find(key Key) *iterator {
 	i := node.search(key)
-	log.Printf(`LEAF FIND: %+v, i: %d`, node, i)
 	if i == len(node.keys) {
 		if node.pointer == nil {
 			return nilIterator()
@@ -209,7 +207,6 @@ func (node *lnode) find(key Key) *iterator {
 		node:  node,
 		index: i - 1,
 	}
-	log.Printf(`ITER: %+v`, iter)
 	return iter
 }
 
@@ -317,6 +314,7 @@ func (sorted *sortedByIDKeys) insert(key Key) bool {
 	}
 
 	if (*sorted)[i].ID() == key.ID() { // we don't allow duplicates
+		println(`RETURNING FALSE`)
 		return false
 	}
 
