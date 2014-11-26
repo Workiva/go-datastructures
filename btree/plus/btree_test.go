@@ -243,3 +243,23 @@ func TestTreeInternalNodeSplitRandomOrder(t *testing.T) {
 		assert.Equal(t, newMockKey(uint64(i), uint64(i)), key)
 	}
 }
+
+func TestTreeRandomOrderQuery(t *testing.T) {
+	ids := []uint64{6, 2, 9, 0, 3, 4, 7, 1, 8, 5}
+	keys := make(keys, 0, len(ids))
+
+	for _, id := range ids {
+		keys = append(keys, newMockKey(id, id))
+	}
+
+	tree := newBTree(4)
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(4, 4))
+	result := iter.exhaust()
+
+	assert.Len(t, result, 6)
+	for i, key := range result {
+		assert.Equal(t, newMockKey(uint64(i)+4, uint64(i)+4), key)
+	}
+}
