@@ -1,10 +1,15 @@
 package plus
 
 import (
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	log.Print(`hate this`)
+}
 
 func constructMockPayloads(num uint64) keys {
 	keys := make(keys, 0, num)
@@ -23,6 +28,43 @@ func constructMockKeys(num uint64) keys {
 	}
 
 	return keys
+}
+
+func constructMockNodes(num uint64) nodes {
+	nodes := make(nodes, 0, num)
+	for i := uint64(0); i < num; i++ {
+		keys := make(keys, 0, num)
+		for j := uint64(0); j < num; j++ {
+			keys = append(keys, newPayload(newMockKey(j*i+j, j*i+j)))
+		}
+
+		node := &lnode{
+			keys: keys,
+		}
+		nodes = append(nodes, node)
+		if i > 0 {
+			nodes[i-1].(*lnode).pointer = node
+		}
+	}
+
+	return nodes
+}
+
+func constructMockInternalNode(nodes nodes) *inode {
+	if len(nodes) < 2 {
+		return nil
+	}
+
+	keys := make(keys, 0, len(nodes)-1)
+	for i := 1; i < len(nodes); i++ {
+		keys = append(keys, nodes[i].(*lnode).keys[0].(*payload).key())
+	}
+
+	in := &inode{
+		keys:  keys,
+		nodes: nodes,
+	}
+	return in
 }
 
 func TestLeafNodeInsert(t *testing.T) {
@@ -130,4 +172,28 @@ func TestLessThanTwoKeysSplit(t *testing.T) {
 	assert.Nil(t, key)
 	assert.Nil(t, left)
 	assert.Nil(t, right)
+}
+
+func TestInternalNodeSplit2_3_4(t *testing.T) {
+	nodes := constructMockNodes(4)
+	in := constructMockInternalNode(nodes)
+
+	key, left, right := in.split()
+	assert.Equal(t, nodes[3].(*lnode).keys[0].(*payload).key(), key)
+	assert.Len(t, left.(*inode).keys, 1)
+	assert.Len(t, right.(*inode).keys, 1)
+	assert.Equal(t, nodes[:2], left.(*inode).nodes)
+	assert.Equal(t, nodes[2:], right.(*inode).nodes)
+}
+
+func TestInternalNodeSplit3_4_5(t *testing.T) {
+	nodes := constructMockNodes(5)
+	in := constructMockInternalNode(nodes)
+
+	key, left, right := in.split()
+	assert.Equal(t, nodes[4].(*lnode).keys[0].(*payload).key(), key)
+	assert.Len(t, left.(*inode).keys, 2)
+	assert.Len(t, right.(*inode).keys, 1)
+	assert.Equal(t, nodes[:3], left.(*inode).nodes)
+	assert.Equal(t, nodes[3:], right.(*inode).nodes)
 }

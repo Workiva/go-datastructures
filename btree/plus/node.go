@@ -27,23 +27,107 @@ type node interface {
 	// key is the median key while left and right nodes
 	// represent the left and right nodes respectively
 	split() (Key, node, node)
+	search(key Key) int
 }
 
 type nodes []node
+
+func (nodes *nodes) insertAt(i int, node node) {
+	if i == len(*nodes) {
+		*nodes = append(*nodes, node)
+		return
+	}
+
+	*nodes = append(*nodes, nil)
+	copy((*nodes)[i+1:], (*nodes)[i:])
+	(*nodes)[i] = node
+}
+
+func (ns nodes) splitAt(i int) (nodes, nodes) {
+	left := make(nodes, i, cap(ns))
+	right := make(nodes, len(ns)-i, cap(ns))
+	copy(left, ns[:i])
+	copy(right, ns[i:])
+	return left, right
+}
 
 type inode struct {
 	keys  keys
 	nodes nodes
 }
 
+func (node *inode) search(key Key) int {
+	return node.keys.search(key)
+}
+
+func (n *inode) insert(tree *btree, key Key) bool {
+	i := n.search(key)
+	var child node
+	if i == len(n.keys) { // we want the last child node in this case
+		child = n.nodes[len(n.nodes)-1]
+	} else {
+		match := n.keys[i]
+		switch match.Compare(key) {
+		case 1 | 0:
+			child = n.nodes[i+1]
+		default:
+			child = n.nodes[i]
+		}
+	}
+
+	result := child.insert(tree, key)
+	if !result { // no change of state occurred
+		return result
+	}
+
+	if child.needsSplit(tree.nodeSize) {
+		split(tree, n, child)
+	}
+
+	return result
+}
+
+func (n *inode) needsSplit(nodeSize uint64) bool {
+	return uint64(len(n.keys)) >= nodeSize
+}
+
+func (n *inode) split() (Key, node, node) {
+	if len(n.keys) < 3 {
+		return nil, nil, nil
+	}
+
+	i := len(n.keys) / 2
+	key := n.keys[i]
+
+	ourKeys := make(keys, len(n.keys)-i-1, cap(n.keys))
+	otherKeys := make(keys, i, cap(n.keys))
+	copy(ourKeys, n.keys[i+1:])
+	copy(otherKeys, n.keys[:i])
+	left, right := n.nodes.splitAt(i + 1)
+	otherNode := &inode{
+		keys:  otherKeys,
+		nodes: left,
+	}
+	n.keys = ourKeys
+	n.nodes = right
+	return key, otherNode, n
+}
+
 func newInternalNode(size uint64) *inode {
-	return &inode{}
+	return &inode{
+		keys:  make(keys, 0, size),
+		nodes: make(nodes, 0, size),
+	}
 }
 
 type lnode struct {
 	// points to the left leaf node is there is one
 	pointer *lnode
 	keys    keys
+}
+
+func (node *lnode) search(key Key) int {
+	return node.keys.search(key)
 }
 
 func (lnode *lnode) insert(tree *btree, key Key) bool {
@@ -74,8 +158,8 @@ func (node *lnode) split() (Key, node, node) {
 	}
 	i := len(node.keys) / 2
 	key := node.keys[i].(*payload).key()
-	otherKeys := make(keys, i)
-	ourKeys := make(keys, len(node.keys)-i)
+	otherKeys := make(keys, i, cap(node.keys))
+	ourKeys := make(keys, len(node.keys)-i, cap(node.keys))
 	// we perform these copies so these slices don't all end up
 	// pointing to the same underlying array which may make
 	// for some very difficult to debug situations later.
@@ -134,6 +218,10 @@ func newPayload(key Key) *payload {
 }
 
 type keys []Key
+
+func (keys keys) search(key Key) int {
+	return keySearch(keys, key)
+}
 
 func (keys *keys) insertAt(i int, key Key) {
 	if i == len(*keys) {
