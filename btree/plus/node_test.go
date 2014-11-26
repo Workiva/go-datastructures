@@ -197,3 +197,13 @@ func TestInternalNodeSplit3_4_5(t *testing.T) {
 	assert.Equal(t, nodes[:3], left.(*inode).nodes)
 	assert.Equal(t, nodes[3:], right.(*inode).nodes)
 }
+
+func TestInternalNodeLessThan3Keys(t *testing.T) {
+	nodes := constructMockNodes(2)
+	in := constructMockInternalNode(nodes)
+
+	key, left, right := in.split()
+	assert.Nil(t, key)
+	assert.Nil(t, left)
+	assert.Nil(t, right)
+}
