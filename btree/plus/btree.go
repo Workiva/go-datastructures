@@ -36,7 +36,6 @@ func (tree *btree) insert(key Key) {
 	}
 
 	if tree.root.needsSplit(tree.nodeSize) {
-		println(`calling split here`)
 		tree.root = split(tree, nil, tree.root)
 	}
 }

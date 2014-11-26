@@ -23,10 +23,6 @@ func split(tree *btree, parent, child node) node {
 		return in
 	}
 
-	log.Printf(`left: %+v`, left)
-	log.Printf(`right: %+v`, right)
-	log.Printf(`key: %+v`, key)
-
 	p := parent.(*inode)
 	i := p.search(key)
 	// we want to ensure if the children are leaves we set
@@ -314,7 +310,6 @@ func (sorted *sortedByIDKeys) insert(key Key) bool {
 	}
 
 	if (*sorted)[i].ID() == key.ID() { // we don't allow duplicates
-		println(`RETURNING FALSE`)
 		return false
 	}
 

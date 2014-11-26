@@ -263,3 +263,33 @@ func TestTreeRandomOrderQuery(t *testing.T) {
 		assert.Equal(t, newMockKey(uint64(i)+4, uint64(i)+4), key)
 	}
 }
+
+func BenchmarkIteration(b *testing.B) {
+	numItems := uint64(1000)
+	ary := uint64(16)
+
+	keys := constructMockKeys(numItems)
+	tree := newBTree(ary)
+	tree.Insert(keys...)
+
+	searchKey := newMockKey(0, 0)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		iter := tree.Iterate(searchKey)
+		iter.exhaust()
+	}
+}
+
+func BenchmarkInsert(b *testing.B) {
+	numItems := uint64(1000)
+	ary := uint64(16)
+
+	keys := constructMockKeys(numItems)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tree := newBTree(ary)
+		tree.Insert(keys...)
+	}
+}
