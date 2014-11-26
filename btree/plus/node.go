@@ -14,11 +14,26 @@ func split(tree *btree, parent, child node) node {
 		return parent
 	}
 
-	switch child.(type) {
-	case *lnode: // we need to split a leaf
-
+	key, left, right := child.split()
+	if parent == nil {
+		in := newInternalNode(tree.nodeSize)
+		in.keys = append(in.keys, key)
+		in.nodes = append(in.nodes, left)
+		in.nodes = append(in.nodes, right)
+		return in
 	}
-	return nil
+
+	log.Printf(`left: %+v`, left)
+	log.Printf(`right: %+v`, right)
+	log.Printf(`key: %+v`, key)
+
+	p := parent.(*inode)
+	i := p.search(key)
+	p.keys.insertAt(i, key)
+	p.nodes[i] = left
+	p.nodes.insertAt(i+1, right)
+
+	return parent
 }
 
 type node interface {
@@ -116,7 +131,7 @@ func (n *inode) split() (Key, node, node) {
 func newInternalNode(size uint64) *inode {
 	return &inode{
 		keys:  make(keys, 0, size),
-		nodes: make(nodes, 0, size),
+		nodes: make(nodes, 0, size+1),
 	}
 }
 

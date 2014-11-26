@@ -23,3 +23,14 @@ func TestSearchKeys(t *testing.T) {
 
 	assert.Equal(t, 0, keySearch(nil, testKey))
 }
+
+func TestTreeInsert(t *testing.T) {
+	tree := newBTree(3)
+	keys := constructMockKeys(4)
+
+	tree.Insert(keys...)
+
+	assert.Len(t, tree.root.(*inode).keys, 2)
+	assert.Len(t, tree.root.(*inode).nodes, 3)
+	assert.IsType(t, &inode{}, tree.root)
+}

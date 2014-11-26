@@ -23,11 +23,28 @@ type btree struct {
 }
 
 func (tree *btree) insert(key Key) {
-	tree.root.insert(tree, key)
+	if tree.root == nil {
+		n := newLeafNode(tree.nodeSize)
+		n.insert(tree, key)
+		tree.number = 1
+		return
+	}
+
+	result := tree.root.insert(tree, key)
+	if result {
+		tree.number++
+	}
+
+	if tree.root.needsSplit(tree.nodeSize) {
+		println(`calling split here`)
+		tree.root = split(tree, nil, tree.root)
+	}
 }
 
 func (tree *btree) Insert(keys ...Key) {
-
+	for _, key := range keys {
+		tree.insert(key)
+	}
 }
 
 func newBTree(nodeSize uint64) *btree {
