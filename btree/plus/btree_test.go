@@ -154,11 +154,46 @@ func TestTreeInsert3_4_5WithDuplicateID(t *testing.T) {
 
 	key := newMockKey(2, 2)
 	tree.Insert(keys...)
-	println(`SHIT STARTS HERE`)
 	tree.Insert(key)
 
 	iter := tree.Iterate(newMockKey(0, 0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
+}
+
+func TestTreeInsert3_4_5MiddleQuery(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(2, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys[2:], result)
+}
+
+func TestTreeInsert3_4_5LateQuery(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(4, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys[4:], result)
+}
+
+func TestTreeInsert3_4_5AfterQuery(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(5, 0))
+	result := iter.exhaust()
+
+	assert.Len(t, result, 0)
 }
