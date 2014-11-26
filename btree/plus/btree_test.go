@@ -104,3 +104,46 @@ func TestTreeInsertReverseOrder3_4_5(t *testing.T) {
 
 	assert.Equal(t, keys, result)
 }
+
+func TestTreeInsert3_4_5_WithEndDuplicate(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	keys = append(keys, newMockKey(4, 5))
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys, result)
+}
+
+func TestTreeInsert3_4_5_WithMiddleDuplicate(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	key := newMockKey(2, 5)
+	keys.insertAt(3, key)
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys, result)
+}
+
+func TestTreeInsert3_4_5WithEarlyDuplicate(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	key := newMockKey(0, 5)
+	keys.insertAt(1, key)
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys, result)
+}
