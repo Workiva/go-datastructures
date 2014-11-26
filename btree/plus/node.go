@@ -1,9 +1,32 @@
 package plus
 
-import "sort"
+import (
+	"log"
+	"sort"
+)
+
+func init() {
+	log.Printf(`I HATE THIS`)
+}
+
+func split(tree *btree, parent, child node) node {
+	if !child.needsSplit(tree.nodeSize) {
+		return parent
+	}
+
+	switch child.(type) {
+	case *lnode: // we need to split a leaf
+
+	}
+	return nil
+}
 
 type node interface {
 	insert(tree *btree, key Key) bool
+	needsSplit(nodeSize uint64) bool
+	// key is the median key while left and right nodes
+	// represent the left and right nodes respectively
+	split() (Key, node, node)
 }
 
 type nodes []node
@@ -11,6 +34,10 @@ type nodes []node
 type inode struct {
 	keys  keys
 	nodes nodes
+}
+
+func newInternalNode(size uint64) *inode {
+	return &inode{}
 }
 
 type lnode struct {
@@ -38,11 +65,34 @@ func (lnode *lnode) insert(tree *btree, key Key) bool {
 		return false
 	}
 
-	if uint64(len(lnode.keys)) == tree.nodeSize { // all the magic happens here
-
-	}
-
 	return true
+}
+
+func (node *lnode) split() (Key, node, node) {
+	if len(node.keys) < 2 {
+		return nil, nil, nil
+	}
+	i := len(node.keys) / 2
+	key := node.keys[i].(*payload).key()
+	otherKeys := make(keys, i)
+	ourKeys := make(keys, len(node.keys)-i)
+	// we perform these copies so these slices don't all end up
+	// pointing to the same underlying array which may make
+	// for some very difficult to debug situations later.
+	copy(otherKeys, node.keys[:i])
+	copy(ourKeys, node.keys[i:])
+
+	// this should release the original array for GC
+	node.keys = ourKeys
+	otherNode := &lnode{
+		keys:    otherKeys,
+		pointer: node,
+	}
+	return key, otherNode, node
+}
+
+func (lnode *lnode) needsSplit(nodeSize uint64) bool {
+	return uint64(len(lnode.keys)) >= nodeSize
 }
 
 func newLeafNode(size uint64) *lnode {
@@ -69,6 +119,10 @@ func (payload *payload) Compare(key Key) int {
 	}
 
 	return payload.keys[0].Compare(key)
+}
+
+func (payload *payload) key() Key {
+	return payload.keys[0]
 }
 
 func newPayload(key Key) *payload {
