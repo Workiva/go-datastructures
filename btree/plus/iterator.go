@@ -60,7 +60,6 @@ func (iter *iterator) Next() bool {
 }
 
 func (iter *iterator) Value() Key {
-	log.Printf(`iter: %+v`, iter.pi.value())
 	return iter.pi.value()
 }
 

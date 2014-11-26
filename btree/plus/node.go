@@ -295,6 +295,12 @@ func (keys *keys) insertAt(i int, key Key) {
 	(*keys)[i] = key
 }
 
+func (keys keys) reverse() {
+	for i := 0; i < len(keys)/2; i++ {
+		keys[i], keys[len(keys)-i-1] = keys[len(keys)-i-1], keys[i]
+	}
+}
+
 type sortedByIDKeys keys
 
 func (sorted sortedByIDKeys) search(id uint64) int {

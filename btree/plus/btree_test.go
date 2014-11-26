@@ -62,3 +62,45 @@ func TestTreeInsertQuery2_3_4(t *testing.T) {
 
 	assert.Equal(t, keys, result)
 }
+
+func TestTreeInsertQuery3_4_5(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+
+	assert.Equal(t, keys, result)
+}
+
+func TestTreeInsertReverseOrder2_3_4(t *testing.T) {
+	tree := newBTree(3)
+	keys := constructMockKeys(4)
+	keys.reverse()
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+	keys.reverse() // we want to fetch things in the correct
+	// ascending order
+
+	assert.Equal(t, keys, result)
+}
+
+func TestTreeInsertReverseOrder3_4_5(t *testing.T) {
+	tree := newBTree(4)
+	keys := constructMockKeys(5)
+	keys.reverse()
+
+	tree.Insert(keys...)
+
+	iter := tree.Iterate(newMockKey(0, 0))
+	result := iter.exhaust()
+	keys.reverse() // we want to fetch things in the correct
+	// ascending order
+
+	assert.Equal(t, keys, result)
+}
