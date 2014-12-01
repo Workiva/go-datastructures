@@ -23,6 +23,11 @@ tree can tell you if that plane overlaps with a plane defined by
 (-5, -5) and (5, 5) (true in this case).  You can also check
 intersections against a point by constructing a range of encompassed
 solely if a single point.
+
+The current tree is a simple top-down red-black binary search tree.
+
+TODO: Add a bottom-up implementation to assist with duplicate
+range handling.
 */
 
 package augmentedtree
