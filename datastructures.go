@@ -1,5 +1,12 @@
 package datastructures
 
+/*
+Package datastructures exists solely to aid consumers of the
+go-datastructures library when using dependency managers.  Depman,
+for instance, will work correctly with any datastructure by simply
+importing this package instead of each subpackage individually.
+*/
+
 import (
 	_ "github.com/Workiva/go-datastructures/augmentedtree"
 	_ "github.com/Workiva/go-datastructures/bitarray"
