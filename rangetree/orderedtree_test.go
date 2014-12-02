@@ -40,7 +40,7 @@ func constructMultiDimensionalOrderedTree(number uint64) (
 func TestOTRootAddMultipleDimensions(t *testing.T) {
 	tree, entries := constructMultiDimensionalOrderedTree(1)
 
-	assert.Equal(t, 1, tree.Len())
+	assert.Equal(t, uint64(1), tree.Len())
 
 	result := tree.Query(constructMockInterval(dimension{0, 1}, dimension{0, 1}))
 	assert.Equal(t, Entries{entries[0]}, result)
@@ -49,7 +49,7 @@ func TestOTRootAddMultipleDimensions(t *testing.T) {
 func TestOTMultipleAddMultipleDimensions(t *testing.T) {
 	tree, entries := constructMultiDimensionalOrderedTree(4)
 
-	assert.Equal(t, 4, tree.Len())
+	assert.Equal(t, uint64(4), tree.Len())
 
 	result := tree.Query(constructMockInterval(dimension{0, 1}, dimension{0, 1}))
 	assert.Equal(t, Entries{entries[0]}, result)
@@ -80,7 +80,7 @@ func TestOTAddInOrderMultiDimensions(t *testing.T) {
 	tree, entries := constructMultiDimensionalOrderedTree(10)
 
 	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
-	assert.Equal(t, 10, tree.Len())
+	assert.Equal(t, uint64(10), tree.Len())
 	assert.Len(t, result, 10)
 	assert.Equal(t, entries, result)
 }
@@ -94,7 +94,7 @@ func TestOTAddReverseOrderMultiDimensions(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{0, 11}, dimension{0, 11}))
 	assert.Len(t, result, 10)
-	assert.Equal(t, 10, tree.Len())
+	assert.Equal(t, uint64(10), tree.Len())
 }
 
 func TestOTAddRandomOrderMultiDimensions(t *testing.T) {
@@ -108,7 +108,7 @@ func TestOTAddRandomOrderMultiDimensions(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{0, 5}, dimension{0, 5}))
 	assert.Len(t, result, 5)
-	assert.Equal(t, 5, tree.Len())
+	assert.Equal(t, uint64(5), tree.Len())
 }
 
 func TestOTAddLargeNumbersMultiDimension(t *testing.T) {
@@ -171,7 +171,7 @@ func TestOTRootDeleteMultiDimensions(t *testing.T) {
 	tree, entries := constructMultiDimensionalOrderedTree(1)
 	tree.Delete(entries...)
 
-	assert.Equal(t, 0, tree.Len())
+	assert.Equal(t, uint64(0), tree.Len())
 
 	result := tree.Query(constructMockInterval(dimension{0, 100}, dimension{0, 100}))
 	assert.Len(t, result, 0)
@@ -182,7 +182,7 @@ func TestOTDeleteMultiDimensions(t *testing.T) {
 
 	tree.Delete(entries[2])
 
-	assert.Equal(t, 3, tree.Len())
+	assert.Equal(t, uint64(3), tree.Len())
 
 	result := tree.Query(constructMockInterval(dimension{0, 4}, dimension{0, 4}))
 	assert.Equal(t, Entries{entries[0], entries[1], entries[3]}, result)
@@ -201,7 +201,7 @@ func TestOTDeleteInOrderMultiDimensions(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 	assert.Len(t, result, 9)
-	assert.Equal(t, 9, tree.Len())
+	assert.Equal(t, uint64(9), tree.Len())
 
 	assert.NotContains(t, result, entries[5])
 }
@@ -220,7 +220,7 @@ func TestOTDeleteReverseOrderMultiDimensions(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{0, 11}, dimension{0, 11}))
 	assert.Len(t, result, 9)
-	assert.Equal(t, 9, tree.Len())
+	assert.Equal(t, uint64(9), tree.Len())
 
 	assert.NotContains(t, result, entries[5])
 }
@@ -241,7 +241,7 @@ func TestOTDeleteRandomOrderMultiDimensions(t *testing.T) {
 	result := tree.Query(constructMockInterval(dimension{0, 11}, dimension{0, 11}))
 
 	assert.Len(t, result, 4)
-	assert.Equal(t, 4, tree.Len())
+	assert.Equal(t, uint64(4), tree.Len())
 
 	assert.NotContains(t, result, entries[2])
 }
@@ -251,7 +251,7 @@ func TestOTDeleteEmptyTreeMultiDimensions(t *testing.T) {
 
 	tree.Delete(constructMockEntry(0, 0, 0))
 
-	assert.Equal(t, 0, tree.Len())
+	assert.Equal(t, uint64(0), tree.Len())
 }
 
 func BenchmarkOTDeleteItemsMultiDimensions(b *testing.B) {
@@ -286,7 +286,12 @@ func TestOverwrites(t *testing.T) {
 	results := tree.Query(constructMockInterval(dimension{0, 100}, dimension{0, 100}))
 
 	assert.Equal(t, Entries{entry}, results)
-	assert.Equal(t, 1, tree.Len())
+	assert.Equal(t, uint64(1), tree.Len())
+
+	newEntry := constructMockEntry(0, 0, 0)
+
+	overwritten := tree.Add(newEntry)
+	assert.Equal(t, Entries{entry}, overwritten)
 }
 
 func TestTreeApply(t *testing.T) {
@@ -416,7 +421,7 @@ func TestInsertNegativeIndexFirstDimension(t *testing.T) {
 
 	result = tree.Query(constructMockInterval(dimension{2, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 2, tree.Len())
+	assert.Equal(t, uint64(2), tree.Len())
 }
 
 func TestInsertNegativeIndexSecondDimension(t *testing.T) {
@@ -431,7 +436,7 @@ func TestInsertNegativeIndexSecondDimension(t *testing.T) {
 
 	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 2, tree.Len())
+	assert.Equal(t, uint64(2), tree.Len())
 }
 
 func TestInsertNegativeIndexOutOfBoundsFirstDimension(t *testing.T) {
@@ -444,7 +449,7 @@ func TestInsertNegativeIndexOutOfBoundsFirstDimension(t *testing.T) {
 	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 
 	assert.Equal(t, entries, result)
-	assert.Equal(t, 3, tree.Len())
+	assert.Equal(t, uint64(3), tree.Len())
 }
 
 func TestInsertNegativeIndexOutOfBoundsSecondDimension(t *testing.T) {
@@ -457,7 +462,7 @@ func TestInsertNegativeIndexOutOfBoundsSecondDimension(t *testing.T) {
 	result := tree.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 
 	assert.Equal(t, entries, result)
-	assert.Equal(t, 3, tree.Len())
+	assert.Equal(t, uint64(3), tree.Len())
 }
 
 func TestInsertMultipleNegativeIndexFirstDimension(t *testing.T) {
@@ -469,7 +474,7 @@ func TestInsertMultipleNegativeIndexFirstDimension(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 1, tree.Len())
+	assert.Equal(t, uint64(1), tree.Len())
 }
 
 func TestInsertMultipleNegativeIndexSecondDimension(t *testing.T) {
@@ -481,7 +486,7 @@ func TestInsertMultipleNegativeIndexSecondDimension(t *testing.T) {
 
 	result := tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 1, tree.Len())
+	assert.Equal(t, uint64(1), tree.Len())
 }
 
 func TestInsertInvalidDimension(t *testing.T) {

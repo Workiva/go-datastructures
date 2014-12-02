@@ -52,15 +52,15 @@ func TestImmutableSingleDimensionMultipleAdds(t *testing.T) {
 
 	result := tree1.Query(iv)
 	assert.Equal(t, Entries{e1}, result)
-	assert.Equal(t, 1, tree1.Len())
+	assert.Equal(t, uint64(1), tree1.Len())
 
 	result = tree2.Query(iv)
 	assert.Equal(t, Entries{e1, e2}, result)
-	assert.Equal(t, 2, tree2.Len())
+	assert.Equal(t, uint64(2), tree2.Len())
 
 	result = tree3.Query(iv)
 	assert.Equal(t, Entries{e1, e2, e3}, result)
-	assert.Equal(t, 3, tree3.Len())
+	assert.Equal(t, uint64(3), tree3.Len())
 }
 
 func TestImmutableSingleDimensionBulkAdd(t *testing.T) {
@@ -75,7 +75,7 @@ func TestImmutableSingleDimensionBulkAdd(t *testing.T) {
 
 	result := tree1.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 	assert.Equal(t, entries, result)
-	assert.Equal(t, 3, tree1.Len())
+	assert.Equal(t, uint64(3), tree1.Len())
 }
 
 func TestImmutableMultiDimensionAdd(t *testing.T) {
@@ -108,15 +108,15 @@ func TestImmutableMultiDimensionMultipleAdds(t *testing.T) {
 
 	result := tree1.Query(iv)
 	assert.Equal(t, Entries{e1}, result)
-	assert.Equal(t, 1, tree1.Len())
+	assert.Equal(t, uint64(1), tree1.Len())
 
 	result = tree2.Query(iv)
 	assert.Equal(t, Entries{e1, e2}, result)
-	assert.Equal(t, 2, tree2.Len())
+	assert.Equal(t, uint64(2), tree2.Len())
 
 	result = tree3.Query(iv)
 	assert.Equal(t, Entries{e1, e2, e3}, result)
-	assert.Equal(t, 3, tree3.Len())
+	assert.Equal(t, uint64(3), tree3.Len())
 }
 
 func TestImmutableMultiDimensionBulkAdd(t *testing.T) {
@@ -131,7 +131,7 @@ func TestImmutableMultiDimensionBulkAdd(t *testing.T) {
 
 	result := tree1.Query(constructMockInterval(dimension{0, 10}, dimension{0, 10}))
 	assert.Equal(t, entries, result)
-	assert.Equal(t, 3, tree1.Len())
+	assert.Equal(t, uint64(3), tree1.Len())
 }
 
 func BenchmarkImmutableMultiDimensionInserts(b *testing.B) {
@@ -214,21 +214,21 @@ func TestImmutableSingleDimensionMultipleDeletes(t *testing.T) {
 	tree4 := tree3.Delete(e3)
 	result := tree4.Query(iv)
 	assert.Equal(t, Entries{e1, e2}, result)
-	assert.Equal(t, 2, tree4.Len())
+	assert.Equal(t, uint64(2), tree4.Len())
 
 	tree5 := tree4.Delete(e2)
 	result = tree5.Query(iv)
 	assert.Equal(t, Entries{e1}, result)
-	assert.Equal(t, 1, tree5.Len())
+	assert.Equal(t, uint64(1), tree5.Len())
 
 	tree6 := tree5.Delete(e1)
 	result = tree6.Query(iv)
 	assert.Len(t, result, 0)
-	assert.Equal(t, 0, tree6.Len())
+	assert.Equal(t, uint64(0), tree6.Len())
 
 	result = tree3.Query(iv)
 	assert.Equal(t, Entries{e1, e2, e3}, result)
-	assert.Equal(t, 3, tree3.Len())
+	assert.Equal(t, uint64(3), tree3.Len())
 
 	tree7 := tree3.Delete(constructMockEntry(0, int64(3), int64(3)))
 	assert.Equal(t, tree3, tree7)
@@ -247,13 +247,13 @@ func TestImmutableSingleDimensionBulkDeletes(t *testing.T) {
 
 	result := tree2.Query(iv)
 	assert.Equal(t, Entries{e1}, result)
-	assert.Equal(t, 1, tree2.Len())
+	assert.Equal(t, uint64(1), tree2.Len())
 
 	tree3 := tree2.Delete(e1)
 
 	result = tree3.Query(iv)
 	assert.Len(t, result, 0)
-	assert.Equal(t, 0, tree3.Len())
+	assert.Equal(t, uint64(0), tree3.Len())
 }
 
 func TestImmutableMultiDimensionDelete(t *testing.T) {
@@ -266,7 +266,7 @@ func TestImmutableMultiDimensionDelete(t *testing.T) {
 
 	result := tree3.Query(iv)
 	assert.Len(t, result, 0)
-	assert.Equal(t, 0, tree3.Len())
+	assert.Equal(t, uint64(0), tree3.Len())
 }
 
 func TestImmutableMultiDimensionMultipleDeletes(t *testing.T) {
@@ -284,21 +284,21 @@ func TestImmutableMultiDimensionMultipleDeletes(t *testing.T) {
 
 	result := tree4.Query(iv)
 	assert.Equal(t, Entries{e1, e2}, result)
-	assert.Equal(t, 2, tree4.Len())
+	assert.Equal(t, uint64(2), tree4.Len())
 
 	tree5 := tree4.Delete(e2)
 	result = tree5.Query(iv)
 	assert.Equal(t, Entries{e1}, result)
-	assert.Equal(t, 1, tree5.Len())
+	assert.Equal(t, uint64(1), tree5.Len())
 
 	tree6 := tree5.Delete(e1)
 	result = tree6.Query(iv)
 	assert.Len(t, result, 0)
-	assert.Equal(t, 0, tree6.Len())
+	assert.Equal(t, uint64(0), tree6.Len())
 
 	result = tree3.Query(iv)
 	assert.Equal(t, Entries{e1, e2, e3}, result)
-	assert.Equal(t, 3, tree3.Len())
+	assert.Equal(t, uint64(3), tree3.Len())
 
 	tree7 := tree3.Delete(constructMockEntry(0, int64(3), int64(3)))
 	assert.Equal(t, tree3, tree7)
@@ -317,13 +317,13 @@ func TestImmutableMultiDimensionBulkDeletes(t *testing.T) {
 
 	result := tree2.Query(iv)
 	assert.Equal(t, Entries{e1}, result)
-	assert.Equal(t, 1, tree2.Len())
+	assert.Equal(t, uint64(1), tree2.Len())
 
 	tree3 := tree2.Delete(e1)
 
 	result = tree3.Query(iv)
 	assert.Len(t, result, 0)
-	assert.Equal(t, 0, tree3.Len())
+	assert.Equal(t, uint64(0), tree3.Len())
 }
 
 func constructMultiDimensionalImmutableTree(number int64) (*immutableRangeTree, Entries) {
@@ -422,11 +422,11 @@ func TestImmutableInsertNegativeIndexFirstDimension(t *testing.T) {
 
 	result = tree1.Query(constructMockInterval(dimension{2, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 2, tree1.Len())
+	assert.Equal(t, uint64(2), tree1.Len())
 
 	result = tree.Query(constructMockInterval(dimension{2, 10}, dimension{1, 10}))
 	assert.Equal(t, entries[2:], result)
-	assert.Equal(t, 3, tree.Len())
+	assert.Equal(t, uint64(3), tree.Len())
 }
 
 func TestImmutableInsertNegativeIndexSecondDimension(t *testing.T) {
@@ -441,11 +441,11 @@ func TestImmutableInsertNegativeIndexSecondDimension(t *testing.T) {
 
 	result = tree1.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 2, tree1.Len())
+	assert.Equal(t, uint64(2), tree1.Len())
 
 	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{2, 10}))
 	assert.Equal(t, entries[2:], result)
-	assert.Equal(t, 3, tree.Len())
+	assert.Equal(t, uint64(3), tree.Len())
 }
 
 func TestImmutableInsertNegativeIndexOutOfBoundsFirstDimension(t *testing.T) {
@@ -475,7 +475,7 @@ func TestImmutableInsertMultipleNegativeIndexFirstDimension(t *testing.T) {
 
 	result := tree1.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 1, tree1.Len())
+	assert.Equal(t, uint64(1), tree1.Len())
 
 	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Equal(t, entries[1:], result)
@@ -490,7 +490,7 @@ func TestImmutableInsertMultipleNegativeIndexSecondDimension(t *testing.T) {
 
 	result := tree1.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Len(t, result, 0)
-	assert.Equal(t, 1, tree1.Len())
+	assert.Equal(t, uint64(1), tree1.Len())
 
 	result = tree.Query(constructMockInterval(dimension{1, 10}, dimension{1, 10}))
 	assert.Equal(t, entries[1:], result)
