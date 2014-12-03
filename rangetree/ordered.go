@@ -29,26 +29,29 @@ func (nodes orderedNodes) search(value int64) int {
 	)
 }
 
-func (nodes *orderedNodes) addAt(i int, node *node) bool {
+// addAt will add the provided node at the provided index.  Returns
+// a node if one was overwritten.
+func (nodes *orderedNodes) addAt(i int, node *node) *node {
 	if i == len(*nodes) {
 		*nodes = append(*nodes, node)
-		return false
+		return nil
 	}
 
 	if (*nodes)[i].value == node.value {
+		overwritten := (*nodes)[i]
 		// this is a duplicate, there can't be a duplicate
 		// point in the last dimension
 		(*nodes)[i] = node
-		return true
+		return overwritten
 	}
 
 	*nodes = append(*nodes, nil)
 	copy((*nodes)[i+1:], (*nodes)[i:])
 	(*nodes)[i] = node
-	return false
+	return nil
 }
 
-func (nodes *orderedNodes) add(node *node) bool {
+func (nodes *orderedNodes) add(node *node) *node {
 	i := nodes.search(node.value)
 	return nodes.addAt(i, node)
 }

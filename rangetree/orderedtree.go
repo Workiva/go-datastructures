@@ -40,7 +40,9 @@ func (ot *orderedTree) needNextDimension() bool {
 	return ot.dimensions > 1
 }
 
-func (ot *orderedTree) add(entry Entry) {
+// add will add the provided entry to the rangetree and return an
+// entry if one was overwritten.
+func (ot *orderedTree) add(entry Entry) *node {
 	var node *node
 	list := &ot.top
 
@@ -49,25 +51,37 @@ func (ot *orderedTree) add(entry Entry) {
 			overwritten := list.add(
 				newNode(entry.ValueAtDimension(i), entry, false),
 			)
-			if !overwritten {
+			if overwritten == nil {
 				ot.number++
 			}
-			break
+			return overwritten
 		}
 		node, _ = list.getOrAdd(entry, i, ot.dimensions)
 		list = &node.orderedNodes
 	}
+
+	return nil
 }
 
 // Add will add the provided entries to the tree.
-func (ot *orderedTree) Add(entries ...Entry) {
+func (ot *orderedTree) Add(entries ...Entry) Entries {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	overwrittens := make(Entries, 0, len(entries))
 	for _, entry := range entries {
 		if entry == nil {
 			continue
 		}
 
-		ot.add(entry)
+		overwritten := ot.add(entry)
+		if overwritten != nil {
+			overwrittens = append(overwrittens, overwritten.entry)
+		}
 	}
+
+	return overwrittens
 }
 
 func (ot *orderedTree) delete(entry Entry) {
