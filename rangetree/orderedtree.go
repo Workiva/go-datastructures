@@ -63,7 +63,11 @@ func (ot *orderedTree) add(entry Entry) *node {
 	return nil
 }
 
-// Add will add the provided entries to the tree.
+// Add will add the provided entries to the tree.  This method
+// returns a list of cells that were overwritten in the order
+// in which cells were received.  If a cell doesn't overwrite
+// anything, a nil will be returned for that entry in the returned
+// slice.
 func (ot *orderedTree) Add(entries ...Entry) Entries {
 	if len(entries) == 0 {
 		return nil
@@ -78,6 +82,8 @@ func (ot *orderedTree) Add(entries ...Entry) Entries {
 		overwritten := ot.add(entry)
 		if overwritten != nil {
 			overwrittens = append(overwrittens, overwritten.entry)
+		} else {
+			overwrittens = append(overwrittens, nil)
 		}
 	}
 

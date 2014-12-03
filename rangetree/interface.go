@@ -50,7 +50,8 @@ type Interval interface {
 type RangeTree interface {
 	// Add will add the provided entries to the tree.  Any entries that
 	// were overwritten will be returned in the order in which they
-	// were overwritten.
+	// were overwritten.  If a cell's addition does not overwrite, a nil
+	// is returned for that cell for its index in the provided cells.
 	Add(entries ...Entry) Entries
 	// Len returns the number of entries in the tree.
 	Len() uint64
