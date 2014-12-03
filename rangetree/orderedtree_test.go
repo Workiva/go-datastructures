@@ -279,18 +279,19 @@ func BenchmarkOTDeleteItemsMultiDimensions(b *testing.B) {
 func TestOverwrites(t *testing.T) {
 	tree, _ := constructMultiDimensionalOrderedTree(1)
 
-	entry := constructMockEntry(0, 0, 0)
+	entry := constructMockEntry(10, 10, 10)
 
-	tree.Add(entry)
+	overwritten := tree.Add(entry)
+	assert.Equal(t, Entries{nil}, overwritten)
 
-	results := tree.Query(constructMockInterval(dimension{0, 100}, dimension{0, 100}))
+	results := tree.Query(constructMockInterval(dimension{10, 11}, dimension{10, 11}))
 
 	assert.Equal(t, Entries{entry}, results)
-	assert.Equal(t, uint64(1), tree.Len())
+	assert.Equal(t, uint64(2), tree.Len())
 
-	newEntry := constructMockEntry(0, 0, 0)
+	newEntry := constructMockEntry(10, 10, 10)
 
-	overwritten := tree.Add(newEntry)
+	overwritten = tree.Add(newEntry)
 	assert.Equal(t, Entries{entry}, overwritten)
 }
 
