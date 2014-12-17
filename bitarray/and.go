@@ -101,15 +101,11 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 }
 
 func andDenseWithDenseBitArray(dba, other *bitArray) BitArray {
-	max := maxUint64(uint64(len(dba.blocks)), uint64(len(other.blocks)))
+	min := minUint64(uint64(len(dba.blocks)), uint64(len(other.blocks)))
 
-	ba := newBitArray(max * s)
+	ba := newBitArray(min * s)
 
-	for i := uint64(0); i < max; i++ {
-		if i == uint64(len(dba.blocks)) || i == uint64(len(dba.blocks)) {
-			break
-		}
-
+	for i := uint64(0); i < min; i++ {
 		ba.blocks[i] = dba.blocks[i].and(other.blocks[i])
 	}
 
