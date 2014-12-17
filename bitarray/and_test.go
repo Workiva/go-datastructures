@@ -106,6 +106,7 @@ func TestAndDenseWithDenseBitArray(t *testing.T) {
 	checkBit(t, ba, 222, true)
 
 	// check that the ba is the maximum of the size of `dba` and `other`
+	// (dense bitarrays return an error on an out-of-bounds access)
 	checkBit(t, ba, 1500, false)
 	checkBit(t, ba, 1501, false)
 }

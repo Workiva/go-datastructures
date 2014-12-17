@@ -17,16 +17,20 @@ limitations under the License.
 package bitarray
 
 func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
-
 	max := maxInt64(int64(len(sba.indices)), int64(len(other.indices)))
 	indices := make(uintSlice, 0, max)
 	blocks := make(blocks, 0, max)
 
 	selfIndex := 0
 	otherIndex := 0
+
+	// move through the array and compare the blocks if they happen to
+	// intersect
 	for {
-		// one of the arrays has been exhausted
 		if selfIndex == len(sba.indices) || otherIndex == len(other.indices) {
+			// One of the arrays has been exhausted. We don't need
+			// to compare anything else for a bitwise and; the
+			// operation is complete.
 			break
 		}
 
@@ -35,10 +39,20 @@ func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
 
 		switch {
 		case otherValue < selfValue:
+			// The `sba` bitarray has a block with a index position
+			// greater than us. We want to compare with that block
+			// if possible, so move our `other` index closer to that
+			// block's index.
 			otherIndex++
+
 		case otherValue > selfValue:
+			// This is the exact logical inverse of the above case.
 			selfIndex++
+
 		default:
+			// Here, our indices match for both `sba` and `other`.
+			// Time to do the bitwise AND operation and add a block
+			// to our result list.
 			indices = append(indices, selfValue)
 			blocks = append(blocks, sba.blocks[selfIndex].and(other.blocks[otherIndex]))
 			selfIndex++
@@ -58,8 +72,18 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 	ba := newBitArray(max * s)
 	selfIndex := 0
 	otherIndex := 0
+
+	// Run through the sparse array and attempt comparisons wherever
+	// possible against the dense bit array.
+	//
+	// NOTE: it may be possible to increase the efficiency of this function
+	// by generating a sparse bit array as the result instead of a dense bit
+	// array.
+	//
 	for {
 		if selfIndex == len(sba.indices) || otherIndex == len(other.blocks) {
+			// One of the arrays has been exhausted-- we're good to
+			// postprocess and return.
 			break
 		}
 
