@@ -67,36 +67,35 @@ func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
 }
 
 func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
-	max := maxUint64(uint64(sba.Capacity()), uint64(other.Capacity()))
-
-	ba := newBitArray(max * s)
-	selfIndex := 0
-	otherIndex := 0
+	// Use a duplicate of the sparse array to store the results of the
+	// bitwise and. More memory-efficient than allocating a new dense bit
+	// array.
+	//
+	// NOTE: this could be faster if we didn't copy the values as well
+	// (since they are overwritten), but I don't want this method to know
+	// too much about the internals of sparseBitArray. The performance hit
+	// should be minor anyway.
+	ba := sba.copy()
 
 	// Run through the sparse array and attempt comparisons wherever
 	// possible against the dense bit array.
-	//
-	// NOTE: it may be possible to increase the efficiency of this function
-	// by generating a sparse bit array as the result instead of a dense bit
-	// array.
-	//
-	for {
-		if selfIndex == len(sba.indices) || otherIndex == len(other.blocks) {
-			// One of the arrays has been exhausted-- we're good to
-			// postprocess and return.
+	for selfIndex, selfValue := range ba.indices {
+
+		if selfValue >= uint64(len(other.blocks)) {
+			// The dense bit array has been exhausted. This is the
+			// annoying case because we have to trim the sparse
+			// array to the size of the dense array.
+			ba.blocks = ba.blocks[:selfIndex]
+			ba.indices = ba.indices[:selfIndex]
+
+			// once this is done, there are no more comparisons.
+			// We're ready to return
 			break
 		}
 
-		selfValue := sba.indices[selfIndex]
-		if selfValue == uint64(otherIndex) {
-			ba.blocks[otherIndex] = sba.blocks[selfIndex].and(other.blocks[otherIndex])
-			selfIndex++
-		}
-		otherIndex++
+		ba.blocks[selfIndex] = ba.blocks[selfIndex].and(
+			other.blocks[selfValue])
 	}
-
-	ba.setHighest()
-	ba.setLowest()
 
 	return ba
 }

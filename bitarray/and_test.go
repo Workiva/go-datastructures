@@ -65,7 +65,7 @@ func TestAndSparseWithSparseBitArray(t *testing.T) {
 	checkBit(t, ba, 280, false)
 }
 
-func TestAndSpareWithDenseBitArray(t *testing.T) {
+func TestAndSparseWithDenseBitArray(t *testing.T) {
 	sba := newSparseBitArray()
 	other := newBitArray(300)
 
@@ -85,6 +85,34 @@ func TestAndSpareWithDenseBitArray(t *testing.T) {
 	checkBit(t, ba, 155, false)
 	checkBit(t, ba, 156, false)
 	checkBit(t, ba, 300, true)
+}
+
+// Maks sure that the sparse array is trimmed correctly if compared against a
+// smaller dense bit array.
+func TestAndSparseWithSmallerDenseBitArray(t *testing.T) {
+	sba := newSparseBitArray()
+	other := newBitArray(512)
+
+	other.SetBit(1)
+	sba.SetBit(1)
+	other.SetBit(150)
+	sba.SetBit(150)
+	sba.SetBit(155)
+	sba.SetBit(500)
+
+	other.SetBit(128)
+	sba.SetBit(1500)
+	sba.SetBit(1200)
+
+	ba := andSparseWithDenseBitArray(sba, other)
+
+	checkBit(t, ba, 1, true)
+	checkBit(t, ba, 150, true)
+	checkBit(t, ba, 155, false)
+	checkBit(t, ba, 128, false)
+	checkBit(t, ba, 500, false)
+	checkBit(t, ba, 1200, false)
+	checkBit(t, ba, 1500, false)
 }
 
 func TestAndDenseWithDenseBitArray(t *testing.T) {
