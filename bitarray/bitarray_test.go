@@ -305,6 +305,24 @@ func TestSetHighestLowest(t *testing.T) {
 	assert.Equal(t, 8, ba.highest)
 }
 
+func TestGetBitAtCapacity(t *testing.T) {
+	ba := newBitArray(s * 2)
+	_, err := ba.GetBit(s * 2)
+	assert.Error(t, err)
+}
+
+func TestSetBitAtCapacity(t *testing.T) {
+	ba := newBitArray(s * 2)
+	err := ba.SetBit(s * 2)
+	assert.Error(t, err)
+}
+
+func TestClearBitAtCapacity(t *testing.T) {
+	ba := newBitArray(s * 2)
+	err := ba.ClearBit(s * 2)
+	assert.Error(t, err)
+}
+
 func TestClearHighestLowest(t *testing.T) {
 	ba := newBitArray(10)
 
