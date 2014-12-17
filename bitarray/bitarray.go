@@ -20,8 +20,6 @@ efficient way.  This is *NOT* a threadsafe package.
 */
 package bitarray
 
-import "math"
-
 // bitArray is a struct that maintains state of a bit array.
 type bitArray struct {
 	blocks  []block
@@ -273,7 +271,7 @@ func newBitArray(size uint64, args ...bool) *bitArray {
 
 	if len(args) > 0 && args[0] == true {
 		for i := uint64(0); i < uint64(len(ba.blocks)); i++ {
-			ba.blocks[i] = block(math.MaxUint64)
+			ba.blocks[i] = maximumBlock
 		}
 
 		ba.lowest = 0

@@ -389,7 +389,7 @@ func TestBitArrayEqualsSparse(t *testing.T) {
 }
 
 func TestConstructorSetBitArray(t *testing.T) {
-	ba := newBitArray(10, true)
+	ba := newBitArray(8, true)
 
 	result, err := ba.GetBit(7)
 	assert.Nil(t, err)
