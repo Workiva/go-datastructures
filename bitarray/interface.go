@@ -59,6 +59,9 @@ type BitArray interface {
 	// Or will bitwise or the two bitarrays and return a new bitarray
 	// representing the result.
 	Or(other BitArray) BitArray
+	// And will bitwise and the two bitarrays and return a new bitarray
+	// representing the result.
+	And(other BitArray) BitArray
 	// ToNums converts this bit array to the list of numbers contained
 	// within it.
 	ToNums() []uint64

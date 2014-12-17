@@ -234,6 +234,16 @@ func (sba *sparseBitArray) Or(other BitArray) BitArray {
 	return orSparseWithDenseBitArray(sba, other.(*bitArray))
 }
 
+// And will perform a bitwise and operation with the provided bitarray and
+// return a new result bitarray.
+func (sba *sparseBitArray) And(other BitArray) BitArray {
+	if ba, ok := other.(*sparseBitArray); ok {
+		return andSparseWithSparseBitArray(sba, ba)
+	}
+
+	return andSparseWithDenseBitArray(sba, other.(*bitArray))
+}
+
 func (sba *sparseBitArray) copy() *sparseBitArray {
 	blocks := make(blocks, len(sba.blocks))
 	copy(blocks, sba.blocks)

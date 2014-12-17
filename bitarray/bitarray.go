@@ -147,6 +147,16 @@ func (ba *bitArray) Or(other BitArray) BitArray {
 	return orSparseWithDenseBitArray(other.(*sparseBitArray), ba)
 }
 
+// And will bitwise and two bit arrays and return a new bit array
+// representing the result.
+func (ba *bitArray) And(other BitArray) BitArray {
+	if dba, ok := other.(*bitArray); ok {
+		return andDenseWithDenseBitArray(ba, dba)
+	}
+
+	return andSparseWithDenseBitArray(other.(*sparseBitArray), ba)
+}
+
 // Reset clears out the bit array.
 func (ba *bitArray) Reset() {
 	for i := uint64(0); i < uint64(len(ba.blocks)); i++ {
