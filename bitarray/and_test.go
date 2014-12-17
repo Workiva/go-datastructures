@@ -51,3 +51,60 @@ func TestAndSparseWithSparseBitArray(t *testing.T) {
 	checkBit(t, ba, 127, true)
 	checkBit(t, ba, 125, false)
 }
+
+func TestAndSpareWithDenseBitArray(t *testing.T) {
+	sba := newSparseBitArray()
+	other := newBitArray(300)
+
+	other.SetBit(1)
+	sba.SetBit(1)
+	other.SetBit(150)
+	sba.SetBit(150)
+	sba.SetBit(155)
+	other.SetBit(156)
+	sba.SetBit(300)
+	other.SetBit(300)
+
+	ba := andSparseWithDenseBitArray(sba, other)
+
+	checkBit(t, ba, 1, true)
+	checkBit(t, ba, 150, true)
+	checkBit(t, ba, 155, false)
+	checkBit(t, ba, 156, false)
+	checkBit(t, ba, 300, true)
+}
+
+func TestAndDenseWithDenseBitArray(t *testing.T) {
+	dba := newBitArray(1000)
+	other := newBitArray(2000)
+
+	dba.SetBit(1)
+	other.SetBit(18)
+	dba.SetBit(222)
+	other.SetBit(222)
+	other.SetBit(1501)
+
+	ba := andDenseWithDenseBitArray(dba, other)
+
+	checkBit(t, ba, 0, false)
+	checkBit(t, ba, 1, false)
+	checkBit(t, ba, 3, false)
+	checkBit(t, ba, 18, false)
+	checkBit(t, ba, 222, true)
+
+	// check that the ba is the maximum of the size of `dba` and `other`
+	checkBit(t, ba, 1500, false)
+	checkBit(t, ba, 1501, false)
+}
+
+func TestAndSparseWithEmptySparse(t *testing.T) {
+	sba := newSparseBitArray()
+	other := newSparseBitArray()
+
+	sba.SetBit(5)
+
+	ba := andSparseWithSparseBitArray(sba, other)
+	checkBit(t, ba, 0, false)
+	checkBit(t, ba, 5, false)
+	checkBit(t, ba, 100, false)
+}

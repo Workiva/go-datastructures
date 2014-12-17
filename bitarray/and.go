@@ -19,14 +19,6 @@ package bitarray
 func andSparseWithSparseBitArray(sba *sparseBitArray,
 	other *sparseBitArray) BitArray {
 
-	if len(other.indices) == 0 {
-		return sba.copy()
-	}
-
-	if len(sba.indices) == 0 {
-		return other.copy()
-	}
-
 	max := maxInt64(int64(len(sba.indices)), int64(len(other.indices)))
 	indices := make(uintSlice, 0, max)
 	blocks := make(blocks, 0, max)
@@ -38,12 +30,8 @@ func andSparseWithSparseBitArray(sba *sparseBitArray,
 		if selfIndex == len(sba.indices) && otherIndex == len(other.indices) {
 			break
 		} else if selfIndex == len(sba.indices) {
-			indices = append(indices, other.indices[otherIndex:]...)
-			blocks = append(blocks, other.blocks[otherIndex:]...)
 			break
 		} else if otherIndex == len(other.indices) {
-			indices = append(indices, sba.indices[selfIndex:]...)
-			blocks = append(blocks, sba.blocks[selfIndex:]...)
 			break
 		}
 
@@ -74,14 +62,6 @@ func andSparseWithSparseBitArray(sba *sparseBitArray,
 }
 
 func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
-	if other.Capacity() == 0 || !other.anyset {
-		return sba.copy()
-	}
-
-	if sba.Capacity() == 0 {
-		return other.copy()
-	}
-
 	max := maxUint64(uint64(sba.Capacity()), uint64(other.Capacity()))
 
 	ba := newBitArray(max * s)
@@ -91,7 +71,6 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 		if selfIndex == len(sba.indices) && otherIndex == len(other.blocks) {
 			break
 		} else if selfIndex == len(sba.indices) {
-			copy(ba.blocks[otherIndex:], other.blocks[otherIndex:])
 			break
 		} else if otherIndex == len(other.blocks) {
 			for i, value := range sba.indices[selfIndex:] {
@@ -119,26 +98,16 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 }
 
 func andDenseWithDenseBitArray(dba *bitArray, other *bitArray) BitArray {
-	if dba.Capacity() == 0 || !dba.anyset {
-		return other.copy()
-	}
-
-	if other.Capacity() == 0 || !other.anyset {
-		return dba.copy()
-	}
-
 	max := maxUint64(uint64(len(dba.blocks)), uint64(len(other.blocks)))
 
 	ba := newBitArray(max * s)
 
 	for i := uint64(0); i < max; i++ {
 		if i == uint64(len(dba.blocks)) {
-			copy(ba.blocks[i:], other.blocks[i:])
 			break
 		}
 
 		if i == uint64(len(other.blocks)) {
-			copy(ba.blocks[i:], dba.blocks[i:])
 			break
 		}
 
