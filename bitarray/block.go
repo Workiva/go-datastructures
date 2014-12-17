@@ -16,7 +16,10 @@ limitations under the License.
 
 package bitarray
 
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 // block defines how we split apart the bit array. This also determines the size
 // of s. This can be changed to any unsigned integer type: uint8, uint16,
@@ -88,4 +91,8 @@ func (b block) equals(other block) bool {
 
 func (b block) intersects(other block) bool {
 	return b&other == other
+}
+
+func (b block) String() string {
+	return fmt.Sprintf(fmt.Sprintf("%%0%db", s), uint64(b))
 }
