@@ -40,13 +40,16 @@ func TestAndSparseWithSparseBitArray(t *testing.T) {
 	sba.SetBit(1)
 	other.SetBit(1)
 	sba.SetBit(3)
+	other.SetBit(9)
 	other.SetBit(127)
 	sba.SetBit(127)
+	sba.SetBit(280)
 
 	ba := andSparseWithSparseBitArray(sba, other)
 
 	checkBit(t, ba, 1, true)
 	checkBit(t, ba, 3, false)
+	checkBit(t, ba, 9, false)
 	checkBit(t, ba, 2, false)
 	checkBit(t, ba, 127, true)
 	checkBit(t, ba, 125, false)
@@ -107,4 +110,33 @@ func TestAndSparseWithEmptySparse(t *testing.T) {
 	checkBit(t, ba, 0, false)
 	checkBit(t, ba, 5, false)
 	checkBit(t, ba, 100, false)
+}
+
+func TestAndSparseWithEmptyDense(t *testing.T) {
+	sba := newSparseBitArray()
+	other := newBitArray(1000)
+
+	sba.SetBit(5)
+	ba := andSparseWithDenseBitArray(sba, other)
+	checkBit(t, ba, 5, false)
+
+	sba.Reset()
+	other.SetBit(5)
+
+	ba = andSparseWithDenseBitArray(sba, other)
+	checkBit(t, ba, 5, false)
+}
+
+func TestAndDenseWithEmptyDense(t *testing.T) {
+	dba := newBitArray(1000)
+	other := newBitArray(1000)
+
+	dba.SetBit(5)
+	ba := andDenseWithDenseBitArray(dba, other)
+	checkBit(t, ba, 5, false)
+
+	dba.Reset()
+	other.SetBit(5)
+	ba = andDenseWithDenseBitArray(dba, other)
+	checkBit(t, ba, 5, false)
 }
