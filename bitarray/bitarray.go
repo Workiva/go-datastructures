@@ -90,6 +90,7 @@ func (ba *bitArray) SetBit(k uint64) error {
 	if !ba.anyset {
 		ba.lowest = k
 		ba.highest = k
+		ba.anyset = true
 	} else {
 		if k < ba.lowest {
 			ba.lowest = k
@@ -97,10 +98,9 @@ func (ba *bitArray) SetBit(k uint64) error {
 			ba.highest = k
 		}
 	}
-	ba.anyset = true
 
 	i, pos := getIndexAndRemainder(k)
-	ba.blocks[i] |= block(1 << pos)
+	ba.blocks[i] = ba.blocks[i].insert(pos)
 	return nil
 }
 
