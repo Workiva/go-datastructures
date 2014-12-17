@@ -16,8 +16,7 @@ limitations under the License.
 
 package bitarray
 
-func andSparseWithSparseBitArray(sba *sparseBitArray,
-	other *sparseBitArray) BitArray {
+func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
 
 	max := maxInt64(int64(len(sba.indices)), int64(len(other.indices)))
 	indices := make(uintSlice, 0, max)
@@ -26,7 +25,7 @@ func andSparseWithSparseBitArray(sba *sparseBitArray,
 	selfIndex := 0
 	otherIndex := 0
 	for {
-		// last comparison was a real and, we are both exhausted now
+		// one of the arrays has been exhausted
 		if selfIndex == len(sba.indices) || otherIndex == len(other.indices) {
 			break
 		}
@@ -34,13 +33,13 @@ func andSparseWithSparseBitArray(sba *sparseBitArray,
 		selfValue := sba.indices[selfIndex]
 		otherValue := other.indices[otherIndex]
 
-		switch diff := otherValue - selfValue; {
-		case diff > 0:
-			selfIndex++
-		case diff < 0:
+		switch {
+		case otherValue < selfValue:
 			otherIndex++
+		case otherValue > selfValue:
+			selfIndex++
 		default:
-			indices = append(indices, otherValue)
+			indices = append(indices, selfValue)
 			blocks = append(blocks, sba.blocks[selfIndex].and(other.blocks[otherIndex]))
 			selfIndex++
 			otherIndex++
@@ -68,11 +67,7 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 		if selfValue == uint64(otherIndex) {
 			ba.blocks[otherIndex] = sba.blocks[selfIndex].and(other.blocks[otherIndex])
 			selfIndex++
-			otherIndex++
-			continue
 		}
-
-		ba.blocks[otherIndex] = other.blocks[otherIndex]
 		otherIndex++
 	}
 
@@ -82,7 +77,7 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 	return ba
 }
 
-func andDenseWithDenseBitArray(dba *bitArray, other *bitArray) BitArray {
+func andDenseWithDenseBitArray(dba, other *bitArray) BitArray {
 	max := maxUint64(uint64(len(dba.blocks)), uint64(len(other.blocks)))
 
 	ba := newBitArray(max * s)

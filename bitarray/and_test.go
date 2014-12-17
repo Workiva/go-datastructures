@@ -25,11 +25,12 @@ import (
 // checkBit is a helper method for these unit tests
 func checkBit(t *testing.T, ba BitArray, position uint64, expected bool) {
 	ok, err := ba.GetBit(position)
-	assert.NoError(t, err)
-	if expected {
-		assert.True(t, ok)
-	} else {
-		assert.False(t, ok)
+	if assert.NoError(t, err) {
+		if expected {
+			assert.True(t, ok, "Bitarray at position %d should be set", position)
+		} else {
+			assert.False(t, ok, "Bitarray at position %d should be unset", position)
+		}
 	}
 }
 
@@ -37,22 +38,31 @@ func TestAndSparseWithSparseBitArray(t *testing.T) {
 	sba := newSparseBitArray()
 	other := newSparseBitArray()
 
+	// bits for which only one of the arrays is set
+	sba.SetBit(3)
+	sba.SetBit(280)
+	other.SetBit(9)
+	other.SetBit(100)
+
+	// bits for which both arrays are set
 	sba.SetBit(1)
 	other.SetBit(1)
-	sba.SetBit(3)
-	other.SetBit(9)
-	other.SetBit(127)
-	sba.SetBit(127)
-	sba.SetBit(280)
+	sba.SetBit(2680)
+	other.SetBit(2680)
+	sba.SetBit(30)
+	other.SetBit(30)
 
 	ba := andSparseWithSparseBitArray(sba, other)
 
 	checkBit(t, ba, 1, true)
+	checkBit(t, ba, 30, true)
+	checkBit(t, ba, 2680, true)
+
 	checkBit(t, ba, 3, false)
 	checkBit(t, ba, 9, false)
+	checkBit(t, ba, 100, false)
 	checkBit(t, ba, 2, false)
-	checkBit(t, ba, 127, true)
-	checkBit(t, ba, 125, false)
+	checkBit(t, ba, 280, false)
 }
 
 func TestAndSpareWithDenseBitArray(t *testing.T) {
