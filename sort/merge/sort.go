@@ -16,6 +16,10 @@ func copyChunk(chunk []Comparators) []Comparators {
 	return cp
 }
 
+// MultithreadedSortComparators will take a list of comparators
+// and sort it using as many threads as are available.  The list
+// is split into buckets for a bucket sort and then recursively
+// merged using SymMerge.
 func MultithreadedSortComparators(comparators Comparators) Comparators {
 	toBeSorted := make(Comparators, len(comparators))
 	copy(toBeSorted, comparators)

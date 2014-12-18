@@ -5,6 +5,9 @@ import (
 	"sync"
 )
 
+// symSearch is like symBinarySearch but operates
+// on two sorted lists instead of a sorted list and an index.
+// It's duplication of code but you buy performance.
 func symSearch(u, w Comparators) int {
 	start, stop, p := 0, len(u), len(w)-1
 	for start < stop {
@@ -19,12 +22,19 @@ func symSearch(u, w Comparators) int {
 	return start
 }
 
+// swap will swap positions of the two lists from index
+// to the end of the list.  It expects that these lists
+// are the same size or one different.
 func swap(u, w Comparators, index int) {
 	for i := index; i < len(u); i++ {
 		u[i], w[i-index] = w[i-index], u[i]
 	}
 }
 
+// decomposeForSymMerge pulls an active site out of the list
+// of length in size.  W becomes the active site for future sym
+// merges and v1, v2 are decomposed and split among the other
+// list to be merged and w.
 func decomposeForSymMerge(length int,
 	comparators Comparators) (v1 Comparators,
 	w Comparators, v2 Comparators) {
@@ -40,6 +50,8 @@ func decomposeForSymMerge(length int,
 	return
 }
 
+// symBinarySearch will perform a binary search between the provided
+// indices and find the index at which a rotation should occur.
 func symBinarySearch(u Comparators, start, stop, total int) int {
 	for start < stop {
 		mid := (start + stop) / 2
@@ -53,12 +65,17 @@ func symBinarySearch(u Comparators, start, stop, total int) int {
 	return start
 }
 
+// symSwap will perform a rotation or swap between the provided
+// indices.  Again, there is duplication here with swap, but
+// we are buying performance.
 func symSwap(u Comparators, start1, start2, end int) {
 	for i := 0; i < end; i++ {
 		u[start1+i], u[start2+i] = u[start2+i], u[start1+i]
 	}
 }
 
+// symRotate determines the indices to use in a symSwap and
+// performs the swap.
 func symRotate(u Comparators, start1, start2, end int) {
 	i := start2 - start1
 	if i == 0 {
@@ -88,6 +105,7 @@ func symRotate(u Comparators, start1, start2, end int) {
 	symSwap(u, p-i, p, i)
 }
 
+// symMerge is the recursive and internal form of SymMerge.
 func symMerge(u Comparators, start1, start2, last int) {
 	if start1 < start2 && start2 < last {
 		mid := (start1 + last) / 2
@@ -106,6 +124,12 @@ func symMerge(u Comparators, start1, start2, last int) {
 	}
 }
 
+// SymMerge will perform a symmetrical merge of the two provided
+// lists.  It is expected that these lists are pre-sorted.  Failure
+// to do so will result in undefined behavior.  This function does
+// make use of goroutines, so multithreading can aid merge time.
+// This makes M*log(N/M+1) comparisons where M is the length
+// of the shorter list and N is the length of the longer list.
 func SymMerge(u, w Comparators) Comparators {
 	lenU, lenW := len(u), len(w)
 	if lenU == 0 {
@@ -145,6 +169,13 @@ func SymMerge(u, w Comparators) Comparators {
 	return u
 }
 
+// prepareForSymMerge performs a symmetrical decomposition on two
+// lists of different sizes.  It breaks apart the longer list into
+// an active site (equal to the size of the shorter list) and performs
+// a symmetrical rotation with the active site and the shorter list.
+// The two stubs are then split between the active site and shorter list
+// ensuring two equally sized lists where every value in u' is less
+// than w'.
 func prepareForSymMerge(u, w Comparators) (u1, w1, u2, w2 Comparators) {
 	if u.Len() > w.Len() {
 		u, w = w, u
