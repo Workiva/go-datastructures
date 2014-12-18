@@ -16,13 +16,24 @@ limitations under the License.
 
 package bitarray
 
-// s denotes the size of any element in the block array.  Cannot use
-// unsafe.SizeOf here as you can't take the size of a type.
-const s = uint64(64)
+import (
+	"fmt"
+	"unsafe"
+)
 
-// block defines how we split apart the bit array.  This also
-// determines the size of s.
+// block defines how we split apart the bit array. This also determines the size
+// of s. This can be changed to any unsigned integer type: uint8, uint16,
+// uint32, and so on.
 type block uint64
+
+// s denotes the size of any element in the block array.
+// For a block of uint64, s will be equal to 64
+// For a block of uint32, s will be equal to 32
+// and so on...
+const s = uint64(unsafe.Sizeof(block(0)) * 8)
+
+// maximumBlock represents a block of all 1s and is used in the constructors.
+const maximumBlock = block(0) | ^block(0)
 
 func (b block) toNums(offset uint64, nums *[]uint64) {
 	for i := uint64(0); i < s; i++ {
@@ -66,6 +77,10 @@ func (b block) or(other block) block {
 	return b | other
 }
 
+func (b block) and(other block) block {
+	return b & other
+}
+
 func (b block) get(position uint64) bool {
 	return b&block(1<<position) != 0
 }
@@ -76,4 +91,8 @@ func (b block) equals(other block) bool {
 
 func (b block) intersects(other block) bool {
 	return b&other == other
+}
+
+func (b block) String() string {
+	return fmt.Sprintf(fmt.Sprintf("%%0%db", s), uint64(b))
 }

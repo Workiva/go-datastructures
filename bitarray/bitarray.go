@@ -20,8 +20,6 @@ efficient way.  This is *NOT* a threadsafe package.
 */
 package bitarray
 
-import "math"
-
 // bitArray is a struct that maintains state of a bit array.
 type bitArray struct {
 	blocks  []block
@@ -92,6 +90,7 @@ func (ba *bitArray) SetBit(k uint64) error {
 	if !ba.anyset {
 		ba.lowest = k
 		ba.highest = k
+		ba.anyset = true
 	} else {
 		if k < ba.lowest {
 			ba.lowest = k
@@ -99,10 +98,9 @@ func (ba *bitArray) SetBit(k uint64) error {
 			ba.highest = k
 		}
 	}
-	ba.anyset = true
 
 	i, pos := getIndexAndRemainder(k)
-	ba.blocks[i] |= block(1 << pos)
+	ba.blocks[i] = ba.blocks[i].insert(pos)
 	return nil
 }
 
@@ -147,6 +145,16 @@ func (ba *bitArray) Or(other BitArray) BitArray {
 	}
 
 	return orSparseWithDenseBitArray(other.(*sparseBitArray), ba)
+}
+
+// And will bitwise and two bit arrays and return a new bit array
+// representing the result.
+func (ba *bitArray) And(other BitArray) BitArray {
+	if dba, ok := other.(*bitArray); ok {
+		return andDenseWithDenseBitArray(ba, dba)
+	}
+
+	return andSparseWithDenseBitArray(other.(*sparseBitArray), ba)
 }
 
 // Reset clears out the bit array.
@@ -273,7 +281,7 @@ func newBitArray(size uint64, args ...bool) *bitArray {
 
 	if len(args) > 0 && args[0] == true {
 		for i := uint64(0); i < uint64(len(ba.blocks)); i++ {
-			ba.blocks[i] = block(math.MaxUint64)
+			ba.blocks[i] = maximumBlock
 		}
 
 		ba.lowest = 0

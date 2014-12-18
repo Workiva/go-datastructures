@@ -94,7 +94,7 @@ func BenchmarkOrSparseWithSparse(b *testing.B) {
 	}
 }
 
-func TestOrSpareWithDenseBitArray(t *testing.T) {
+func TestOrSparseWithDenseBitArray(t *testing.T) {
 	sba := newSparseBitArray()
 	other := newBitArray(2000)
 
