@@ -746,3 +746,28 @@ func BenchmarkInsertNegative(b *testing.B) {
 		tree.Insert(1, 0, int64(numItems))
 	}
 }
+
+func TestInsertDuplicateIntervalsToRoot(t *testing.T) {
+	tree := newTree(1)
+	iv1 := constructSingleDimensionInterval(0, 10, 1)
+	iv2 := constructSingleDimensionInterval(0, 10, 1)
+	iv3 := constructSingleDimensionInterval(0, 10, 1)
+
+	tree.Add(iv1, iv2, iv3)
+
+	checkRedBlack(t, tree.root, 1)
+}
+
+func TestInsertDuplicateIntervalChildren(t *testing.T) {
+	tree, _ := constructSingleDimensionTestTree(20)
+
+	iv1 := constructSingleDimensionInterval(0, 10, 21)
+	iv2 := constructSingleDimensionInterval(0, 10, 21)
+
+	tree.Add(iv1, iv2)
+
+	checkRedBlack(t, tree.root, 1)
+
+	result := tree.Query(constructSingleDimensionInterval(0, 10, 0))
+	assert.Contains(t, result, iv1)
+}
