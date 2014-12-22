@@ -83,7 +83,7 @@ func (ba *bitArray) ToNums() []uint64 {
 
 // SetBit sets a bit at the given index to true.
 func (ba *bitArray) SetBit(k uint64) error {
-	if k > ba.Capacity() {
+	if k >= ba.Capacity() {
 		return OutOfRangeError(k)
 	}
 
@@ -107,7 +107,7 @@ func (ba *bitArray) SetBit(k uint64) error {
 // GetBit returns a bool indicating if the value at the given
 // index has been set.
 func (ba *bitArray) GetBit(k uint64) (bool, error) {
-	if k > ba.Capacity() {
+	if k >= ba.Capacity() {
 		return false, OutOfRangeError(k)
 	}
 
@@ -118,7 +118,7 @@ func (ba *bitArray) GetBit(k uint64) (bool, error) {
 
 //ClearBit will unset a bit at the given index if it is set.
 func (ba *bitArray) ClearBit(k uint64) error {
-	if k > ba.Capacity() {
+	if k >= ba.Capacity() {
 		return OutOfRangeError(k)
 	}
 
@@ -265,9 +265,9 @@ func (ba *bitArray) copy() BitArray {
 	}
 }
 
-// newBitArray returns a new BitArray at the specified size.  This
-// is a separate private constructor so unit tests are constantly casting
-// the interface to the concrete type.
+// newBitArray returns a new dense BitArray at the specified size. This is a
+// separate private constructor so unit tests don't have to constantly cast the
+// BitArray interface to the concrete type.
 func newBitArray(size uint64, args ...bool) *bitArray {
 	i, r := getIndexAndRemainder(size)
 	if r > 0 {
