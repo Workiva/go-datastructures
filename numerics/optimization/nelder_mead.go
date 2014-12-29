@@ -1,21 +1,29 @@
 package optimization
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"sort"
 )
 
+func init() {
+	log.Printf(`I HATE THIS`)
+}
+
 const (
-	alpha = 1  // reflection, must be > 0
-	beta  = 2  // expansion, must be > 1
-	gamma = .5 // contraction, 0 < gamma < 1
-	sigma = .5 // shrink, 0 < sigma < 1
+	alpha   = 1   // reflection, must be > 0
+	beta    = 2   // expansion, must be > 1
+	gamma   = .5  // contraction, 0 < gamma < 1
+	sigma   = .5  // shrink, 0 < sigma < 1
+	delta   = .01 // going to use this to determine convergence
+	maxRuns = 1300
 )
 
 // findMidpoint will find the midpoint of the provided vertices
 // and return a new vertex.
 func findMidpoint(vertices ...*nmVertex) *nmVertex {
-	num := len(vertices[0].vars) // this is what we divide by
+	num := len(vertices) // this is what we divide by
 	vars := make([]float64, 0, num)
 
 	for i := 0; i < num; i++ {
@@ -41,7 +49,7 @@ func determineDistance(value, target float64) float64 {
 		target = -math.MaxFloat64
 	}
 
-	return target - value
+	return math.Abs(target - value)
 }
 
 type vertices []*nmVertex
@@ -78,6 +86,16 @@ func (vertices vertices) Swap(i, j int) {
 	vertices[i], vertices[j] = vertices[j], vertices[i]
 }
 
+func (vertices vertices) String() string {
+	result := ``
+	for i, v := range vertices {
+		result += fmt.Sprintf(`VERTEX INDEX: %+v, VERTEX: %+v`, i, v)
+		result += fmt.Sprintln(``)
+	}
+
+	return result
+}
+
 type NelderMeadConfiguration struct {
 	Target float64
 	Fn     func([]float64) float64
@@ -93,6 +111,7 @@ type nmVertex struct {
 func (nm *nmVertex) evaluate(config NelderMeadConfiguration) {
 	nm.result = config.Fn(nm.vars)
 	nm.distance = determineDistance(nm.result, config.Target)
+	//log.Printf(`NM VARS: %+v, RESULT: %+v, NM.DISTANCE: %+v`, nm.vars, nm.result, nm.distance)
 }
 
 func (nm *nmVertex) add(other *nmVertex) *nmVertex {
@@ -134,7 +153,7 @@ type nelderMead struct {
 }
 
 func (nm *nelderMead) reflect(midpoint *nmVertex) *nmVertex {
-	toScalar := midpoint.subtract(nm.vertices[len(nm.vertices)-1])
+	toScalar := midpoint.subtract(nm.lastVertex())
 	toScalar = toScalar.multiply(alpha)
 	toScalar = midpoint.add(toScalar)
 	toScalar.evaluate(nm.config)
@@ -189,24 +208,31 @@ func (nm *nelderMead) shrink() {
 }
 
 func (nm *nelderMead) evaluate() {
-	i := 0
-	for {
+	for i := 0; i <= maxRuns; i++ {
 		nm.vertices.evaluate(nm.config)
+		log.Printf(`I: %+v`, i)
+		//log.Printf(`NEW RUN`)
+		log.Printf(`NM.VERTICES: %+v`, nm.vertices)
+		if math.Abs(nm.vertices[0].result-nm.config.Target) < delta {
+			println(`BREAKING`)
+			break
+		}
 		midpoint := findMidpoint(nm.vertices[:len(nm.vertices)-1]...)
 		// we are guaranteed to have two points here
 		reflection := nm.reflect(midpoint)
 		// in this case, quality-wise, we are between the best
 		// and second to best points
-		if reflection.distance < nm.vertices[1].distance &&
-			reflection.distance > nm.vertices[0].distance {
+		if reflection.distance < nm.lastDimensionVertex().distance &&
+			reflection.distance >= nm.vertices[0].distance {
 
 			nm.vertices[len(nm.vertices)-1] = reflection
 			continue
 		}
 
-		// midpoint is closer
+		// midpoint is closer than our previous best guess
 		if reflection.distance < nm.vertices[0].distance {
 			expanded := nm.expand(midpoint, reflection)
+
 			if expanded.distance < reflection.distance {
 				nm.vertices[len(nm.vertices)-1] = expanded
 			} else {
@@ -219,19 +245,17 @@ func (nm *nelderMead) evaluate() {
 			oc := nm.outsideContract(midpoint, reflection)
 			if oc.distance <= reflection.distance {
 				nm.vertices[len(nm.vertices)-1] = oc
+				continue
 			}
-		} else {
+		} else if reflection.distance >= nm.lastVertex().distance {
 			ic := nm.insideContract(midpoint, reflection)
 			if ic.distance < nm.lastVertex().distance {
 				nm.vertices[len(nm.vertices)-1] = ic
+				continue
 			}
 		}
 
 		nm.shrink()
-		i++
-		if i > 6 {
-			break
-		}
 	}
 }
 
@@ -240,14 +264,21 @@ func newNelderMead(config NelderMeadConfiguration) *nelderMead {
 	v := &nmVertex{vars: config.Vars} // construct initial vertex with first guess
 	vertices = append(vertices, v)
 	for i := 0; i < len(config.Vars); i++ { // we ultimately have one more vertex than number of dimensions
+		neg := i%2 == 0
 		vars := make([]float64, 0, len(config.Vars))
 		for _, v := range config.Vars {
-			vars = append(vars, v+float64(i))
+			if neg {
+				vars = append(vars, -(v + float64(i) + 1))
+			} else {
+				vars = append(vars, v+float64(i)+1)
+			}
+
 		}
 		vertices = append(vertices, &nmVertex{vars: vars})
 	}
 
-	vertices.evaluate(config)
+	log.Printf(`VERTICES: %+v`, vertices)
+
 	return &nelderMead{
 		config:   config,
 		vertices: vertices,
