@@ -1,7 +1,6 @@
 package optimization
 
 import (
-	"log"
 	"math"
 	"testing"
 
@@ -19,7 +18,7 @@ func TestNelderMead(t *testing.T) {
 	}
 
 	result := fn(NelderMead(config))
-	assert.True(t, math.Abs(result-config.Target) <= delta)
+	assert.True(t, math.Abs(result-config.Target) <= .01)
 }
 
 func TestNelderMeadPolynomial(t *testing.T) {
@@ -28,12 +27,12 @@ func TestNelderMeadPolynomial(t *testing.T) {
 		return math.Pow(vars[0], 2) - 4*vars[0] + math.Pow(vars[1], 2) - vars[1] - vars[0]*vars[1]
 	}
 	config := NelderMeadConfiguration{
-		Target: float64(-1000000),
+		Target: float64(-100),
 		Fn:     fn,
-		Vars:   []float64{10, 10},
+		Vars:   []float64{-10, 10},
 	}
 
 	result := NelderMead(config)
-	log.Printf(`CALED: %+v`, fn([]float64{2.5, 2.5}))
-	log.Printf(`RESULT: %+v`, result)
+	assert.True(t, math.Abs(3-result[0]) <= .01)
+	assert.True(t, math.Abs(2-result[1]) <= .01)
 }

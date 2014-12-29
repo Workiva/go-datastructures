@@ -2,23 +2,29 @@ package optimization
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"sort"
 )
 
-func init() {
-	log.Printf(`I HATE THIS`)
-}
-
 const (
-	alpha   = 1   // reflection, must be > 0
-	beta    = 2   // expansion, must be > 1
-	gamma   = .5  // contraction, 0 < gamma < 1
-	sigma   = .5  // shrink, 0 < sigma < 1
-	delta   = .01 // going to use this to determine convergence
+	alpha   = 1     // reflection, must be > 0
+	beta    = 2     // expansion, must be > 1
+	gamma   = .5    // contraction, 0 < gamma < 1
+	sigma   = .5    // shrink, 0 < sigma < 1
+	delta   = .0001 // going to use this to determine convergence
 	maxRuns = 1300
 )
+
+func min(vertices ...*nmVertex) *nmVertex {
+	min := vertices[0]
+	for _, v := range vertices[1:] {
+		if v.distance < min.distance {
+			min = v
+		}
+	}
+
+	return min
+}
 
 // findMidpoint will find the midpoint of the provided vertices
 // and return a new vertex.
@@ -96,10 +102,26 @@ func (vertices vertices) String() string {
 	return result
 }
 
+// NelderMeadConfiguration is the struct that must be
+// passed into the NelderMead function.  This defines
+// the target value, the function to be run, and a guess
+// of the variables.
 type NelderMeadConfiguration struct {
+	// Target is the target we are trying to converge
+	// to.  Set this to positive or negative infinity
+	// to find the min/max.
 	Target float64
-	Fn     func([]float64) float64
-	Vars   []float64
+	// Fn defines the function that Nelder Mead is going
+	// to call to determine if it is moving closer
+	// to convergence.  In all likelihood, the execution
+	// of this function is going to be the bottleneck.
+	Fn func([]float64) float64
+	// Vars is a guess and will determine what other
+	// vertices will be used.  By convention, since
+	// this guess will contain as many numbers as the
+	// target function requires, the len of Vars determines
+	// the dimension of this problem.
+	Vars []float64
 }
 
 type nmVertex struct {
@@ -111,7 +133,6 @@ type nmVertex struct {
 func (nm *nmVertex) evaluate(config NelderMeadConfiguration) {
 	nm.result = config.Fn(nm.vars)
 	nm.distance = determineDistance(nm.result, config.Target)
-	//log.Printf(`NM VARS: %+v, RESULT: %+v, NM.DISTANCE: %+v`, nm.vars, nm.result, nm.distance)
 }
 
 func (nm *nmVertex) add(other *nmVertex) *nmVertex {
@@ -207,16 +228,31 @@ func (nm *nelderMead) shrink() {
 	}
 }
 
+// checkIteration checks some key values to determine if
+// iteration should be complete.  Returns false if iteration
+// should be terminated and true if iteration should continue.
+func (nm *nelderMead) checkIteration() bool {
+	if math.Abs(nm.vertices[0].result-nm.config.Target) < delta {
+		return false
+	}
+
+	best := nm.vertices[0]
+	for _, v := range nm.vertices[1:] {
+		if math.Abs(best.distance-v.distance) >= delta {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (nm *nelderMead) evaluate() {
 	for i := 0; i <= maxRuns; i++ {
 		nm.vertices.evaluate(nm.config)
-		log.Printf(`I: %+v`, i)
-		//log.Printf(`NEW RUN`)
-		log.Printf(`NM.VERTICES: %+v`, nm.vertices)
-		if math.Abs(nm.vertices[0].result-nm.config.Target) < delta {
-			println(`BREAKING`)
+		if !nm.checkIteration() {
 			break
 		}
+
 		midpoint := findMidpoint(nm.vertices[:len(nm.vertices)-1]...)
 		// we are guaranteed to have two points here
 		reflection := nm.reflect(midpoint)
@@ -233,6 +269,7 @@ func (nm *nelderMead) evaluate() {
 		if reflection.distance < nm.vertices[0].distance {
 			expanded := nm.expand(midpoint, reflection)
 
+			// we only need to expand here
 			if expanded.distance < reflection.distance {
 				nm.vertices[len(nm.vertices)-1] = expanded
 			} else {
@@ -241,6 +278,8 @@ func (nm *nelderMead) evaluate() {
 			continue
 		}
 
+		// reflection is a bad guess, let's try to contract both
+		// inside and outside and see if we can find a better value
 		if reflection.distance < nm.lastVertex().distance {
 			oc := nm.outsideContract(midpoint, reflection)
 			if oc.distance <= reflection.distance {
@@ -255,6 +294,8 @@ func (nm *nelderMead) evaluate() {
 			}
 		}
 
+		// we could not guess a better value than nm.vertices[0], so
+		// let's converge the other to guesses to our best guess.
 		nm.shrink()
 	}
 }
@@ -266,8 +307,8 @@ func newNelderMead(config NelderMeadConfiguration) *nelderMead {
 	for i := 0; i < len(config.Vars); i++ { // we ultimately have one more vertex than number of dimensions
 		neg := i%2 == 0
 		vars := make([]float64, 0, len(config.Vars))
-		for _, v := range config.Vars {
-			if neg {
+		for i, v := range config.Vars {
+			if i%2 == 0 && neg { // we must ensure all vertices do not fall on the same line
 				vars = append(vars, -(v + float64(i) + 1))
 			} else {
 				vars = append(vars, v+float64(i)+1)
@@ -277,14 +318,15 @@ func newNelderMead(config NelderMeadConfiguration) *nelderMead {
 		vertices = append(vertices, &nmVertex{vars: vars})
 	}
 
-	log.Printf(`VERTICES: %+v`, vertices)
-
 	return &nelderMead{
 		config:   config,
 		vertices: vertices,
 	}
 }
 
+// NelderMead takes a configuration and returns a list
+// of floats that can be plugged into the provided function
+// to converge at the target value.
 func NelderMead(config NelderMeadConfiguration) []float64 {
 	nm := newNelderMead(config)
 	nm.evaluate()
