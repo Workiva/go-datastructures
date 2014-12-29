@@ -12,7 +12,7 @@ const (
 	gamma   = .5    // contraction, 0 < gamma < 1
 	sigma   = .5    // shrink, 0 < sigma < 1
 	delta   = .0001 // going to use this to determine convergence
-	maxRuns = 1300
+	maxRuns = 130
 )
 
 func min(vertices ...*nmVertex) *nmVertex {
