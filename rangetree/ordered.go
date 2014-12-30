@@ -57,7 +57,7 @@ func (nodes *orderedNodes) add(node *node) *node {
 }
 
 func (nodes *orderedNodes) deleteAt(i int) {
-	if i == len(*nodes) { // no matching found
+	if i >= len(*nodes) { // no matching found
 		return
 	}
 
