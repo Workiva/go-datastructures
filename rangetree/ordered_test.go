@@ -119,3 +119,23 @@ func TestApply(t *testing.T) {
 
 	assert.Equal(t, nodes{n2}, results)
 }
+
+func TestInsertDelete(t *testing.T) {
+	ns := make(orderedNodes, 0)
+
+	n1 := newNode(4, constructMockEntry(1, 4), false)
+	n2 := newNode(1, constructMockEntry(2, 1), false)
+	n3 := newNode(2, constructMockEntry(3, 2), false)
+
+	ns.add(n1)
+	ns.add(n2)
+	ns.add(n3)
+
+	modified := make(Entries, 0, 1)
+	deleted := make(Entries, 0, 1)
+
+	ns.insert(2, 2, 2, 0, -5, &modified, &deleted)
+
+	assert.Len(t, ns, 0)
+	assert.Equal(t, Entries{n2.entry, n3.entry, n1.entry}, deleted)
+}

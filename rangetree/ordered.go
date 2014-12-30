@@ -169,8 +169,8 @@ func (nodes *orderedNodes) insert(insertDimension, dimension, maxDimension uint6
 			}
 		}
 
-		for _, index := range toDelete {
-			nodes.deleteAt(index)
+		for i, index := range toDelete {
+			nodes.deleteAt(index - i)
 		}
 
 		return
