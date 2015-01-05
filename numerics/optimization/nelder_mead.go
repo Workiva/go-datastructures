@@ -253,6 +253,12 @@ type nelderMead struct {
 	vertices vertices
 }
 
+// evaluateWithConstraints will safely evaluate the vertex while
+// conforming to any imposed restraints.  If a constraint is found,
+// this method will backtrack the vertex as described here:
+// http://www.iccm-central.org/Proceedings/ICCM16proceedings/contents/pdf/MonK/MoKA1-04ge_ghiasimh224461p.pdf
+// This should work with even non-linear constraints, but it is up to
+// the consumer to check these constraints.
 func (nm *nelderMead) evaluateWithConstraints(vertex *nmVertex) *nmVertex {
 	vertex.evaluate(nm.config)
 	return vertex
