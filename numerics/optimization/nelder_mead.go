@@ -15,7 +15,16 @@ const (
 	maxRuns = 130
 )
 
-func min(vertices ...*nmVertex) *nmVertex {
+var (
+	min = math.Inf(-1)
+	max = math.Inf(1)
+)
+
+func isInf(num float64) bool {
+	return math.IsInf(num, -1) || math.IsInf(num, 1)
+}
+
+func findMin(vertices ...*nmVertex) *nmVertex {
 	min := vertices[0]
 	for _, v := range vertices[1:] {
 		if v.distance < min.distance {
@@ -58,6 +67,11 @@ func determineDistance(value, target float64) float64 {
 	return math.Abs(target - value)
 }
 
+type sorter struct {
+	config   NelderMeadConfiguration
+	vertices vertices
+}
+
 type vertices []*nmVertex
 
 // evaluate will call evaluate on all the verticies in this list
@@ -67,11 +81,15 @@ func (vertices vertices) evaluate(config NelderMeadConfiguration) {
 		v.evaluate(config)
 	}
 
-	vertices.sort()
+	sorter := sorter{
+		config:   config,
+		vertices: vertices,
+	}
+	sorter.sort()
 }
 
-func (vertices vertices) sort() {
-	sort.Sort(vertices)
+func (sorter sorter) sort() {
+	sort.Sort(sorter)
 }
 
 // the following methods are required for sort.Interface.  We
@@ -80,16 +98,16 @@ func (vertices vertices) sort() {
 // here so mulithreaded sort in this repo really isn't
 // necessary.
 
-func (vertices vertices) Less(i, j int) bool {
-	return vertices[i].distance < vertices[j].distance
+func (sorter sorter) Less(i, j int) bool {
+	return sorter.vertices[i].less(sorter.config, sorter.vertices[j])
 }
 
-func (vertices vertices) Len() int {
-	return len(vertices)
+func (sorter sorter) Len() int {
+	return len(sorter.vertices)
 }
 
-func (vertices vertices) Swap(i, j int) {
-	vertices[i], vertices[j] = vertices[j], vertices[i]
+func (sorter sorter) Swap(i, j int) {
+	sorter.vertices[i], sorter.vertices[j] = sorter.vertices[j], sorter.vertices[i]
 }
 
 func (vertices vertices) String() string {
@@ -115,7 +133,10 @@ type NelderMeadConfiguration struct {
 	// to call to determine if it is moving closer
 	// to convergence.  In all likelihood, the execution
 	// of this function is going to be the bottleneck.
-	Fn func([]float64) float64
+	// The second value returned, the bool, should indicate
+	// if the values are "good", that is if any constraints
+	// were not crossed.
+	Fn func([]float64) (float64, bool)
 	// Vars is a guess and will determine what other
 	// vertices will be used.  By convention, since
 	// this guess will contain as many numbers as the
@@ -131,7 +152,7 @@ type nmVertex struct {
 }
 
 func (nm *nmVertex) evaluate(config NelderMeadConfiguration) {
-	nm.result = config.Fn(nm.vars)
+	nm.result, _ = config.Fn(nm.vars)
 	nm.distance = determineDistance(nm.result, config.Target)
 }
 
@@ -166,6 +187,27 @@ func (nm *nmVertex) subtract(other *nmVertex) *nmVertex {
 	return &nmVertex{
 		vars: vars,
 	}
+}
+
+func (nm *nmVertex) less(config NelderMeadConfiguration, other *nmVertex) bool {
+	if config.Target == min { // looking for a min
+		return nm.result < other.result
+	}
+	if config.Target == max { // looking for a max
+		return nm.result > other.result
+	}
+
+	return nm.distance < other.distance
+}
+
+func (nm *nmVertex) equal(config NelderMeadConfiguration, other *nmVertex) bool {
+	if isInf(config.Target) {
+		// if we are looking for a min or max, we compare result
+		return nm.result == other.result
+	}
+
+	// otherwise, we compare distances
+	return nm.distance == other.distance
 }
 
 type nelderMead struct {
@@ -236,11 +278,15 @@ func (nm *nelderMead) checkIteration() bool {
 		return false
 	}
 
-	best := nm.vertices[0]
-	for _, v := range nm.vertices[1:] {
-		if math.Abs(best.distance-v.distance) >= delta {
-			return true
+	if !isInf(nm.config.Target) {
+		best := nm.vertices[0]
+		for _, v := range nm.vertices[1:] {
+			if math.Abs(best.distance-v.distance) >= delta {
+				return true
+			}
 		}
+	} else {
+		return true
 	}
 
 	return false
@@ -258,19 +304,18 @@ func (nm *nelderMead) evaluate() {
 		reflection := nm.reflect(midpoint)
 		// in this case, quality-wise, we are between the best
 		// and second to best points
-		if reflection.distance < nm.lastDimensionVertex().distance &&
-			reflection.distance >= nm.vertices[0].distance {
+		if reflection.less(nm.config, nm.lastDimensionVertex()) &&
+			!nm.vertices[0].less(nm.config, reflection) {
 
 			nm.vertices[len(nm.vertices)-1] = reflection
-			continue
 		}
 
 		// midpoint is closer than our previous best guess
-		if reflection.distance < nm.vertices[0].distance {
+		if reflection.less(nm.config, nm.vertices[0]) {
 			expanded := nm.expand(midpoint, reflection)
 
 			// we only need to expand here
-			if expanded.distance < reflection.distance {
+			if expanded.less(nm.config, reflection) {
 				nm.vertices[len(nm.vertices)-1] = expanded
 			} else {
 				nm.vertices[len(nm.vertices)-1] = reflection
@@ -280,15 +325,15 @@ func (nm *nelderMead) evaluate() {
 
 		// reflection is a bad guess, let's try to contract both
 		// inside and outside and see if we can find a better value
-		if reflection.distance < nm.lastVertex().distance {
+		if reflection.less(nm.config, nm.lastVertex()) {
 			oc := nm.outsideContract(midpoint, reflection)
-			if oc.distance <= reflection.distance {
+			if oc.less(nm.config, reflection) || oc.equal(nm.config, reflection) {
 				nm.vertices[len(nm.vertices)-1] = oc
 				continue
 			}
-		} else if reflection.distance >= nm.lastVertex().distance {
+		} else if !reflection.less(nm.config, nm.lastVertex()) {
 			ic := nm.insideContract(midpoint, reflection)
-			if ic.distance < nm.lastVertex().distance {
+			if ic.less(nm.config, nm.lastVertex()) {
 				nm.vertices[len(nm.vertices)-1] = ic
 				continue
 			}
