@@ -110,6 +110,8 @@ func (sorter sorter) Swap(i, j int) {
 	sorter.vertices[i], sorter.vertices[j] = sorter.vertices[j], sorter.vertices[i]
 }
 
+// String prints out a string representation of every vertex in this list.
+// Useful for debugging :).
 func (vertices vertices) String() string {
 	result := ``
 	for i, v := range vertices {
@@ -210,6 +212,18 @@ func (nm *nmVertex) equal(config NelderMeadConfiguration, other *nmVertex) bool 
 	return nm.distance == other.distance
 }
 
+// euclideanDistance determines the euclidean distance between two points.
+func (nm *nmVertex) euclideanDistance(other *nmVertex) float64 {
+	sum := float64(0)
+	// first we want to sum all the distances between the points
+	for i, otherPoint := range other.vars {
+		// distance between points is defined by (qi-ri)^2
+		sum += math.Pow(otherPoint-nm.vars[i], 2)
+	}
+
+	return math.Sqrt(sum)
+}
+
 type nelderMead struct {
 	config   NelderMeadConfiguration
 	vertices vertices
@@ -274,19 +288,35 @@ func (nm *nelderMead) shrink() {
 // iteration should be complete.  Returns false if iteration
 // should be terminated and true if iteration should continue.
 func (nm *nelderMead) checkIteration() bool {
+	// this will never be true for += inf
 	if math.Abs(nm.vertices[0].result-nm.config.Target) < delta {
 		return false
 	}
 
+	best := nm.vertices[0]
+	// here we are checking distance convergence.  If all vertices
+	// are near convergence, that is they are all within some delta
+	// from the expected value, we can go ahead and quit early.  This
+	// can only be performed on convergence checks, not for finding
+	// min/max.
 	if !isInf(nm.config.Target) {
-		best := nm.vertices[0]
 		for _, v := range nm.vertices[1:] {
 			if math.Abs(best.distance-v.distance) >= delta {
 				return true
 			}
 		}
-	} else {
-		return true
+	}
+
+	// next we want to check to see if the changes in our polytopes
+	// dip below some threshold.  That is, we want to look at the
+	// euclidean distances between the best guess and all the other
+	// guesses to see if they are converged upon some point.  If
+	// all of the vertices have converged close enough, it may be
+	// worth it to cease iteration.
+	for _, v := range nm.vertices[1:] {
+		if best.euclideanDistance(v) >= delta {
+			return true
+		}
 	}
 
 	return false
