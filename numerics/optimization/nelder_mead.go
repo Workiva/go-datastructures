@@ -15,7 +15,16 @@ const (
 	maxRuns = 130
 )
 
-func min(vertices ...*nmVertex) *nmVertex {
+var (
+	min = math.Inf(-1)
+	max = math.Inf(1)
+)
+
+func isInf(num float64) bool {
+	return math.IsInf(num, -1) || math.IsInf(num, 1)
+}
+
+func findMin(vertices ...*nmVertex) *nmVertex {
 	min := vertices[0]
 	for _, v := range vertices[1:] {
 		if v.distance < min.distance {
@@ -58,6 +67,11 @@ func determineDistance(value, target float64) float64 {
 	return math.Abs(target - value)
 }
 
+type sorter struct {
+	config   NelderMeadConfiguration
+	vertices vertices
+}
+
 type vertices []*nmVertex
 
 // evaluate will call evaluate on all the verticies in this list
@@ -67,11 +81,15 @@ func (vertices vertices) evaluate(config NelderMeadConfiguration) {
 		v.evaluate(config)
 	}
 
-	vertices.sort()
+	sorter := sorter{
+		config:   config,
+		vertices: vertices,
+	}
+	sorter.sort()
 }
 
-func (vertices vertices) sort() {
-	sort.Sort(vertices)
+func (sorter sorter) sort() {
+	sort.Sort(sorter)
 }
 
 // the following methods are required for sort.Interface.  We
@@ -80,18 +98,20 @@ func (vertices vertices) sort() {
 // here so mulithreaded sort in this repo really isn't
 // necessary.
 
-func (vertices vertices) Less(i, j int) bool {
-	return vertices[i].distance < vertices[j].distance
+func (sorter sorter) Less(i, j int) bool {
+	return sorter.vertices[i].less(sorter.config, sorter.vertices[j])
 }
 
-func (vertices vertices) Len() int {
-	return len(vertices)
+func (sorter sorter) Len() int {
+	return len(sorter.vertices)
 }
 
-func (vertices vertices) Swap(i, j int) {
-	vertices[i], vertices[j] = vertices[j], vertices[i]
+func (sorter sorter) Swap(i, j int) {
+	sorter.vertices[i], sorter.vertices[j] = sorter.vertices[j], sorter.vertices[i]
 }
 
+// String prints out a string representation of every vertex in this list.
+// Useful for debugging :).
 func (vertices vertices) String() string {
 	result := ``
 	for i, v := range vertices {
@@ -168,6 +188,49 @@ func (nm *nmVertex) subtract(other *nmVertex) *nmVertex {
 	}
 }
 
+// less defines a relationship between two points.  It is best not to
+// think of less as returning a value indicating absolute relationship between
+// two points, but instead think of less returning a bool indicating
+// if this vertex is *closer* to the desired convergence, or a delta
+// less than the other vertex.  For -inf, this returns a value indicating
+// if this vertex has a less absolute value than the other vertex, if +inf
+// less returns a bool indicating if this vertex has a *greater* absolute
+// value than the other vertex.  Otherwise, this method returns a bool
+// indicating if this vertex is closer to *converging* upon the desired
+// value.
+func (nm *nmVertex) less(config NelderMeadConfiguration, other *nmVertex) bool {
+	if config.Target == min { // looking for a min
+		return nm.result < other.result
+	}
+	if config.Target == max { // looking for a max
+		return nm.result > other.result
+	}
+
+	return nm.distance < other.distance
+}
+
+func (nm *nmVertex) equal(config NelderMeadConfiguration, other *nmVertex) bool {
+	if isInf(config.Target) {
+		// if we are looking for a min or max, we compare result
+		return nm.result == other.result
+	}
+
+	// otherwise, we compare distances
+	return nm.distance == other.distance
+}
+
+// euclideanDistance determines the euclidean distance between two points.
+func (nm *nmVertex) euclideanDistance(other *nmVertex) float64 {
+	sum := float64(0)
+	// first we want to sum all the distances between the points
+	for i, otherPoint := range other.vars {
+		// distance between points is defined by (qi-ri)^2
+		sum += math.Pow(otherPoint-nm.vars[i], 2)
+	}
+
+	return math.Sqrt(sum)
+}
+
 type nelderMead struct {
 	config   NelderMeadConfiguration
 	vertices vertices
@@ -232,13 +295,33 @@ func (nm *nelderMead) shrink() {
 // iteration should be complete.  Returns false if iteration
 // should be terminated and true if iteration should continue.
 func (nm *nelderMead) checkIteration() bool {
+	// this will never be true for += inf
 	if math.Abs(nm.vertices[0].result-nm.config.Target) < delta {
 		return false
 	}
 
 	best := nm.vertices[0]
+	// here we are checking distance convergence.  If all vertices
+	// are near convergence, that is they are all within some delta
+	// from the expected value, we can go ahead and quit early.  This
+	// can only be performed on convergence checks, not for finding
+	// min/max.
+	if !isInf(nm.config.Target) {
+		for _, v := range nm.vertices[1:] {
+			if math.Abs(best.distance-v.distance) >= delta {
+				return true
+			}
+		}
+	}
+
+	// next we want to check to see if the changes in our polytopes
+	// dip below some threshold.  That is, we want to look at the
+	// euclidean distances between the best guess and all the other
+	// guesses to see if they are converged upon some point.  If
+	// all of the vertices have converged close enough, it may be
+	// worth it to cease iteration.
 	for _, v := range nm.vertices[1:] {
-		if math.Abs(best.distance-v.distance) >= delta {
+		if best.euclideanDistance(v) >= delta {
 			return true
 		}
 	}
@@ -258,19 +341,18 @@ func (nm *nelderMead) evaluate() {
 		reflection := nm.reflect(midpoint)
 		// in this case, quality-wise, we are between the best
 		// and second to best points
-		if reflection.distance < nm.lastDimensionVertex().distance &&
-			reflection.distance >= nm.vertices[0].distance {
+		if reflection.less(nm.config, nm.lastDimensionVertex()) &&
+			!nm.vertices[0].less(nm.config, reflection) {
 
 			nm.vertices[len(nm.vertices)-1] = reflection
-			continue
 		}
 
 		// midpoint is closer than our previous best guess
-		if reflection.distance < nm.vertices[0].distance {
+		if reflection.less(nm.config, nm.vertices[0]) {
 			expanded := nm.expand(midpoint, reflection)
 
 			// we only need to expand here
-			if expanded.distance < reflection.distance {
+			if expanded.less(nm.config, reflection) {
 				nm.vertices[len(nm.vertices)-1] = expanded
 			} else {
 				nm.vertices[len(nm.vertices)-1] = reflection
@@ -280,15 +362,15 @@ func (nm *nelderMead) evaluate() {
 
 		// reflection is a bad guess, let's try to contract both
 		// inside and outside and see if we can find a better value
-		if reflection.distance < nm.lastVertex().distance {
+		if reflection.less(nm.config, nm.lastVertex()) {
 			oc := nm.outsideContract(midpoint, reflection)
-			if oc.distance <= reflection.distance {
+			if oc.less(nm.config, reflection) || oc.equal(nm.config, reflection) {
 				nm.vertices[len(nm.vertices)-1] = oc
 				continue
 			}
-		} else if reflection.distance >= nm.lastVertex().distance {
+		} else if !reflection.less(nm.config, nm.lastVertex()) {
 			ic := nm.insideContract(midpoint, reflection)
-			if ic.distance < nm.lastVertex().distance {
+			if ic.less(nm.config, nm.lastVertex()) {
 				nm.vertices[len(nm.vertices)-1] = ic
 				continue
 			}
