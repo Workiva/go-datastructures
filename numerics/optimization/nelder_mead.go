@@ -135,10 +135,7 @@ type NelderMeadConfiguration struct {
 	// to call to determine if it is moving closer
 	// to convergence.  In all likelihood, the execution
 	// of this function is going to be the bottleneck.
-	// The second value returned, the bool, should indicate
-	// if the values are "good", that is if any constraints
-	// were not crossed.
-	Fn func([]float64) (float64, bool)
+	Fn func([]float64) float64
 	// Vars is a guess and will determine what other
 	// vertices will be used.  By convention, since
 	// this guess will contain as many numbers as the
@@ -154,7 +151,7 @@ type nmVertex struct {
 }
 
 func (nm *nmVertex) evaluate(config NelderMeadConfiguration) {
-	nm.result, _ = config.Fn(nm.vars)
+	nm.result = config.Fn(nm.vars)
 	nm.distance = determineDistance(nm.result, config.Target)
 }
 
@@ -191,6 +188,16 @@ func (nm *nmVertex) subtract(other *nmVertex) *nmVertex {
 	}
 }
 
+// less defines a relationship between two points.  It is best not to
+// think of less as returning a value indicating absolute relationship between
+// two points, but instead think of less returning a bool indicating
+// if this vertex is *closer* to the desired convergence, or a delta
+// less than the other vertex.  For -inf, this returns a value indicating
+// if this vertex has a less absolute value than the other vertex, if +inf
+// less returns a bool indicating if this vertex has a *greater* absolute
+// value than the other vertex.  Otherwise, this method returns a bool
+// indicating if this vertex is closer to *converging* upon the desired
+// value.
 func (nm *nmVertex) less(config NelderMeadConfiguration, other *nmVertex) bool {
 	if config.Target == min { // looking for a min
 		return nm.result < other.result
