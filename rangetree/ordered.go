@@ -57,7 +57,7 @@ func (nodes *orderedNodes) add(node *node) *node {
 }
 
 func (nodes *orderedNodes) deleteAt(i int) {
-	if i == len(*nodes) { // no matching found
+	if i >= len(*nodes) { // no matching found
 		return
 	}
 
@@ -169,8 +169,8 @@ func (nodes *orderedNodes) insert(insertDimension, dimension, maxDimension uint6
 			}
 		}
 
-		for _, index := range toDelete {
-			nodes.deleteAt(index)
+		for i, index := range toDelete {
+			nodes.deleteAt(index - i)
 		}
 
 		return
