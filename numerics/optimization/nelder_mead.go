@@ -467,7 +467,11 @@ func (nm *nelderMead) evaluate() {
 		return
 	}
 
+	// the outer loop controls how hard we try to find
+	// a global critical point
 	for i := 0; i < maxIterations; i++ {
+		// the inner loop controls the degenerate case where
+		// we can't converge to a critical point
 		for j := 0; j < maxRuns; j++ {
 			// TODO: optimize this to prevent duplicate evaluations.
 			vertices.evaluate(nm.config)
@@ -536,6 +540,7 @@ func (nm *nelderMead) evaluate() {
 			nm.shrink(vertices)
 		}
 		nm.results.reSort(vertices[0])
+		vertices = nm.results.grab(len(nm.config.Vars) + 1)
 	}
 }
 
