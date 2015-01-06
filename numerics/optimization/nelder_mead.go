@@ -463,6 +463,7 @@ func (nm *nelderMead) evaluate() {
 	// to create a good first guess.
 	vertices[0].evaluate(nm.config)
 	if !vertices[0].good {
+		println(`BREAKING HERE`)
 		nm.results.insert(vertices[0])
 		return
 	}
@@ -560,5 +561,6 @@ func newNelderMead(config NelderMeadConfiguration) *nelderMead {
 func NelderMead(config NelderMeadConfiguration) []float64 {
 	nm := newNelderMead(config)
 	nm.evaluate()
+	log.Printf(`RESULTS: %+v`, nm.results.vertices)
 	return nm.results.vertices[0].vars
 }

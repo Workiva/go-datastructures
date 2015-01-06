@@ -142,3 +142,31 @@ func TestNelderMeadConstrainedBadGuess(t *testing.T) {
 	assert.Equal(t, 0, result[0])
 	assert.Equal(t, 3, result[1])
 }
+
+// Commenting this function out for now as it's entirely
+// probabilistic.  Realistically, we can only say that we'll
+// find the local vs global min/max some percentage of the time
+// and that percentage depends entirely on the function.
+// This is here for debugging purposes.
+/*
+func TestNelderMeadFindGlobal(t *testing.T) {
+	fn := func(vars []float64) (float64, bool) {
+		if vars[0] < -4 || vars[0] > 2 {
+			return 0, false
+		}
+		// x3 + 3x2 − 2x + 1 over [-4, 2] has a global maximum at x = 2
+		return math.Pow(vars[0], 3) + 3*math.Pow(vars[0], 2) - 2*vars[0] + 1, true
+	}
+
+	config := NelderMeadConfiguration{
+		Target: math.Inf(1),
+		Fn:     fn,
+		Vars:   []float64{1.5},
+	}
+
+	result := NelderMead(config)
+	calced, _ := fn(result)
+	wc, _ := fn([]float64{2})
+	t.Logf(`RESULT: %+v, CALCED: %+v, WC: %+v`, result, calced, wc)
+	t.Fail()
+}*/
