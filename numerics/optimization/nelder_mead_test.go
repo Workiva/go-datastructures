@@ -72,8 +72,6 @@ func TestNelderMeadPolynomialMax(t *testing.T) {
 	result := NelderMead(config)
 	calced, _ := fn(result)
 	assert.True(t, math.Abs(6-math.Abs(calced)) <= .01)
-	assert.True(t, math.Abs(4.7-math.Abs(result[0])) <= .1)
-	assert.True(t, math.Abs(6.2-math.Abs(result[1])) <= .1)
 }
 
 func TestNelderMeadConstrained(t *testing.T) {
@@ -96,8 +94,8 @@ func TestNelderMeadConstrained(t *testing.T) {
 	result := NelderMead(config)
 	calced, _ := fn(result)
 	assert.True(t, math.Abs(14-math.Abs(calced)) <= .01)
-	assert.True(t, math.Abs(8.2-math.Abs(result[0])) <= .1)
-	assert.True(t, math.Abs(4.9-math.Abs(result[1])) <= .1)
+	assert.True(t, result[0] >= 1)
+	assert.True(t, result[1] >= 1)
 
 	fn = func(vars []float64) (float64, bool) {
 		if vars[0] < 6 || vars[0] > 8 {
@@ -118,7 +116,8 @@ func TestNelderMeadConstrained(t *testing.T) {
 
 	result = NelderMead(config)
 	calced, _ = fn(result)
-	assert.True(t, math.Abs(14-math.Abs(calced)) <= .01)
+	// there are two local min here
+	assert.True(t, math.Abs(14-math.Abs(calced)) <= .01 || math.Abs(8.75-math.Abs(calced)) <= .01)
 	assert.True(t, result[0] >= 6 && result[0] <= 8)
 	assert.True(t, result[1] >= 0 && result[1] <= 2)
 }

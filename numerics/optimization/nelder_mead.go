@@ -2,8 +2,11 @@ package optimization
 
 import (
 	"fmt"
+	"log"
 	"math"
+	"math/rand"
 	"sort"
+	"time"
 )
 
 const (
@@ -19,6 +22,63 @@ var (
 	min = math.Inf(-1)
 	max = math.Inf(1)
 )
+
+// generateRandomVerticesFromGuess will generate num number of vertices
+// with random
+func generateRandomVerticesFromGuess(guess *nmVertex, num int) vertices {
+	// summed allows us to prevent duplicate guesses, checking
+	// all previous guesses for every guess created would be too
+	// time consuming so we take an indexed shortcut here.  summed
+	// is a map of a sum of the vars to the vertices that have an
+	// identical sum.  In this way, we can sum the vars of a new guess
+	// and check only a small subset of previous guesses to determine
+	// if this is an identical guess.
+	summed := make(map[float64]vertices, num)
+	dimensions := len(guess.vars)
+	vs := make(vertices, 0, num)
+	i := 0
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+Guess:
+	for i < num {
+		sum := float64(0)
+		vars := make([]float64, 0, dimensions)
+		for j := 0; j < dimensions; j++ {
+			v := r.Float64() * 1000
+			// we do a separate random check here to determine
+			// sign so we don't end up with all high v's one sign
+			// and low v's another
+			if r.Float64() > .5 {
+				v = -v
+			}
+			sum += v
+			vars = append(vars, v)
+		}
+
+		guess := &nmVertex{
+			vars: vars,
+		}
+
+		if vs, ok := summed[sum]; !ok {
+			vs = make(vertices, 0, dimensions) // dimensions is really just a guess, no real way of knowing what this is
+			vs = append(vs, guess)
+			summed[sum] = vs
+		} else {
+			for _, vertex := range vs {
+				// if we've already guessed this, try the loop again
+				if guess.equalToVertex(vertex) {
+					continue Guess
+				}
+			}
+			vs = append(vs, guess)
+		}
+
+		vs = append(vs, guess)
+		i++
+	}
+
+	return vs
+}
 
 func isInf(num float64) bool {
 	return math.IsInf(num, -1) || math.IsInf(num, 1)
@@ -248,6 +308,29 @@ func (nm *nmVertex) euclideanDistance(other *nmVertex) float64 {
 	return math.Sqrt(sum)
 }
 
+// equalToVertex will compare this vertex to the provided vertex
+// to determine if the two vertices are actually identical (that is,
+// they fall on the same point).
+func (nm *nmVertex) equalToVertex(other *nmVertex) bool {
+	for i, n := range nm.vars {
+		if n != other.vars[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// approximatelyEqualToVertex returns a bool indicating if the
+// *result* of this vertex is approximately equal to the vertex
+// provided.  Approximately is 2 * delta as the algorithm may
+// cease within a delta distance of the true value, so we may
+// end up with a result that's 2*delta away if we came from
+// the other direction.
+func (nm *nmVertex) approximatelyEqualToVertex(other *nmVertex) bool {
+	return math.Abs(nm.result-other.result) < 2*delta
+}
+
 type nelderMead struct {
 	config   NelderMeadConfiguration
 	vertices vertices
@@ -449,19 +532,22 @@ func newNelderMead(config NelderMeadConfiguration) *nelderMead {
 	vertices := make(vertices, 0, len(config.Vars)+1)
 	v := &nmVertex{vars: config.Vars} // construct initial vertex with first guess
 	vertices = append(vertices, v)
-	for i := 0; i < len(config.Vars); i++ { // we ultimately have one more vertex than number of dimensions
-		neg := i%2 == 0
-		vars := make([]float64, 0, len(config.Vars))
-		for i, v := range config.Vars {
-			if i%2 == 0 && neg { // we must ensure all vertices do not fall on the same line
-				vars = append(vars, -(v + float64(i) + 1))
-			} else {
-				vars = append(vars, v+float64(i)+1)
-			}
+	vertices = append(vertices, generateRandomVerticesFromGuess(v, len(config.Vars))...)
+	log.Printf(`VERTICES: %+v`, vertices)
+	/*
+		for i := 0; i < len(config.Vars); i++ { // we ultimately have one more vertex than number of dimensions
+			neg := i%2 == 0
+			vars := make([]float64, 0, len(config.Vars))
+			for i, v := range config.Vars {
+				if i%2 == 0 && neg { // we must ensure all vertices do not fall on the same line
+					vars = append(vars, -(v + float64(i) + 1))
+				} else {
+					vars = append(vars, v+float64(i)+1)
+				}
 
-		}
-		vertices = append(vertices, &nmVertex{vars: vars})
-	}
+			}
+			vertices = append(vertices, &nmVertex{vars: vars})
+		}*/
 
 	return &nelderMead{
 		config:   config,
