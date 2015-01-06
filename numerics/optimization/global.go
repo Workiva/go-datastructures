@@ -1,14 +1,9 @@
 package optimization
 
 import (
-	"log"
 	"math"
 	"sort"
 )
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
 
 type pbs []*vertexProbabilityBundle
 
