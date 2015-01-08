@@ -67,11 +67,6 @@ func determineDistance(value, target float64) float64 {
 	return math.Abs(target - value)
 }
 
-type sorter struct {
-	config   NelderMeadConfiguration
-	vertices vertices
-}
-
 type vertices []*nmVertex
 
 // evaluate will call evaluate on all the verticies in this list
@@ -81,11 +76,20 @@ func (vertices vertices) evaluate(config NelderMeadConfiguration) {
 		v.evaluate(config)
 	}
 
+	vertices.sort(config)
+}
+
+func (vertices vertices) sort(config NelderMeadConfiguration) {
 	sorter := sorter{
 		config:   config,
 		vertices: vertices,
 	}
 	sorter.sort()
+}
+
+type sorter struct {
+	config   NelderMeadConfiguration
+	vertices vertices
 }
 
 func (sorter sorter) sort() {
@@ -135,7 +139,10 @@ type NelderMeadConfiguration struct {
 	// to call to determine if it is moving closer
 	// to convergence.  In all likelihood, the execution
 	// of this function is going to be the bottleneck.
-	Fn func([]float64) float64
+	// The second value returns a bool indicating if the
+	// calculated values are "good", that is, that no
+	// constraint has been hit.
+	Fn func([]float64) (float64, bool)
 	// Vars is a guess and will determine what other
 	// vertices will be used.  By convention, since
 	// this guess will contain as many numbers as the
@@ -145,13 +152,23 @@ type NelderMeadConfiguration struct {
 }
 
 type nmVertex struct {
-	vars     []float64
-	distance float64
-	result   float64
+	// vars indicates the values used to calculate this vertex.
+	vars []float64
+	// distance is the distance between this vertex and the desired
+	// value.  This metric has little meaning if the desired value
+	// is +- inf.
+	// result is the calculated result of this vertex.  This can
+	// be used to measure distance or as a metrix to compare two
+	// vertices if the desired result is a min/max.
+	distance, result float64
+	// good indicates if the calculated values here
+	// are within all constraints, this should always
+	// be true if this vertex is in a list of vertices.
+	good bool
 }
 
 func (nm *nmVertex) evaluate(config NelderMeadConfiguration) {
-	nm.result = config.Fn(nm.vars)
+	nm.result, nm.good = config.Fn(nm.vars)
 	nm.distance = determineDistance(nm.result, config.Target)
 }
 
@@ -236,20 +253,43 @@ type nelderMead struct {
 	vertices vertices
 }
 
+// evaluateWithConstraints will safely evaluate the vertex while
+// conforming to any imposed restraints.  If a constraint is found,
+// this method will backtrack the vertex as described here:
+// http://www.iccm-central.org/Proceedings/ICCM16proceedings/contents/pdf/MonK/MoKA1-04ge_ghiasimh224461p.pdf
+// This should work with even non-linear constraints, but it is up to
+// the consumer to check these constraints.
+func (nm *nelderMead) evaluateWithConstraints(vertex *nmVertex) *nmVertex {
+	vertex.evaluate(nm.config)
+	return vertex
+	if vertex.good {
+		return vertex
+	}
+	best := nm.vertices[0]
+	for i := 0; i < 5; i++ {
+		vertex = best.add((vertex.subtract(best).multiply(alpha)))
+		if vertex.good {
+			return vertex
+		}
+	}
+
+	return best
+}
+
+// reflect will find the reflection point between the two best guesses
+// with the provided midpoint.
 func (nm *nelderMead) reflect(midpoint *nmVertex) *nmVertex {
 	toScalar := midpoint.subtract(nm.lastVertex())
 	toScalar = toScalar.multiply(alpha)
 	toScalar = midpoint.add(toScalar)
-	toScalar.evaluate(nm.config)
-	return toScalar
+	return nm.evaluateWithConstraints(toScalar)
 }
 
 func (nm *nelderMead) expand(midpoint, reflection *nmVertex) *nmVertex {
 	toScalar := reflection.subtract(midpoint)
 	toScalar = toScalar.multiply(beta)
 	toScalar = midpoint.add(toScalar)
-	toScalar.evaluate(nm.config)
-	return toScalar
+	return nm.evaluateWithConstraints(toScalar)
 }
 
 // lastDimensionVertex returns the vertex that is represented by the
@@ -270,16 +310,14 @@ func (nm *nelderMead) outsideContract(midpoint, reflection *nmVertex) *nmVertex 
 	toScalar := reflection.subtract(midpoint)
 	toScalar = toScalar.multiply(gamma)
 	toScalar = midpoint.add(toScalar)
-	toScalar.evaluate(nm.config)
-	return toScalar
+	return nm.evaluateWithConstraints(toScalar)
 }
 
 func (nm *nelderMead) insideContract(midpoint, reflection *nmVertex) *nmVertex {
 	toScalar := reflection.subtract(midpoint)
 	toScalar = toScalar.multiply(gamma)
 	toScalar = midpoint.subtract(toScalar)
-	toScalar.evaluate(nm.config)
-	return toScalar
+	return nm.evaluateWithConstraints(toScalar)
 }
 
 func (nm *nelderMead) shrink() {
@@ -330,8 +368,18 @@ func (nm *nelderMead) checkIteration() bool {
 }
 
 func (nm *nelderMead) evaluate() {
+	// if the initial guess provided is not good, then
+	// we are going to die early, leave it up to the user
+	// to create a good first guess.
+	nm.vertices[0].evaluate(nm.config)
+	if !nm.vertices[0].good {
+		return
+	}
+
 	for i := 0; i <= maxRuns; i++ {
+		// TODO: optimize this to prevent duplicate evaluations.
 		nm.vertices.evaluate(nm.config)
+		best := nm.vertices[0]
 		if !nm.checkIteration() {
 			break
 		}
@@ -339,6 +387,11 @@ func (nm *nelderMead) evaluate() {
 		midpoint := findMidpoint(nm.vertices[:len(nm.vertices)-1]...)
 		// we are guaranteed to have two points here
 		reflection := nm.reflect(midpoint)
+		// we could not find a reflection that met constraints, the
+		// best guess is the best guess.
+		if reflection == best {
+			break
+		}
 		// in this case, quality-wise, we are between the best
 		// and second to best points
 		if reflection.less(nm.config, nm.lastDimensionVertex()) &&
@@ -350,6 +403,10 @@ func (nm *nelderMead) evaluate() {
 		// midpoint is closer than our previous best guess
 		if reflection.less(nm.config, nm.vertices[0]) {
 			expanded := nm.expand(midpoint, reflection)
+			// we could not expand a valid guess, best is the best guess
+			if expanded == best {
+				break
+			}
 
 			// we only need to expand here
 			if expanded.less(nm.config, reflection) {
@@ -364,12 +421,18 @@ func (nm *nelderMead) evaluate() {
 		// inside and outside and see if we can find a better value
 		if reflection.less(nm.config, nm.lastVertex()) {
 			oc := nm.outsideContract(midpoint, reflection)
+			if oc == best {
+				break
+			}
 			if oc.less(nm.config, reflection) || oc.equal(nm.config, reflection) {
 				nm.vertices[len(nm.vertices)-1] = oc
 				continue
 			}
 		} else if !reflection.less(nm.config, nm.lastVertex()) {
 			ic := nm.insideContract(midpoint, reflection)
+			if ic == best {
+				break
+			}
 			if ic.less(nm.config, nm.lastVertex()) {
 				nm.vertices[len(nm.vertices)-1] = ic
 				continue
