@@ -76,9 +76,9 @@ func TestMultipleInserts(t *testing.T) {
 }
 
 func TestRebuild(t *testing.T) {
-	numItems := uint64(100)
+	numItems := uint64(10)
 
-	hm := New(10)
+	hm := New(1)
 
 	for i := uint64(0); i < numItems; i++ {
 		hm.Set(i, i)

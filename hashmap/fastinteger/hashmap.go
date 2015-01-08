@@ -21,6 +21,8 @@
 
 package fastinteger
 
+import "math"
+
 const ratio = .75 // ratio sets the capacity the hashmap has to be at before it expands
 
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
@@ -37,13 +39,14 @@ func roundUp(v uint64) uint64 {
 	return v
 }
 
-type packet struct {
-	key, value uint64
-}
+type ProbeFunction func(packets, uint64) uint64
 
-type packets []*packet
+var (
+	Linear    ProbeFunction = linearFind
+	Quadratic ProbeFunction = quadraticFind
+)
 
-func (packets packets) find(key uint64) uint64 {
+func linearFind(packets packets, key uint64) uint64 {
 	h := hash(key)
 	i := h & (uint64(len(packets)) - 1)
 	for packets[i] != nil && packets[i].key != key {
@@ -53,38 +56,24 @@ func (packets packets) find(key uint64) uint64 {
 	return i
 }
 
-func (packets packets) set(packet *packet) {
-	i := packets.find(packet.key)
-	if packets[i] == nil {
-		packets[i] = packet
-		return
+func quadraticFind(packets packets, key uint64) uint64 {
+	var index uint64
+	index = key & uint64(len(packets)-1)
+	for j := uint64(1); j < uint64(len(packets)); j++ {
+		if packets[index] == nil || packets[index].key == key {
+			return index
+		}
+
+		index = (index + (uint64(math.Pow(float64(j), 2))+j)/2) & uint64(len(packets)-1)
 	}
-
-	packets[i].value = packet.value
+	return index
 }
 
-func (packets packets) get(key uint64) (uint64, bool) {
-	i := packets.find(key)
-	if packets[i] == nil {
-		return 0, false
-	}
-
-	return packets[i].value, true
+type packet struct {
+	key, value uint64
 }
 
-func (packets packets) delete(key uint64) bool {
-	i := packets.find(key)
-	if packets[i] == nil {
-		return false
-	}
-	packets[i] = nil
-	return true
-}
-
-func (packets packets) exists(key uint64) bool {
-	i := packets.find(key)
-	return packets[i] != nil // technically, they can store nil
-}
+type packets []*packet
 
 // FastIntegerHashMap is a simple hashmap to be used with
 // integer only keys.  It supports few operations, and is designed
@@ -94,6 +83,11 @@ func (packets packets) exists(key uint64) bool {
 type FastIntegerHashMap struct {
 	count   uint64
 	packets packets
+	pf      ProbeFunction
+}
+
+func (fi *FastIntegerHashMap) find(key uint64) uint64 {
+	return fi.pf(fi.packets, key)
 }
 
 // rebuild is an expensive operation which requires us to iterate
@@ -101,21 +95,41 @@ type FastIntegerHashMap struct {
 // the new bucket.  The new bucket is twice as large as the old
 // bucket by default.
 func (fi *FastIntegerHashMap) rebuild() {
-	packets := make(packets, roundUp(uint64(len(fi.packets))+1))
-	for _, packet := range fi.packets {
+	oldPackets := fi.packets
+	fi.packets = make(packets, roundUp(uint64(len(fi.packets))+1))
+
+	for _, packet := range oldPackets {
 		if packet == nil {
 			continue
 		}
 
-		packets.set(packet)
+		fi.set(packet)
 	}
-	fi.packets = packets
+}
+
+func (fi *FastIntegerHashMap) get(key uint64) (uint64, bool) {
+	i := fi.find(key)
+	if fi.packets[i] == nil {
+		return 0, false
+	}
+
+	return fi.packets[i].value, true
 }
 
 // Get returns an item from the map if it exists.  Otherwise,
 // returns false for the second argument.
 func (fi *FastIntegerHashMap) Get(key uint64) (uint64, bool) {
-	return fi.packets.get(key)
+	return fi.get(key)
+}
+
+func (fi *FastIntegerHashMap) set(packet *packet) {
+	i := fi.find(packet.key)
+	if fi.packets[i] == nil {
+		fi.packets[i] = packet
+		return
+	}
+
+	fi.packets[i].value = packet.value
 }
 
 // Set will set the provided key with the provided value.
@@ -124,20 +138,34 @@ func (fi *FastIntegerHashMap) Set(key, value uint64) {
 		fi.rebuild()
 	}
 
-	fi.packets.set(&packet{key: key, value: value})
+	fi.set(&packet{key: key, value: value})
 	fi.count++
+}
+
+func (fi *FastIntegerHashMap) exists(key uint64) bool {
+	i := fi.find(key)
+	return fi.packets[i] != nil // technically, they can store nil
 }
 
 // Exists will return a bool indicating if the provided key
 // exists in the map.
 func (fi *FastIntegerHashMap) Exists(key uint64) bool {
-	return fi.packets.exists(key)
+	return fi.exists(key)
+}
+
+func (fi *FastIntegerHashMap) delete(key uint64) bool {
+	i := fi.find(key)
+	if fi.packets[i] == nil {
+		return false
+	}
+	fi.packets[i] = nil
+	return true
 }
 
 // Delete will remove the provided key from the hashmap.  If
 // the key cannot be found, this is a no-op.
 func (fi *FastIntegerHashMap) Delete(key uint64) {
-	if fi.packets.delete(key) {
+	if fi.delete(key) {
 		fi.count--
 	}
 }
@@ -163,5 +191,6 @@ func New(hint uint64) *FastIntegerHashMap {
 	return &FastIntegerHashMap{
 		count:   0,
 		packets: make(packets, hint),
+		pf:      Linear,
 	}
 }
