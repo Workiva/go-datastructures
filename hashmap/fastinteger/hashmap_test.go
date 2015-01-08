@@ -40,6 +40,7 @@ func TestInsert(t *testing.T) {
 	value, ok := hm.Get(5)
 	assert.Equal(t, uint64(5), value)
 	assert.True(t, ok)
+	assert.Equal(t, uint64(16), hm.Cap())
 }
 
 func TestInsertOverwrite(t *testing.T) {
@@ -86,6 +87,37 @@ func TestRebuild(t *testing.T) {
 	for i := uint64(0); i < numItems; i++ {
 		value, _ := hm.Get(i)
 		assert.Equal(t, i, value)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	hm := New(10)
+
+	hm.Set(5, 5)
+	hm.Set(6, 6)
+
+	hm.Delete(5)
+
+	assert.Equal(t, uint64(1), hm.Len())
+	assert.False(t, hm.Exists(5))
+
+	hm.Delete(6)
+	assert.Equal(t, uint64(0), hm.Len())
+	assert.False(t, hm.Exists(6))
+}
+
+func TestDeleteAll(t *testing.T) {
+	numItems := uint64(100)
+
+	hm := New(10)
+
+	for i := uint64(0); i < numItems; i++ {
+		hm.Set(i, i)
+	}
+
+	for i := uint64(0); i < numItems; i++ {
+		hm.Delete(i)
+		assert.False(t, hm.Exists(i))
 	}
 }
 
@@ -156,5 +188,88 @@ func BenchmarkGoMapExists(b *testing.B) {
 	}
 
 	b.StopTimer()
-	b.Logf(`OK: %+v`, ok)
+	if ok { // or the compiler complains
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	numItems := uint64(1000)
+
+	hms := make([]*FastIntegerHashMap, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		hm := New(numItems * 2)
+		for j := uint64(0); j < numItems; j++ {
+			hm.Set(j, j)
+		}
+		hms = append(hms, hm)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		hm := hms[i]
+		for j := uint64(0); j < numItems; j++ {
+			hm.Delete(j)
+		}
+	}
+}
+
+func BenchmarkGoDelete(b *testing.B) {
+	numItems := uint64(1000)
+
+	hms := make([]map[uint64]uint64, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		hm := make(map[uint64]uint64, numItems*2)
+		for j := uint64(0); j < numItems; j++ {
+			hm[j] = j
+		}
+		hms = append(hms, hm)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		hm := hms[i]
+		for j := uint64(0); j < numItems; j++ {
+			delete(hm, j)
+		}
+	}
+}
+
+func BenchmarkInsertWithExpand(b *testing.B) {
+	numItems := uint64(1000)
+
+	hms := make([]*FastIntegerHashMap, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		hm := New(10)
+		hms = append(hms, hm)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		hm := hms[i]
+		for j := uint64(0); j < numItems; j++ {
+			hm.Set(j, j)
+		}
+	}
+}
+
+func BenchmarkGoInsertWithExpand(b *testing.B) {
+	numItems := uint64(1000)
+
+	hms := make([]map[uint64]uint64, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		hm := make(map[uint64]uint64, 10)
+		hms = append(hms, hm)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		hm := hms[i]
+		for j := uint64(0); j < numItems; j++ {
+			hm[j] = j
+		}
+	}
 }

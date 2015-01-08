@@ -1,3 +1,24 @@
+// Package fastinteger is designed to provide a very primitive
+// implementation of a hash map for unsigned integer keys and
+// values.  It is designed to have existence checks and insertions
+// that are faster than Go's native implementation.  Like Go's
+// native implementation, FastIntegerHashMap will dynamically
+// grow in size.
+//
+// Current benchmarks on identical machine against native Go implementation:
+// 		BenchmarkInsert-8	   10000	    131258 ns/op
+//		BenchmarkGoMapInsert-8	   10000	    208787 ns/op
+//		BenchmarkExists-8	  100000	     15820 ns/op
+//		BenchmarkGoMapExists-8	  100000	     16394 ns/op
+//		BenchmarkDelete-8	  100000	     17909 ns/op
+//		BenchmarkGoDelete-8	   30000	     49376 ns/op
+// 		BenchmarkInsertWithExpand-8	   20000	     90301 ns/op
+//		BenchmarkGoInsertWithExpand-8	   10000	    142088 ns/op
+//
+//
+// This performance could be further enhanced by using a
+// better probing technique.
+
 package fastinteger
 
 const ratio = .75 // ratio sets the capacity the hashmap has to be at before it expands
@@ -24,10 +45,9 @@ type packets []*packet
 
 func (packets packets) find(key uint64) uint64 {
 	h := hash(key)
-	length := uint64(len(packets))
-	i := h % length
+	i := h & (uint64(len(packets)) - 1)
 	for packets[i] != nil && packets[i].key != key {
-		i = (i + 1) % uint64(len(packets))
+		i = (i + 1) & (uint64(len(packets)) - 1)
 	}
 
 	return i
@@ -50,6 +70,15 @@ func (packets packets) get(key uint64) (uint64, bool) {
 	}
 
 	return packets[i].value, true
+}
+
+func (packets packets) delete(key uint64) bool {
+	i := packets.find(key)
+	if packets[i] == nil {
+		return false
+	}
+	packets[i] = nil
+	return true
 }
 
 func (packets packets) exists(key uint64) bool {
@@ -103,6 +132,24 @@ func (fi *FastIntegerHashMap) Set(key, value uint64) {
 // exists in the map.
 func (fi *FastIntegerHashMap) Exists(key uint64) bool {
 	return fi.packets.exists(key)
+}
+
+// Delete will remove the provided key from the hashmap.  If
+// the key cannot be found, this is a no-op.
+func (fi *FastIntegerHashMap) Delete(key uint64) {
+	if fi.packets.delete(key) {
+		fi.count--
+	}
+}
+
+// Len returns the number of items in the hashmap.
+func (fi *FastIntegerHashMap) Len() uint64 {
+	return fi.count
+}
+
+// Cap returns the capacity of the hashmap.
+func (fi *FastIntegerHashMap) Cap() uint64 {
+	return uint64(len(fi.packets))
 }
 
 // New returns a new FastIntegerHashMap with a bucket size specified
