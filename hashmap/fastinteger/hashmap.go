@@ -2,16 +2,30 @@ package fastinteger
 
 const ratio = .75 // ratio sets the capacity the hashmap has to be at before it expands
 
+// roundUp takes a uint64 greater than 0 and rounds it up to the next
+// power of 2.
+func roundUp(v uint64) uint64 {
+	v--
+	v |= v >> 1
+	v |= v >> 2
+	v |= v >> 4
+	v |= v >> 8
+	v |= v >> 16
+	v |= v >> 32
+	v++
+	return v
+}
+
 type packet struct {
-	key   uint64
-	value interface{}
+	key, value uint64
 }
 
 type packets []*packet
 
 func (packets packets) find(key uint64) uint64 {
 	h := hash(key)
-	i := h % uint64(len(packets))
+	length := uint64(len(packets))
+	i := h % length
 	for packets[i] != nil && packets[i].key != key {
 		i = (i + 1) % uint64(len(packets))
 	}
@@ -29,13 +43,13 @@ func (packets packets) set(packet *packet) {
 	packets[i].value = packet.value
 }
 
-func (packets packets) get(key uint64) interface{} {
+func (packets packets) get(key uint64) (uint64, bool) {
 	i := packets.find(key)
 	if packets[i] == nil {
-		return nil
+		return 0, false
 	}
 
-	return packets[i].value
+	return packets[i].value, true
 }
 
 func (packets packets) exists(key uint64) bool {
@@ -58,7 +72,7 @@ type FastIntegerHashMap struct {
 // the new bucket.  The new bucket is twice as large as the old
 // bucket by default.
 func (fi *FastIntegerHashMap) rebuild() {
-	packets := make(packets, len(fi.packets)*2)
+	packets := make(packets, roundUp(uint64(len(fi.packets))+1))
 	for _, packet := range fi.packets {
 		if packet == nil {
 			continue
@@ -70,13 +84,13 @@ func (fi *FastIntegerHashMap) rebuild() {
 }
 
 // Get returns an item from the map if it exists.  Otherwise,
-// returns nil.
-func (fi *FastIntegerHashMap) Get(key uint64) interface{} {
+// returns false for the second argument.
+func (fi *FastIntegerHashMap) Get(key uint64) (uint64, bool) {
 	return fi.packets.get(key)
 }
 
 // Set will set the provided key with the provided value.
-func (fi *FastIntegerHashMap) Set(key uint64, value interface{}) {
+func (fi *FastIntegerHashMap) Set(key, value uint64) {
 	if float64(fi.count+1)/float64(len(fi.packets)) > ratio {
 		fi.rebuild()
 	}
@@ -95,8 +109,10 @@ func (fi *FastIntegerHashMap) Exists(key uint64) bool {
 // by hint.
 func New(hint uint64) *FastIntegerHashMap {
 	if hint == 0 {
-		hint = 10
+		hint = 16
 	}
+
+	hint = roundUp(hint)
 	return &FastIntegerHashMap{
 		count:   0,
 		packets: make(packets, hint),
