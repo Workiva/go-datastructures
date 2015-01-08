@@ -3,22 +3,83 @@ package optimization
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"sort"
+	"time"
 )
 
 const (
-	alpha   = 1     // reflection, must be > 0
-	beta    = 2     // expansion, must be > 1
-	gamma   = .5    // contraction, 0 < gamma < 1
-	sigma   = .5    // shrink, 0 < sigma < 1
-	delta   = .0001 // going to use this to determine convergence
-	maxRuns = 130
+	alpha         = 1     // reflection, must be > 0
+	beta          = 2     // expansion, must be > 1
+	gamma         = .5    // contraction, 0 < gamma < 1
+	sigma         = .5    // shrink, 0 < sigma < 1
+	delta         = .0001 // going to use this to determine convergence
+	maxRuns       = 130
+	maxIterations = 5 // maxIterations defines the number of restarts that should
+	// occur when attempting to find a global critical point
 )
 
 var (
 	min = math.Inf(-1)
 	max = math.Inf(1)
 )
+
+// generateRandomVerticesFromGuess will generate num number of vertices
+// with random
+func generateRandomVerticesFromGuess(guess *nmVertex, num int) vertices {
+	// summed allows us to prevent duplicate guesses, checking
+	// all previous guesses for every guess created would be too
+	// time consuming so we take an indexed shortcut here.  summed
+	// is a map of a sum of the vars to the vertices that have an
+	// identical sum.  In this way, we can sum the vars of a new guess
+	// and check only a small subset of previous guesses to determine
+	// if this is an identical guess.
+	summed := make(map[float64]vertices, num)
+	dimensions := len(guess.vars)
+	vs := make(vertices, 0, num)
+	i := 0
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+Guess:
+	for i < num {
+		sum := float64(0)
+		vars := make([]float64, 0, dimensions)
+		for j := 0; j < dimensions; j++ {
+			v := r.Float64() * 1000
+			// we do a separate random check here to determine
+			// sign so we don't end up with all high v's one sign
+			// and low v's another
+			if r.Float64() > .5 {
+				v = -v
+			}
+			sum += v
+			vars = append(vars, v)
+		}
+
+		guess := &nmVertex{
+			vars: vars,
+		}
+
+		if vs, ok := summed[sum]; !ok {
+			vs = make(vertices, 0, dimensions) // dimensions is really just a guess, no real way of knowing what this is
+			vs = append(vs, guess)
+			summed[sum] = vs
+		} else {
+			for _, vertex := range vs {
+				// if we've already guessed this, try the loop again
+				if guess.equalToVertex(vertex) {
+					continue Guess
+				}
+			}
+			vs = append(vs, guess)
+		}
+
+		vs = append(vs, guess)
+		i++
+	}
+
+	return vs
+}
 
 func isInf(num float64) bool {
 	return math.IsInf(num, -1) || math.IsInf(num, 1)
@@ -248,9 +309,32 @@ func (nm *nmVertex) euclideanDistance(other *nmVertex) float64 {
 	return math.Sqrt(sum)
 }
 
+// equalToVertex will compare this vertex to the provided vertex
+// to determine if the two vertices are actually identical (that is,
+// they fall on the same point).
+func (nm *nmVertex) equalToVertex(other *nmVertex) bool {
+	for i, n := range nm.vars {
+		if n != other.vars[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// approximatelyEqualToVertex returns a bool indicating if the
+// *result* of this vertex is approximately equal to the vertex
+// provided.  Approximately is 2 * delta as the algorithm may
+// cease within a delta distance of the true value, so we may
+// end up with a result that's 2*delta away if we came from
+// the other direction.
+func (nm *nmVertex) approximatelyEqualToVertex(other *nmVertex) bool {
+	return math.Abs(nm.result-other.result) < 2*delta
+}
+
 type nelderMead struct {
-	config   NelderMeadConfiguration
-	vertices vertices
+	config  NelderMeadConfiguration
+	results *results
 }
 
 // evaluateWithConstraints will safely evaluate the vertex while
@@ -259,13 +343,13 @@ type nelderMead struct {
 // http://www.iccm-central.org/Proceedings/ICCM16proceedings/contents/pdf/MonK/MoKA1-04ge_ghiasimh224461p.pdf
 // This should work with even non-linear constraints, but it is up to
 // the consumer to check these constraints.
-func (nm *nelderMead) evaluateWithConstraints(vertex *nmVertex) *nmVertex {
+func (nm *nelderMead) evaluateWithConstraints(vertices vertices, vertex *nmVertex) *nmVertex {
 	vertex.evaluate(nm.config)
 	return vertex
 	if vertex.good {
 		return vertex
 	}
-	best := nm.vertices[0]
+	best := vertices[0]
 	for i := 0; i < 5; i++ {
 		vertex = best.add((vertex.subtract(best).multiply(alpha)))
 		if vertex.good {
@@ -278,74 +362,74 @@ func (nm *nelderMead) evaluateWithConstraints(vertex *nmVertex) *nmVertex {
 
 // reflect will find the reflection point between the two best guesses
 // with the provided midpoint.
-func (nm *nelderMead) reflect(midpoint *nmVertex) *nmVertex {
-	toScalar := midpoint.subtract(nm.lastVertex())
+func (nm *nelderMead) reflect(vertices vertices, midpoint *nmVertex) *nmVertex {
+	toScalar := midpoint.subtract(nm.lastVertex(vertices))
 	toScalar = toScalar.multiply(alpha)
 	toScalar = midpoint.add(toScalar)
-	return nm.evaluateWithConstraints(toScalar)
+	return nm.evaluateWithConstraints(vertices, toScalar)
 }
 
-func (nm *nelderMead) expand(midpoint, reflection *nmVertex) *nmVertex {
+func (nm *nelderMead) expand(vertices vertices, midpoint, reflection *nmVertex) *nmVertex {
 	toScalar := reflection.subtract(midpoint)
 	toScalar = toScalar.multiply(beta)
 	toScalar = midpoint.add(toScalar)
-	return nm.evaluateWithConstraints(toScalar)
+	return nm.evaluateWithConstraints(vertices, toScalar)
 }
 
 // lastDimensionVertex returns the vertex that is represented by the
 // last dimension, effectively, second to last in the list of
 // vertices.
-func (nm *nelderMead) lastDimensionVertex() *nmVertex {
-	return nm.vertices[len(nm.vertices)-2]
+func (nm *nelderMead) lastDimensionVertex(vertices vertices) *nmVertex {
+	return vertices[len(vertices)-2]
 }
 
 // lastVertex returns the last vertex in the list of vertices.
 // It's important to remember that this vertex represents the
 // number of dimensions + 1.
-func (nm *nelderMead) lastVertex() *nmVertex {
-	return nm.vertices[len(nm.vertices)-1]
+func (nm *nelderMead) lastVertex(vertices vertices) *nmVertex {
+	return vertices[len(vertices)-1]
 }
 
-func (nm *nelderMead) outsideContract(midpoint, reflection *nmVertex) *nmVertex {
+func (nm *nelderMead) outsideContract(vertices vertices, midpoint, reflection *nmVertex) *nmVertex {
 	toScalar := reflection.subtract(midpoint)
 	toScalar = toScalar.multiply(gamma)
 	toScalar = midpoint.add(toScalar)
-	return nm.evaluateWithConstraints(toScalar)
+	return nm.evaluateWithConstraints(vertices, toScalar)
 }
 
-func (nm *nelderMead) insideContract(midpoint, reflection *nmVertex) *nmVertex {
+func (nm *nelderMead) insideContract(vertices vertices, midpoint, reflection *nmVertex) *nmVertex {
 	toScalar := reflection.subtract(midpoint)
 	toScalar = toScalar.multiply(gamma)
 	toScalar = midpoint.subtract(toScalar)
-	return nm.evaluateWithConstraints(toScalar)
+	return nm.evaluateWithConstraints(vertices, toScalar)
 }
 
-func (nm *nelderMead) shrink() {
-	one := nm.vertices[0]
-	for i := 1; i < len(nm.vertices); i++ {
-		toScalar := nm.vertices[i].subtract(one)
+func (nm *nelderMead) shrink(vertices vertices) {
+	one := vertices[0]
+	for i := 1; i < len(vertices); i++ {
+		toScalar := vertices[i].subtract(one)
 		toScalar = toScalar.multiply(sigma)
-		nm.vertices[i] = one.add(toScalar)
+		vertices[i] = one.add(toScalar)
 	}
 }
 
 // checkIteration checks some key values to determine if
 // iteration should be complete.  Returns false if iteration
 // should be terminated and true if iteration should continue.
-func (nm *nelderMead) checkIteration() bool {
+func (nm *nelderMead) checkIteration(vertices vertices) bool {
 	// this will never be true for += inf
-	if math.Abs(nm.vertices[0].result-nm.config.Target) < delta {
+	if math.Abs(vertices[0].result-nm.config.Target) < delta {
 		return false
 	}
 
-	best := nm.vertices[0]
+	best := vertices[0]
 	// here we are checking distance convergence.  If all vertices
 	// are near convergence, that is they are all within some delta
 	// from the expected value, we can go ahead and quit early.  This
 	// can only be performed on convergence checks, not for finding
 	// min/max.
 	if !isInf(nm.config.Target) {
-		for _, v := range nm.vertices[1:] {
+		for _, v := range vertices[1:] {
 			if math.Abs(best.distance-v.distance) >= delta {
 				return true
 			}
@@ -358,7 +442,7 @@ func (nm *nelderMead) checkIteration() bool {
 	// guesses to see if they are converged upon some point.  If
 	// all of the vertices have converged close enough, it may be
 	// worth it to cease iteration.
-	for _, v := range nm.vertices[1:] {
+	for _, v := range vertices[1:] {
 		if best.euclideanDistance(v) >= delta {
 			return true
 		}
@@ -368,104 +452,100 @@ func (nm *nelderMead) checkIteration() bool {
 }
 
 func (nm *nelderMead) evaluate() {
+	vertices := nm.results.grab(len(nm.config.Vars) + 1)
 	// if the initial guess provided is not good, then
 	// we are going to die early, leave it up to the user
 	// to create a good first guess.
-	nm.vertices[0].evaluate(nm.config)
-	if !nm.vertices[0].good {
+	vertices[0].evaluate(nm.config)
+	if !vertices[0].good {
+		nm.results.insert(vertices[0])
 		return
 	}
 
-	for i := 0; i <= maxRuns; i++ {
-		// TODO: optimize this to prevent duplicate evaluations.
-		nm.vertices.evaluate(nm.config)
-		best := nm.vertices[0]
-		if !nm.checkIteration() {
-			break
-		}
-
-		midpoint := findMidpoint(nm.vertices[:len(nm.vertices)-1]...)
-		// we are guaranteed to have two points here
-		reflection := nm.reflect(midpoint)
-		// we could not find a reflection that met constraints, the
-		// best guess is the best guess.
-		if reflection == best {
-			break
-		}
-		// in this case, quality-wise, we are between the best
-		// and second to best points
-		if reflection.less(nm.config, nm.lastDimensionVertex()) &&
-			!nm.vertices[0].less(nm.config, reflection) {
-
-			nm.vertices[len(nm.vertices)-1] = reflection
-		}
-
-		// midpoint is closer than our previous best guess
-		if reflection.less(nm.config, nm.vertices[0]) {
-			expanded := nm.expand(midpoint, reflection)
-			// we could not expand a valid guess, best is the best guess
-			if expanded == best {
+	// the outer loop controls how hard we try to find
+	// a global critical point
+	for i := 0; i < maxIterations; i++ {
+		// the inner loop controls the degenerate case where
+		// we can't converge to a critical point
+		for j := 0; j < maxRuns; j++ {
+			// TODO: optimize this to prevent duplicate evaluations.
+			vertices.evaluate(nm.config)
+			best := vertices[0]
+			if !nm.checkIteration(vertices) {
 				break
 			}
 
-			// we only need to expand here
-			if expanded.less(nm.config, reflection) {
-				nm.vertices[len(nm.vertices)-1] = expanded
-			} else {
-				nm.vertices[len(nm.vertices)-1] = reflection
-			}
-			continue
-		}
-
-		// reflection is a bad guess, let's try to contract both
-		// inside and outside and see if we can find a better value
-		if reflection.less(nm.config, nm.lastVertex()) {
-			oc := nm.outsideContract(midpoint, reflection)
-			if oc == best {
+			midpoint := findMidpoint(vertices[:len(vertices)-1]...)
+			// we are guaranteed to have two points here
+			reflection := nm.reflect(vertices, midpoint)
+			// we could not find a reflection that met constraints, the
+			// best guess is the best guess.
+			if reflection == best {
 				break
 			}
-			if oc.less(nm.config, reflection) || oc.equal(nm.config, reflection) {
-				nm.vertices[len(nm.vertices)-1] = oc
+			// in this case, quality-wise, we are between the best
+			// and second to best points
+			if reflection.less(nm.config, nm.lastDimensionVertex(vertices)) &&
+				!vertices[0].less(nm.config, reflection) {
+
+				vertices[len(vertices)-1] = reflection
+			}
+
+			// midpoint is closer than our previous best guess
+			if reflection.less(nm.config, vertices[0]) {
+				expanded := nm.expand(vertices, midpoint, reflection)
+				// we could not expand a valid guess, best is the best guess
+				if expanded == best {
+					break
+				}
+
+				// we only need to expand here
+				if expanded.less(nm.config, reflection) {
+					vertices[len(vertices)-1] = expanded
+				} else {
+					vertices[len(vertices)-1] = reflection
+				}
 				continue
 			}
-		} else if !reflection.less(nm.config, nm.lastVertex()) {
-			ic := nm.insideContract(midpoint, reflection)
-			if ic == best {
-				break
-			}
-			if ic.less(nm.config, nm.lastVertex()) {
-				nm.vertices[len(nm.vertices)-1] = ic
-				continue
-			}
-		}
 
-		// we could not guess a better value than nm.vertices[0], so
-		// let's converge the other to guesses to our best guess.
-		nm.shrink()
+			// reflection is a bad guess, let's try to contract both
+			// inside and outside and see if we can find a better value
+			if reflection.less(nm.config, nm.lastVertex(vertices)) {
+				oc := nm.outsideContract(vertices, midpoint, reflection)
+				if oc == best {
+					break
+				}
+				if oc.less(nm.config, reflection) || oc.equal(nm.config, reflection) {
+					vertices[len(vertices)-1] = oc
+					continue
+				}
+			} else if !reflection.less(nm.config, nm.lastVertex(vertices)) {
+				ic := nm.insideContract(vertices, midpoint, reflection)
+				if ic == best {
+					break
+				}
+				if ic.less(nm.config, nm.lastVertex(vertices)) {
+					vertices[len(vertices)-1] = ic
+					continue
+				}
+			}
+
+			// we could not guess a better value than nm.vertices[0], so
+			// let's converge the other to guesses to our best guess.
+			nm.shrink(vertices)
+		}
+		nm.results.reSort(vertices[0])
+		vertices = nm.results.grab(len(nm.config.Vars) + 1)
 	}
 }
 
 func newNelderMead(config NelderMeadConfiguration) *nelderMead {
-	vertices := make(vertices, 0, len(config.Vars)+1)
-	v := &nmVertex{vars: config.Vars} // construct initial vertex with first guess
-	vertices = append(vertices, v)
-	for i := 0; i < len(config.Vars); i++ { // we ultimately have one more vertex than number of dimensions
-		neg := i%2 == 0
-		vars := make([]float64, 0, len(config.Vars))
-		for i, v := range config.Vars {
-			if i%2 == 0 && neg { // we must ensure all vertices do not fall on the same line
-				vars = append(vars, -(v + float64(i) + 1))
-			} else {
-				vars = append(vars, v+float64(i)+1)
-			}
-
-		}
-		vertices = append(vertices, &nmVertex{vars: vars})
-	}
+	v := &nmVertex{vars: config.Vars}      // construct initial vertex with first guess
+	results := newResults(v, config, 1000) // 1000 represents 1000 initial vertex guesses
 
 	return &nelderMead{
-		config:   config,
-		vertices: vertices,
+		config:  config,
+		results: results,
 	}
 }
 
@@ -475,5 +555,5 @@ func newNelderMead(config NelderMeadConfiguration) *nelderMead {
 func NelderMead(config NelderMeadConfiguration) []float64 {
 	nm := newNelderMead(config)
 	nm.evaluate()
-	return nm.vertices[0].vars
+	return nm.results.vertices[0].vars
 }
