@@ -25,29 +25,31 @@ import (
 )
 
 func TestPut(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	q.Put(`test`)
-	if q.Len() != 1 {
-		t.Errorf(`Expected len: %d, received: %d`, 1, q.Len())
-	}
+	assert.Equal(t, int64(1), q.Len())
 
-	if q.items[0] != `test` {
-		t.Errorf(`Expected: %s, received: %s`, `test`, q.items[0])
-	}
+	results, err := q.Get(1)
+	assert.Nil(t, err)
+
+	result := results[0]
+	assert.Equal(t, `test`, result)
+	assert.True(t, q.Empty())
 
 	q.Put(`test2`)
-	if q.Len() != 2 {
-		t.Errorf(`Expected len: %d, received: %d`, 2, q.Len())
-	}
+	assert.Equal(t, int64(1), q.Len())
 
-	if q.items[1] != `test2` {
-		t.Errorf(`Expected: %s, received: %s`, `test2`, q.items[1])
-	}
+	results, err = q.Get(1)
+	assert.Nil(t, err)
+
+	result = results[0]
+	assert.Equal(t, `test2`, result)
+	assert.True(t, q.Empty())
 }
 
 func TestGet(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	q.Put(`test`)
 	result, err := q.Get(2)
@@ -55,17 +57,9 @@ func TestGet(t *testing.T) {
 		return
 	}
 
-	if len(result) != 1 {
-		t.Errorf(`Expected len: %d, received: %d`, 1, len(result))
-	}
-
-	if result[0] != `test` {
-		t.Errorf(`Expected: %s, received: %s`, `test`, result)
-	}
-
-	if len(q.items) != 0 {
-		t.Errorf(`Expected len: %d, received: %d`, 0, len(q.items))
-	}
+	assert.Len(t, result, 1)
+	assert.Equal(t, `test`, result[0])
+	assert.Equal(t, int64(0), q.Len())
 
 	q.Put(`1`)
 	q.Put(`2`)
@@ -75,30 +69,20 @@ func TestGet(t *testing.T) {
 		return
 	}
 
-	if len(result) != 1 {
-		t.Errorf(`Expected len: %d, received: %d`, 1, len(result))
-	}
-
-	if result[0] != `1` {
-		t.Errorf(`Expected: %s, received: %s`, `1`, result[0])
-	}
-
-	if len(q.items) != 1 {
-		t.Errorf(`Expected len: %d, received: %d`, 1, len(q.items))
-	}
+	assert.Len(t, result, 1)
+	assert.Equal(t, `1`, result[0])
+	assert.Equal(t, int64(1), q.Len())
 
 	result, err = q.Get(2)
 	if !assert.Nil(t, err) {
 		return
 	}
 
-	if result[0] != `2` {
-		t.Errorf(`Expected: %s, received: %s`, `2`, result[0])
-	}
+	assert.Equal(t, `2`, result[0])
 }
 
 func TestAddEmptyPut(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	q.Put()
 
@@ -108,7 +92,7 @@ func TestAddEmptyPut(t *testing.T) {
 }
 
 func TestGetNonPositiveNumber(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	q.Put(`test`)
 	result, err := q.Get(0)
@@ -122,7 +106,7 @@ func TestGetNonPositiveNumber(t *testing.T) {
 }
 
 func TestEmpty(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	if !q.Empty() {
 		t.Errorf(`Expected empty queue.`)
@@ -135,7 +119,7 @@ func TestEmpty(t *testing.T) {
 }
 
 func TestGetEmpty(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	go func() {
 		q.Put(`a`)
@@ -151,7 +135,7 @@ func TestGetEmpty(t *testing.T) {
 }
 
 func TestMultipleGetEmpty(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	results := make([][]interface{}, 2)
@@ -186,7 +170,7 @@ func TestMultipleGetEmpty(t *testing.T) {
 }
 
 func TestEmptyGetWithDispose(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -209,7 +193,7 @@ func TestEmptyGetWithDispose(t *testing.T) {
 }
 
 func TestGetPutDisposed(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 
 	q.Dispose()
 
@@ -269,7 +253,7 @@ func BenchmarkChannel(b *testing.B) {
 }
 
 func TestTakeUntil(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 	q.Put(`a`, `b`, `c`)
 	result, err := q.TakeUntil(func(item interface{}) bool {
 		return item != `c`
@@ -284,7 +268,7 @@ func TestTakeUntil(t *testing.T) {
 }
 
 func TestTakeUntilEmptyQueue(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 	result, err := q.TakeUntil(func(item interface{}) bool {
 		return item != `c`
 	})
@@ -298,7 +282,7 @@ func TestTakeUntilEmptyQueue(t *testing.T) {
 }
 
 func TestTakeUntilOnDisposedQueue(t *testing.T) {
-	q := &Queue{}
+	q := New(10)
 	q.Dispose()
 	result, err := q.TakeUntil(func(item interface{}) bool {
 		return true
@@ -331,4 +315,73 @@ func TestExecuteInParallelEmptyQueue(t *testing.T) {
 	ExecuteInParallel(q, func(interface{}) {
 		t.Fail()
 	})
+}
+
+func BenchmarkQueuePut(b *testing.B) {
+	numItems := int64(1000)
+
+	qs := make([]*Queue, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		q := New(10)
+		qs = append(qs, q)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		q := qs[i]
+		for j := int64(0); j < numItems; j++ {
+			q.Put(j)
+		}
+	}
+}
+
+func BenchmarkQueueGet(b *testing.B) {
+	numItems := int64(1000)
+
+	qs := make([]*Queue, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		q := New(numItems)
+		for j := int64(0); j < numItems; j++ {
+			q.Put(j)
+		}
+		qs = append(qs, q)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		q := qs[i]
+		for j := int64(0); j < numItems; j++ {
+			q.Get(1)
+		}
+	}
+}
+
+func BenchmarkExecuteInParallel(b *testing.B) {
+	numItems := int64(1000)
+
+	qs := make([]*Queue, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		q := New(numItems)
+		for j := int64(0); j < numItems; j++ {
+			q.Put(j)
+		}
+		qs = append(qs, q)
+	}
+
+	var counter int64
+	fn := func(ifc interface{}) {
+		c := ifc.(int64)
+		atomic.AddInt64(&counter, c)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		q := qs[i]
+		ExecuteInParallel(q, fn)
+	}
 }
