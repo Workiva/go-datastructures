@@ -262,7 +262,13 @@ func New(hint int64) *Queue {
 // is exhausted execution is complete and all goroutines will be killed.
 // This means that the queue will be disposed so cannot be used again.
 func ExecuteInParallel(q *Queue, fn func(interface{})) {
-	todo, done := uint64(q.Len()), int64(-1)
+	if q == nil {
+		return
+	}
+
+	q.lock.Lock() // so no one touches anything in the middle
+	// of this process
+	todo, done := uint64(len(q.items)), int64(-1)
 	// this is important or we might face an infinite loop
 	if todo == 0 {
 		return
@@ -291,7 +297,7 @@ func ExecuteInParallel(q *Queue, fn func(interface{})) {
 			}
 		}()
 	}
-
 	wg.Wait()
+	q.lock.Unlock()
 	q.Dispose()
 }
