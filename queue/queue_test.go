@@ -358,3 +358,30 @@ func BenchmarkQueueGet(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkExecuteInParallel(b *testing.B) {
+	numItems := int64(1000)
+
+	qs := make([]*Queue, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		q := New(numItems)
+		for j := int64(0); j < numItems; j++ {
+			q.Put(j)
+		}
+		qs = append(qs, q)
+	}
+
+	var counter int64
+	fn := func(ifc interface{}) {
+		c := ifc.(int64)
+		atomic.AddInt64(&counter, c)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		q := qs[i]
+		ExecuteInParallel(q, fn)
+	}
+}
