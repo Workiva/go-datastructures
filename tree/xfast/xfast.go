@@ -123,7 +123,7 @@ func (xft *XFastTrie) init(intType interface{}) {
 func (xft *XFastTrie) Exists(key uint64) bool {
 	// the bottom hashmap of the trie has every entry
 	// in it.
-	_, ok := xft.layers[63][key]
+	_, ok := xft.layers[xft.bits-1][key]
 	return ok
 }
 

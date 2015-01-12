@@ -10,13 +10,13 @@ import (
 )
 
 func TestInsert(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
 	assert.True(t, xft.Exists(5))
 
-	key := uint64(math.MaxUint64 - 235325)
+	key := uint64(math.MaxUint8 - 120)
 	e2 := newMockEntry(key)
 	xft.Insert(e2)
 
@@ -25,7 +25,7 @@ func TestInsert(t *testing.T) {
 }
 
 func TestSuccessorDoesNotExist(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
@@ -34,7 +34,7 @@ func TestSuccessorDoesNotExist(t *testing.T) {
 }
 
 func TestSuccessorIsExactValue(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
@@ -43,8 +43,8 @@ func TestSuccessorIsExactValue(t *testing.T) {
 }
 
 func TestSuccessorGreaterThanKey(t *testing.T) {
-	xft := New(uint64(0))
-	e1 := newMockEntry(math.MaxUint64)
+	xft := New(uint8(0))
+	e1 := newMockEntry(math.MaxUint8)
 	xft.Insert(e1)
 
 	result := xft.Successor(5)
@@ -52,7 +52,7 @@ func TestSuccessorGreaterThanKey(t *testing.T) {
 }
 
 func TestSuccessorCloseToKey(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(10)
 	xft.Insert(e1)
 
@@ -61,7 +61,7 @@ func TestSuccessorCloseToKey(t *testing.T) {
 }
 
 func TestSuccessorBetweenTwoKeys(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(10)
 	xft.Insert(e1)
 
@@ -80,7 +80,7 @@ func TestSuccessorBetweenTwoKeys(t *testing.T) {
 }
 
 func TestPredecessorDoesNotExist(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
@@ -89,7 +89,7 @@ func TestPredecessorDoesNotExist(t *testing.T) {
 }
 
 func TestPredecessorIsExactValue(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
@@ -98,7 +98,7 @@ func TestPredecessorIsExactValue(t *testing.T) {
 }
 
 func TestPredecessorLessThanKey(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(0)
 	xft.Insert(e1)
 
@@ -107,7 +107,7 @@ func TestPredecessorLessThanKey(t *testing.T) {
 }
 
 func TestPredecessorCloseToKey(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
