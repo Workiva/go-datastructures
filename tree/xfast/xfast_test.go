@@ -68,11 +68,14 @@ func TestSuccessorBetweenTwoKeys(t *testing.T) {
 	e2 := newMockEntry(20)
 	xft.Insert(e2)
 
-	println(`SHIT STARTS HERE`)
-
-	for i := uint64(11); i < 12; i++ {
+	for i := uint64(11); i < 20; i++ {
 		result := xft.Successor(i)
 		assert.Equal(t, e2, result)
+	}
+
+	for i := uint64(21); i < 100; i++ {
+		result := xft.successor(i)
+		assert.Nil(t, result)
 	}
 }
 

@@ -277,7 +277,6 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 }
 
 func (xft *XFastTrie) successor(key uint64) *node {
-	log.Printf(`SUCCESSOR CALL`)
 	if xft.root == nil { // no successor if no nodes
 		return nil
 	}
@@ -294,51 +293,23 @@ func (xft *XFastTrie) successor(key uint64) *node {
 		n = xft.root
 	}
 
-	log.Printf(`N0: %+v, N1: %+v`, n.children[0], n.children[1])
-
 	if isLeaf(n.children[0]) {
 		if n.children[0].entry.Key() >= key {
 			return n.children[0]
 		} else if isLeaf(n.children[1]) {
-			println(`THIS FUCKING WAY`)
-			log.Printf(`n.children[1].entry: %+v`, n.children[1].entry)
 			if n.children[1].entry.Key() >= key {
 				return n.children[1]
 			}
 		}
 
 		return n.children[0].children[1]
+	} else if isLeaf(n.children[1]) {
+		if n.children[1].entry.Key() >= key {
+			return n.children[1]
+		}
 	}
 
 	return nil
-
-	/*
-		println(`HIT THIS`)
-		leftOrRight := (key & positions[layer])
-
-		for leftOrRight > 0 {
-			layer--
-			n = xft.layers[layer][key&masks[layer]] // there should always be n
-			leftOrRight = (key & positions[layer])
-		}
-
-		n = n.children[1] // now grab the right child
-
-		if n == nil { // it's possible the right child doesn't exist, there may only be one entry
-			return nil
-		}
-
-		// then grab the cheapest child
-		for n.entry == nil {
-			if n.children[0] != nil {
-				n = n.children[0]
-				continue
-			}
-
-			n = n.children[1]
-		}
-
-		return n*/
 }
 
 func (xft *XFastTrie) Successor(key uint64) Entry {
