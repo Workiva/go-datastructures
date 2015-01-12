@@ -79,6 +79,24 @@ func TestSuccessorBetweenTwoKeys(t *testing.T) {
 	}
 }
 
+func TestPredecessorDoesNotExist(t *testing.T) {
+	xft := New()
+	e1 := newMockEntry(5)
+	xft.Insert(e1)
+
+	result := xft.Predecessor(4)
+	assert.Nil(t, result)
+}
+
+func TestPredecessorIsExactValue(t *testing.T) {
+	xft := New()
+	e1 := newMockEntry(5)
+	xft.Insert(e1)
+
+	result := xft.Predecessor(5)
+	assert.Equal(t, e1, result)
+}
+
 func BenchmarkSuccessor(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		xft := New()

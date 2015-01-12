@@ -251,6 +251,7 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 	}
 
 	layer, n := binarySearchHashMaps(xft.layers, key)
+	log.Printf(`LAYER: %+v, N: %+v`, layer, n)
 	if n == nil && layer > 1 {
 		return nil
 	} else if n == nil {
@@ -265,7 +266,7 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 		} else if isLeaf(n.children[0]) {
 			println(`THIS FUCKING WAY`)
 			log.Printf(`n.children[1].entry: %+v`, n.children[0].entry)
-			if n.children[0].entry.Key() >= key {
+			if n.children[0].entry.Key() <= key {
 				return n.children[0]
 			}
 		}
