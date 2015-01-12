@@ -265,13 +265,19 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 			return n.children[1]
 		} else if isLeaf(n.children[0]) {
 			println(`THIS FUCKING WAY`)
-			log.Printf(`n.children[1].entry: %+v`, n.children[0].entry)
+			log.Printf(`n.children[1].entry: %+v`, n.children[1].entry)
 			if n.children[0].entry.Key() <= key {
 				return n.children[0]
 			}
 		}
 
 		return n.children[1].children[0]
+	} else if isLeaf(n.children[0]) {
+		println(`HERE`)
+		log.Printf(`n.children[0].entry: %+v`, n.children[0].entry)
+		if n.children[0].entry.Key() <= key {
+			return n.children[0]
+		}
 	}
 
 	return nil

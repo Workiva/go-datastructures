@@ -74,7 +74,7 @@ func TestSuccessorBetweenTwoKeys(t *testing.T) {
 	}
 
 	for i := uint64(21); i < 100; i++ {
-		result := xft.successor(i)
+		result := xft.Successor(i)
 		assert.Nil(t, result)
 	}
 }
@@ -95,6 +95,44 @@ func TestPredecessorIsExactValue(t *testing.T) {
 
 	result := xft.Predecessor(5)
 	assert.Equal(t, e1, result)
+}
+
+func TestPredecessorLessThanKey(t *testing.T) {
+	xft := New()
+	e1 := newMockEntry(0)
+	xft.Insert(e1)
+
+	result := xft.Predecessor(math.MaxUint64)
+	assert.Equal(t, e1, result)
+}
+
+func TestPredecessorCloseToKey(t *testing.T) {
+	xft := New()
+	e1 := newMockEntry(5)
+	xft.Insert(e1)
+
+	result := xft.Predecessor(10)
+	assert.Equal(t, e1, result)
+}
+
+func TestPredecessorBetweenTwoKeys(t *testing.T) {
+	xft := New()
+	e1 := newMockEntry(10)
+	xft.Insert(e1)
+
+	e2 := newMockEntry(20)
+	xft.Insert(e2)
+
+	for i := uint64(16); i < 17; i++ {
+		result := xft.Predecessor(i)
+		assert.Equal(t, e1, result)
+	}
+
+	/*
+		for i := uint64(0); i < 10; i++ {
+			result := xft.Predecessor(i)
+			assert.Nil(t, result)
+		}*/
 }
 
 func BenchmarkSuccessor(b *testing.B) {
