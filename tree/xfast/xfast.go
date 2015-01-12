@@ -66,8 +66,8 @@ func newNode(parent *node, entry Entry) *node {
 	}
 }
 
-func binarySearchHashMaps(layers [64]map[uint64]*node, key uint64) (int, *node) {
-	low, high := 1, 63
+func binarySearchHashMaps(layers []map[uint64]*node, key uint64) (int, *node) {
+	low, high := 1, len(layers)-1
 	var mid int
 	var node *node
 	for low <= high {
@@ -85,19 +85,35 @@ func binarySearchHashMaps(layers [64]map[uint64]*node, key uint64) (int, *node) 
 }
 
 type XFastTrie struct {
-	layers [64]map[uint64]*node
+	layers []map[uint64]*node
 	root   *node
 	num    uint64
-	cache  [64]*node // we'll not need this for the leaf node
+	cache  []*node // we'll not need this for the leaf node
+	bits   uint8
 }
 
-func (xft *XFastTrie) init() {
-	xft.layers = [64]map[uint64]*node{}
-	for i := uint64(0); i < 64; i++ {
+func (xft *XFastTrie) init(intType interface{}) {
+	bits := uint8(0)
+	switch intType.(type) {
+	case uint8:
+		bits = 8
+	case uint16:
+		bits = 16
+	case uint32:
+		bits = 32
+	case uint, uint64:
+		bits = 64
+	default:
+		panic(`Invalid universe size provided.`)
+	}
+
+	xft.layers = make([]map[uint64]*node, bits)
+	xft.bits = bits
+	for i := uint8(0); i < bits; i++ {
 		xft.layers[i] = make(map[uint64]*node, 50) // we can obviously be more intelligent about this.
 	}
 	xft.num = 0
-	xft.cache = [64]*node{}
+	xft.cache = make([]*node, bits)
 	xft.root = newNode(nil, nil)
 }
 
@@ -118,7 +134,7 @@ func (xft *XFastTrie) Len() uint64 {
 
 func (xft *XFastTrie) insert(entry Entry) {
 	key := entry.Key() // so we aren't calling this interface method over and over, fucking Go
-	n := xft.layers[63][key]
+	n := xft.layers[xft.bits-1][key]
 	if n != nil {
 		n.entry = entry
 		return
@@ -140,11 +156,11 @@ func (xft *XFastTrie) insert(entry Entry) {
 	n = xft.root
 	var leftOrRight uint64
 
-	for i := uint64(0); i < 63; i++ {
+	for i := uint8(0); i < xft.bits-1; i++ {
 		// on 0th, this will be root
 		xft.cache[i] = n
 		// find out if we need to go left or right
-		leftOrRight = (key & positions[i]) >> (63 - i)
+		leftOrRight = (key & positions[i]) >> (xft.bits - 1 - i)
 		if n.children[leftOrRight] == nil || isLeaf(n.children[leftOrRight]) {
 			nn := newNode(n, nil)
 			n.children[leftOrRight] = nn
@@ -154,11 +170,11 @@ func (xft *XFastTrie) insert(entry Entry) {
 	}
 
 	// we are left with next to last possible node
-	leftOrRight = key & positions[63] // this will just be 1 or 0
+	leftOrRight = key & positions[xft.bits-1] // this will just be 1 or 0
 	if n.children[leftOrRight] == nil || isLeaf(n.children[leftOrRight]) {
 		leaf := newNode(n, entry)
 		n.children[leftOrRight] = leaf
-		xft.layers[63][key] = leaf
+		xft.layers[xft.bits-1][key] = leaf
 		xft.num++
 		n = leaf
 	} else {
@@ -192,14 +208,14 @@ func (xft *XFastTrie) insert(entry Entry) {
 }
 
 func (xft *XFastTrie) walkUpSuccessor(node, successor *node) {
-	i := 0
+	i := uint8(0)
 	n := successor.parent
-	for n != nil && xft.cache[63-i] != n {
+	for n != nil && xft.cache[xft.bits-1-i] != n {
 		if isLeaf(n.children[0]) {
 			n.children[0] = node
 		}
 		i++
-		if i > 63 {
+		if i > xft.bits-1 {
 			break
 		}
 		n = n.parent
@@ -207,14 +223,14 @@ func (xft *XFastTrie) walkUpSuccessor(node, successor *node) {
 }
 
 func (xft *XFastTrie) walkUpPredecessor(node, predecessor *node) {
-	i := 0
+	i := uint8(0)
 	n := predecessor.parent
-	for n != nil && xft.cache[63-i] != n {
+	for n != nil && xft.cache[xft.bits-1-i] != n {
 		if isLeaf(n.children[1]) {
 			n.children[1] = node
 		}
 		i++
-		if i > 63 {
+		if i > xft.bits-1 {
 			break
 		}
 		n = n.parent
@@ -245,7 +261,7 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 		return nil
 	}
 
-	n := xft.layers[63][key]
+	n := xft.layers[xft.bits-1][key]
 	if n != nil {
 		return n
 	}
@@ -288,7 +304,7 @@ func (xft *XFastTrie) successor(key uint64) *node {
 		return nil
 	}
 
-	n := xft.layers[63][key]
+	n := xft.layers[xft.bits-1][key]
 	if n != nil {
 		return n
 	}
@@ -337,8 +353,12 @@ func (xft *XFastTrie) Predecessor(key uint64) Entry {
 	return n.entry
 }
 
-func New() *XFastTrie {
+// New will construct a new X-Fast Trie with the given "size,"
+// that is the size of the universe of the trie.  This expects
+// a uint of some sort, ie, uint8, uint16, etc.  The size of the
+// universe will be 2^n-1 and will affect the speed of all operations.
+func New(ifc interface{}) *XFastTrie {
 	xft := &XFastTrie{}
-	xft.init()
+	xft.init(ifc)
 	return xft
 }
