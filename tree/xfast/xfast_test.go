@@ -150,6 +150,13 @@ func checkPattern(t *testing.T, n *node, pattern []int) {
 	assert.Equal(t, -1, i)
 }
 
+func TestEmptyMinMax(t *testing.T) {
+	xft := New(uint8(0))
+
+	assert.Nil(t, xft.Min())
+	assert.Nil(t, xft.Max())
+}
+
 func TestMask(t *testing.T) {
 	assert.Equal(t, uint64(math.MaxUint64), masks[63])
 }
@@ -375,11 +382,17 @@ func TestInsertPredecessor(t *testing.T) {
 }
 
 func BenchmarkSuccessor(b *testing.B) {
+	numItems := 10000
+	xft := New(uint64(0))
+
+	for i := uint64(0); i < uint64(numItems); i++ {
+		xft.Insert(newMockEntry(i))
+	}
+
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		xft := New(uint64(0))
-		e := newMockEntry(uint64(i))
-		xft.Insert(e)
-		xft.Successor(0)
+		xft.Successor(uint64(i))
 	}
 }
 

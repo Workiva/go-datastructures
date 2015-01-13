@@ -208,6 +208,7 @@ func (xft *XFastTrie) init(intType interface{}) {
 	case uint, uint64:
 		bits = 64
 	default:
+		// we'll panic with a bad value to the constructor.
 		panic(`Invalid universe size provided.`)
 	}
 
