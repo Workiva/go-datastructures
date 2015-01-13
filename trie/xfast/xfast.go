@@ -45,14 +45,7 @@ insert and delete in O(log log M) time and consumes O(n) space.
 
 package xfast
 
-import (
-	"fmt"
-	"log"
-)
-
-func init() {
-	log.Println(`I HATE THIS.`)
-}
+import "fmt"
 
 // isInternal returns a bool indicating if the provided
 // node is an internal node, that is, non-leaf node.

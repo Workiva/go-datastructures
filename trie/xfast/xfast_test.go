@@ -492,6 +492,36 @@ func TestDeleteMiddleBranch(t *testing.T) {
 	assert.Equal(t, Entries{e1, e2}, iter.exhaust())
 }
 
+func TestDeleteMiddleBranchOtherSide(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(math.MaxUint8)
+	e3 := newMockEntry(128) // [1, 0, 0, 0, 0, 0, 0, 0]
+
+	xft.Insert(e1, e2, e3)
+	checkTrie(t, xft)
+
+	xft.Delete(128)
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e1, e2}, iter.exhaust())
+}
+
+func TestDeleteNotFound(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(64)
+	xft.Insert(e1)
+	checkTrie(t, xft)
+
+	xft.Delete(128)
+	assert.Equal(t, e1, xft.Max())
+	assert.Equal(t, e1, xft.Min())
+	checkTrie(t, xft)
+}
+
 func BenchmarkSuccessor(b *testing.B) {
 	numItems := 10000
 	xft := New(uint64(0))
@@ -504,6 +534,24 @@ func BenchmarkSuccessor(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		xft.Successor(uint64(i))
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	xs := make([]*XFastTrie, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		x := New(uint8(0))
+		x.Insert(newMockEntry(0))
+		xs = append(xs, x)
+	}
+
+	// this is actually a pretty bad case for the x-fast
+	// trie as the entire branch will have to be walked.
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		xs[i].Delete(0)
 	}
 }
 
