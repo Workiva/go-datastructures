@@ -1,6 +1,7 @@
 package xfast
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -67,12 +68,13 @@ func newNode(parent *node, entry Entry) *node {
 }
 
 func binarySearchHashMaps(layers []map[uint64]*node, key uint64) (int, *node) {
-	low, high := 1, len(layers)-1
+	low, high := 0, len(layers)-1
+	diff := 64 - len(layers)
 	var mid int
 	var node *node
 	for low <= high {
 		mid = (low + high) / 2
-		n, ok := layers[mid][key&masks[mid]]
+		n, ok := layers[mid][key&masks[diff+mid]]
 		if ok {
 			node = n
 			low = mid + 1
@@ -81,15 +83,16 @@ func binarySearchHashMaps(layers []map[uint64]*node, key uint64) (int, *node) {
 		}
 	}
 
-	return low - 1, node
+	return low, node
 }
 
 type XFastTrie struct {
-	layers []map[uint64]*node
-	root   *node
-	num    uint64
-	cache  []*node // we'll not need this for the leaf node
-	bits   uint8
+	layers     []map[uint64]*node
+	root       *node
+	num        uint64
+	cache      []*node // we'll not need this for the leaf node
+	bits, diff uint8
+	min, max   *node
 }
 
 func (xft *XFastTrie) init(intType interface{}) {
@@ -109,6 +112,7 @@ func (xft *XFastTrie) init(intType interface{}) {
 
 	xft.layers = make([]map[uint64]*node, bits)
 	xft.bits = bits
+	xft.diff = 64 - bits
 	for i := uint8(0); i < bits; i++ {
 		xft.layers[i] = make(map[uint64]*node, 50) // we can obviously be more intelligent about this.
 	}
@@ -132,6 +136,34 @@ func (xft *XFastTrie) Len() uint64 {
 	return xft.num
 }
 
+func (xft *XFastTrie) Max() Entry {
+	if xft.max == nil {
+		return nil
+	}
+
+	return xft.max.entry
+}
+
+func (xft *XFastTrie) Min() Entry {
+	if xft.min == nil {
+		return nil
+	}
+
+	return xft.min.entry
+}
+
+func whichSide(n, parent *node) int {
+	if parent.children[0] == n {
+		return 0
+	}
+
+	if parent.children[1] == n {
+		return 1
+	}
+
+	panic(fmt.Sprintf(`Node: %+v, %p not a child of: %+v, %p`, n, n, parent, parent))
+}
+
 func (xft *XFastTrie) insert(entry Entry) {
 	key := entry.Key() // so we aren't calling this interface method over and over, fucking Go
 	n := xft.layers[xft.bits-1][key]
@@ -140,46 +172,53 @@ func (xft *XFastTrie) insert(entry Entry) {
 		return
 	}
 
-	var predecessor *node
-	successor := xft.successor(key)
-	if successor == nil {
-		predecessor = xft.predecessor(key)
-		if predecessor != nil {
-			log.Printf(`PREDECESSOR: %+v`, predecessor.entry)
-		} else {
-			log.Printf(`NO PREDECCESOR FOUND`)
-		}
+	var predecessor, successor *node
+	if xft.min != nil && key < xft.min.entry.Key() {
+		successor = xft.min
 	} else {
-		log.Printf(`SUCCESSOR: %+v`, successor)
+		successor = xft.successor(key)
 	}
 
-	n = xft.root
+	if successor == nil {
+		if xft.max != nil && key > xft.max.entry.Key() {
+			predecessor = xft.max
+		} else {
+			predecessor = xft.predecessor(key)
+		}
+	}
+
+	layer, root := binarySearchHashMaps(xft.layers, key)
+	log.Printf(`LAYER: %+v, ROOT: %+v`, layer, root)
+	if root == nil {
+		n = xft.root
+		layer = 0
+	} else {
+		n = root
+	}
+
 	var leftOrRight uint64
 
-	for i := uint8(0); i < xft.bits-1; i++ {
+	for i := uint8(layer); i < xft.bits; i++ {
 		// on 0th, this will be root
-		xft.cache[i] = n
 		// find out if we need to go left or right
-		leftOrRight = (key & positions[i]) >> (xft.bits - 1 - i)
+		leftOrRight = (key & positions[xft.diff+i]) >> (xft.bits - 1 - i)
 		if n.children[leftOrRight] == nil || isLeaf(n.children[leftOrRight]) {
-			nn := newNode(n, nil)
+			var nn *node
+			if i < xft.bits-1 {
+				nn = newNode(n, nil)
+			} else {
+				nn = newNode(n, entry)
+				xft.num++
+			}
+
 			n.children[leftOrRight] = nn
-			xft.layers[i][key&masks[i]] = nn // prefix for this layer
+			xft.layers[i][key&masks[xft.diff+i]] = nn // prefix for this layer
 		}
+
 		n = n.children[leftOrRight]
 	}
 
-	// we are left with next to last possible node
-	leftOrRight = key & positions[xft.bits-1] // this will just be 1 or 0
-	if n.children[leftOrRight] == nil || isLeaf(n.children[leftOrRight]) {
-		leaf := newNode(n, entry)
-		n.children[leftOrRight] = leaf
-		xft.layers[xft.bits-1][key] = leaf
-		xft.num++
-		n = leaf
-	} else {
-		log.Printf(`WE HAVE A PROBLEM HERE WITH KEY: %+v`, key)
-	}
+	log.Printf(`SUCCESSOR: %+v, PREDECESSOR: %+v`, successor, predecessor)
 
 	if successor != nil { // we have to walk predecessor and successor threads
 		predecessor = successor.children[0]
@@ -189,62 +228,61 @@ func (xft *XFastTrie) insert(entry Entry) {
 		}
 		n.children[1] = successor
 		successor.children[0] = n
-	} else {
-		if predecessor != nil {
-			n.children[0] = predecessor
-			predecessor.children[1] = n
-		}
+	} else if predecessor != nil {
+		n.children[0] = predecessor
+		predecessor.children[1] = n
+		log.Printf(`N: %+v, PRED: %+v`, n, predecessor)
 	}
 
 	if successor != nil {
-		xft.walkUpSuccessor(n, successor)
+		xft.walkUpSuccessor(root, n, successor)
 	}
 
 	if predecessor != nil {
-		xft.walkUpPredecessor(n, predecessor)
+		println(`WALKING UP PREDECESSOR`)
+		xft.walkUpPredecessor(root, n, predecessor)
 	}
 
-	xft.walkUpNode(n)
+	xft.walkUpNode(root, n, predecessor, successor)
+
+	println(`SETTING MIN/MAX`)
+	if xft.max == nil || key > xft.max.entry.Key() {
+		xft.max = n
+	}
+
+	if xft.min == nil || key < xft.min.entry.Key() {
+		xft.min = n
+	}
 }
 
-func (xft *XFastTrie) walkUpSuccessor(node, successor *node) {
-	i := uint8(0)
+func (xft *XFastTrie) walkUpSuccessor(root, node, successor *node) {
 	n := successor.parent
-	for n != nil && xft.cache[xft.bits-1-i] != n {
-		if isLeaf(n.children[0]) {
+	for n != nil && n != root {
+		if !isInternal(n.children[0]) && n.children[0] != successor {
 			n.children[0] = node
-		}
-		i++
-		if i > xft.bits-1 {
-			break
 		}
 		n = n.parent
 	}
 }
 
-func (xft *XFastTrie) walkUpPredecessor(node, predecessor *node) {
-	i := uint8(0)
+func (xft *XFastTrie) walkUpPredecessor(root, node, predecessor *node) {
 	n := predecessor.parent
-	for n != nil && xft.cache[xft.bits-1-i] != n {
-		if isLeaf(n.children[1]) {
+	for n != nil && n != root {
+		if !isInternal(n.children[1]) && n.children[1] != predecessor {
 			n.children[1] = node
-		}
-		i++
-		if i > xft.bits-1 {
-			break
 		}
 		n = n.parent
 	}
 }
 
-func (xft *XFastTrie) walkUpNode(node *node) {
+func (xft *XFastTrie) walkUpNode(root, node, predecessor, successor *node) {
 	n := node.parent
-	for n != nil {
-		if n.children[0] == nil {
-			n.children[0] = node
+	for n != nil && n != root {
+		if !isInternal(n.children[1]) && n.children[1] != successor && n.children[1] != node {
+			n.children[1] = successor
 		}
-		if n.children[1] == nil {
-			n.children[1] = node
+		if !isInternal(n.children[0]) && n.children[0] != predecessor && n.children[0] != node {
+			n.children[0] = predecessor
 		}
 		n = n.parent
 	}
@@ -257,8 +295,12 @@ func (xft *XFastTrie) Insert(entries ...Entry) {
 }
 
 func (xft *XFastTrie) predecessor(key uint64) *node {
-	if xft.root == nil { // no successor if no nodes
+	if xft.root == nil || xft.max == nil { // no successor if no nodes
 		return nil
+	}
+
+	if key >= xft.max.entry.Key() {
+		return xft.max
 	}
 
 	n := xft.layers[xft.bits-1][key]
@@ -300,7 +342,15 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 }
 
 func (xft *XFastTrie) successor(key uint64) *node {
-	if xft.root == nil { // no successor if no nodes
+	if xft.root == nil || xft.min == nil { // no successor if no nodes
+		return nil
+	}
+
+	if key <= xft.min.entry.Key() {
+		return xft.min
+	}
+
+	if key > xft.max.entry.Key() {
 		return nil
 	}
 
@@ -310,29 +360,18 @@ func (xft *XFastTrie) successor(key uint64) *node {
 	}
 
 	layer, n := binarySearchHashMaps(xft.layers, key)
+	log.Printf(`LAYER: %+v, N: %+v, %p`, layer, n, n)
+	log.Printf(`n.right: %+v`, n.children[0])
 	if n == nil && layer > 1 {
 		return nil
 	} else if n == nil {
 		n = xft.root
 	}
 
-	if isLeaf(n.children[0]) {
-		if n.children[0].entry.Key() >= key {
-			return n.children[0]
-		} else if isLeaf(n.children[1]) {
-			if n.children[1].entry.Key() >= key {
-				return n.children[1]
-			}
-		}
-
+	if isInternal(n.children[1]) && isLeaf(n.children[0]) {
 		return n.children[0].children[1]
-	} else if isLeaf(n.children[1]) {
-		if n.children[1].entry.Key() >= key {
-			return n.children[1]
-		}
 	}
-
-	return nil
+	return n.children[1]
 }
 
 func (xft *XFastTrie) Successor(key uint64) Entry {
@@ -351,6 +390,13 @@ func (xft *XFastTrie) Predecessor(key uint64) Entry {
 	}
 
 	return n.entry
+}
+
+func (xft *XFastTrie) Iter(key uint64) *Iterator {
+	return &Iterator{
+		n:     xft.successor(key),
+		first: true,
+	}
 }
 
 // New will construct a new X-Fast Trie with the given "size,"

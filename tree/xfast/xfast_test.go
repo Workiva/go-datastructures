@@ -1,6 +1,8 @@
 package xfast
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"testing"
 
@@ -9,19 +11,185 @@ import (
 	"github.com/Workiva/go-datastructures/slice"
 )
 
+func init() {
+	log.Printf(`I HATE THIS`)
+}
+
+func checkTrie(t *testing.T, xft *XFastTrie) {
+	checkSuccessor(t, xft)
+	checkPredecessor(t, xft)
+	checkNodes(t, xft)
+}
+
+func checkSuccessor(t *testing.T, xft *XFastTrie) {
+	n := xft.min
+	var side int
+	var successor *node
+	for n != nil {
+		successor = n.children[1]
+		hasSuccesor := successor != nil
+		if hasSuccesor {
+			assert.Equal(t, n, successor.children[0])
+		}
+
+		for n.parent != nil {
+			side = whichSide(n, n.parent)
+			if isInternal(n.parent.children[1]) && isInternal(n.parent.children[0]) {
+				break
+			}
+			if side == 0 && !isInternal(n.parent.children[1]) && hasSuccesor {
+				assert.Equal(t, successor, n.parent.children[1])
+			}
+			n = n.parent
+		}
+		n = successor
+	}
+}
+
+func checkPredecessor(t *testing.T, xft *XFastTrie) {
+	n := xft.max
+	var side int
+	var predecessor *node
+	for n != nil {
+		predecessor = n.children[0]
+		hasPredecessor := predecessor != nil
+		if hasPredecessor {
+			assert.Equal(t, n, predecessor.children[1])
+		}
+		for n.parent != nil {
+			side = whichSide(n, n.parent)
+			if isInternal(n.parent.children[0]) && isInternal(n.parent.children[1]) {
+				break
+			}
+			if side == 1 && !isInternal(n.parent.children[0]) && hasPredecessor {
+				assert.Equal(t, predecessor, n.parent.children[0])
+			}
+			n = n.parent
+		}
+		n = predecessor
+	}
+}
+
+func checkNodes(t *testing.T, xft *XFastTrie) {
+	count := uint64(0)
+	n := xft.min
+	for n != nil {
+		count++
+		checkNode(t, xft, n)
+		n = n.children[1]
+	}
+
+	assert.Equal(t, count, xft.Len())
+}
+
+func checkNode(t *testing.T, xft *XFastTrie, n *node) {
+	if n.entry == nil {
+		assert.Fail(t, `Expected non-nil entry`)
+		return
+	}
+	key := n.entry.Key()
+	bits := make([]int, 0, xft.bits)
+	for i := uint8(0); i < xft.bits; i++ {
+		leftOrRight := (key & positions[xft.diff+i]) >> (xft.bits - 1 - i)
+		bits = append(bits, int(leftOrRight))
+	}
+
+	checkPattern(t, n, bits)
+}
+
+func dumpNode(t *testing.T, n *node) {
+	for n != nil {
+		t.Logf(`NODE: %+v, %p`, n, n)
+		n = n.parent
+	}
+}
+
+func checkPattern(t *testing.T, n *node, pattern []int) {
+	i := len(pattern) - 1
+	bottomNode := n
+	for n.parent != nil {
+		if !assert.False(t, i < 0, fmt.Sprintf(`Too many parents. NODE: %+v, PATTERN: %+v`, bottomNode, pattern)) {
+			dumpNode(t, bottomNode)
+			break // so we don't panic on the next line
+		}
+		assert.Equal(t, pattern[i], whichSide(n, n.parent))
+		i--
+		n = n.parent
+	}
+
+	assert.Equal(t, -1, i)
+}
+
+func TestMask(t *testing.T) {
+	assert.Equal(t, uint64(math.MaxUint64), masks[63])
+}
+
 func TestInsert(t *testing.T) {
 	xft := New(uint8(0))
 	e1 := newMockEntry(5)
 	xft.Insert(e1)
 
 	assert.True(t, xft.Exists(5))
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e1, xft.Max())
+	checkTrie(t, xft)
 
-	key := uint64(math.MaxUint8 - 120)
-	e2 := newMockEntry(key)
+	println(`SHIT STARTS HERE`)
+
+	e2 := newMockEntry(20)
 	xft.Insert(e2)
 
-	assert.True(t, xft.Exists(key))
+	assert.True(t, xft.Exists(20))
 	assert.Equal(t, uint64(2), xft.Len())
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+}
+
+func TestInsertBetween(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(10)
+	xft.Insert(e1)
+
+	assert.True(t, xft.Exists(10))
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e1, xft.Max())
+	checkPattern(t, xft.min, []int{0, 0, 0, 0, 1, 0, 1, 0})
+	checkTrie(t, xft)
+
+	e2 := newMockEntry(20)
+	xft.Insert(e2)
+	checkPattern(t, xft.max, []int{0, 0, 0, 1, 0, 1, 0, 0})
+	checkPattern(t, xft.min, []int{0, 0, 0, 0, 1, 0, 1, 0})
+	checkTrie(t, xft)
+
+	assert.True(t, xft.Exists(20))
+	assert.Equal(t, uint64(2), xft.Len())
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+
+	assert.Equal(t, e2, xft.Successor(15))
+
+	e3 := newMockEntry(15)
+	xft.Insert(e3)
+
+	assert.True(t, xft.Exists(15))
+	assert.Equal(t, uint64(3), xft.Len())
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	iter := xft.Iter(0)
+	entries := iter.exhaust()
+	assert.Equal(t, Entries{e1, e3, e2}, entries)
+
+	iter = xft.Iter(11)
+	entries = iter.exhaust()
+	assert.Equal(t, Entries{e3, e2}, entries)
+
+	iter = xft.Iter(16)
+	entries = iter.exhaust()
+	assert.Equal(t, Entries{e2}, entries)
 }
 
 func TestSuccessorDoesNotExist(t *testing.T) {
@@ -68,7 +236,7 @@ func TestSuccessorBetweenTwoKeys(t *testing.T) {
 	e2 := newMockEntry(20)
 	xft.Insert(e2)
 
-	for i := uint64(11); i < 20; i++ {
+	for i := uint64(16); i < 17; i++ {
 		result := xft.Successor(i)
 		assert.Equal(t, e2, result)
 	}
