@@ -1,7 +1,6 @@
 package xfast
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -152,18 +151,6 @@ func (xft *XFastTrie) Min() Entry {
 	return xft.min.entry
 }
 
-func whichSide(n, parent *node) int {
-	if parent.children[0] == n {
-		return 0
-	}
-
-	if parent.children[1] == n {
-		return 1
-	}
-
-	panic(fmt.Sprintf(`Node: %+v, %p not a child of: %+v, %p`, n, n, parent, parent))
-}
-
 func (xft *XFastTrie) insert(entry Entry) {
 	key := entry.Key() // so we aren't calling this interface method over and over, fucking Go
 	n := xft.layers[xft.bits-1][key]
@@ -188,7 +175,6 @@ func (xft *XFastTrie) insert(entry Entry) {
 	}
 
 	layer, root := binarySearchHashMaps(xft.layers, key)
-	log.Printf(`LAYER: %+v, ROOT: %+v`, layer, root)
 	if root == nil {
 		n = xft.root
 		layer = 0
@@ -218,8 +204,6 @@ func (xft *XFastTrie) insert(entry Entry) {
 		n = n.children[leftOrRight]
 	}
 
-	log.Printf(`SUCCESSOR: %+v, PREDECESSOR: %+v`, successor, predecessor)
-
 	if successor != nil { // we have to walk predecessor and successor threads
 		predecessor = successor.children[0]
 		if predecessor != nil {
@@ -231,7 +215,6 @@ func (xft *XFastTrie) insert(entry Entry) {
 	} else if predecessor != nil {
 		n.children[0] = predecessor
 		predecessor.children[1] = n
-		log.Printf(`N: %+v, PRED: %+v`, n, predecessor)
 	}
 
 	if successor != nil {
@@ -239,13 +222,11 @@ func (xft *XFastTrie) insert(entry Entry) {
 	}
 
 	if predecessor != nil {
-		println(`WALKING UP PREDECESSOR`)
 		xft.walkUpPredecessor(root, n, predecessor)
 	}
 
 	xft.walkUpNode(root, n, predecessor, successor)
 
-	println(`SETTING MIN/MAX`)
 	if xft.max == nil || key > xft.max.entry.Key() {
 		xft.max = n
 	}
@@ -303,42 +284,26 @@ func (xft *XFastTrie) predecessor(key uint64) *node {
 		return xft.max
 	}
 
+	if key < xft.min.entry.Key() {
+		return nil
+	}
+
 	n := xft.layers[xft.bits-1][key]
 	if n != nil {
 		return n
 	}
 
 	layer, n := binarySearchHashMaps(xft.layers, key)
-	log.Printf(`LAYER: %+v, N: %+v`, layer, n)
 	if n == nil && layer > 1 {
 		return nil
 	} else if n == nil {
 		n = xft.root
 	}
 
-	log.Printf(`N0: %+v, N1: %+v`, n.children[0], n.children[1])
-
-	if isLeaf(n.children[1]) {
-		if n.children[1].entry.Key() <= key {
-			return n.children[1]
-		} else if isLeaf(n.children[0]) {
-			println(`THIS FUCKING WAY`)
-			log.Printf(`n.children[1].entry: %+v`, n.children[1].entry)
-			if n.children[0].entry.Key() <= key {
-				return n.children[0]
-			}
-		}
-
+	if isInternal(n.children[0]) && isLeaf(n.children[1]) {
 		return n.children[1].children[0]
-	} else if isLeaf(n.children[0]) {
-		println(`HERE`)
-		log.Printf(`n.children[0].entry: %+v`, n.children[0].entry)
-		if n.children[0].entry.Key() <= key {
-			return n.children[0]
-		}
 	}
-
-	return nil
+	return n.children[0]
 }
 
 func (xft *XFastTrie) successor(key uint64) *node {
@@ -360,8 +325,6 @@ func (xft *XFastTrie) successor(key uint64) *node {
 	}
 
 	layer, n := binarySearchHashMaps(xft.layers, key)
-	log.Printf(`LAYER: %+v, N: %+v, %p`, layer, n, n)
-	log.Printf(`n.right: %+v`, n.children[0])
 	if n == nil && layer > 1 {
 		return nil
 	} else if n == nil {

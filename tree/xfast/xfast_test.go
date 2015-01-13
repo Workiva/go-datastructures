@@ -15,6 +15,18 @@ func init() {
 	log.Printf(`I HATE THIS`)
 }
 
+func whichSide(n, parent *node) int {
+	if parent.children[0] == n {
+		return 0
+	}
+
+	if parent.children[1] == n {
+		return 1
+	}
+
+	panic(fmt.Sprintf(`Node: %+v, %p not a child of: %+v, %p`, n, n, parent, parent))
+}
+
 func checkTrie(t *testing.T, xft *XFastTrie) {
 	checkSuccessor(t, xft)
 	checkPredecessor(t, xft)
@@ -134,8 +146,6 @@ func TestInsert(t *testing.T) {
 	assert.Equal(t, e1, xft.Max())
 	checkTrie(t, xft)
 
-	println(`SHIT STARTS HERE`)
-
 	e2 := newMockEntry(20)
 	xft.Insert(e2)
 
@@ -146,6 +156,19 @@ func TestInsert(t *testing.T) {
 	checkTrie(t, xft)
 }
 
+func TestInsertOverwrite(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(5)
+	xft.Insert(e1)
+
+	e2 := newMockEntry(5)
+	xft.Insert(e2)
+	checkTrie(t, xft)
+
+	iter := xft.Iter(5)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+}
+
 func TestInsertBetween(t *testing.T) {
 	xft := New(uint8(0))
 	e1 := newMockEntry(10)
@@ -154,13 +177,10 @@ func TestInsertBetween(t *testing.T) {
 	assert.True(t, xft.Exists(10))
 	assert.Equal(t, e1, xft.Min())
 	assert.Equal(t, e1, xft.Max())
-	checkPattern(t, xft.min, []int{0, 0, 0, 0, 1, 0, 1, 0})
 	checkTrie(t, xft)
 
 	e2 := newMockEntry(20)
 	xft.Insert(e2)
-	checkPattern(t, xft.max, []int{0, 0, 0, 1, 0, 1, 0, 0})
-	checkPattern(t, xft.min, []int{0, 0, 0, 0, 1, 0, 1, 0})
 	checkTrie(t, xft)
 
 	assert.True(t, xft.Exists(20))
@@ -236,7 +256,7 @@ func TestSuccessorBetweenTwoKeys(t *testing.T) {
 	e2 := newMockEntry(20)
 	xft.Insert(e2)
 
-	for i := uint64(16); i < 17; i++ {
+	for i := uint64(11); i < 20; i++ {
 		result := xft.Successor(i)
 		assert.Equal(t, e2, result)
 	}
@@ -284,14 +304,14 @@ func TestPredecessorCloseToKey(t *testing.T) {
 }
 
 func TestPredecessorBetweenTwoKeys(t *testing.T) {
-	xft := New(uint64(0))
+	xft := New(uint8(0))
 	e1 := newMockEntry(10)
 	xft.Insert(e1)
 
 	e2 := newMockEntry(20)
 	xft.Insert(e2)
 
-	for i := uint64(16); i < 17; i++ {
+	for i := uint64(11); i < 20; i++ {
 		result := xft.Predecessor(i)
 		assert.Equal(t, e1, result)
 	}
@@ -300,6 +320,31 @@ func TestPredecessorBetweenTwoKeys(t *testing.T) {
 		result := xft.Predecessor(i)
 		assert.Nil(t, result)
 	}
+}
+
+func TestInsertPredecessor(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(10)
+	xft.Insert(e1)
+
+	e2 := newMockEntry(5)
+	xft.Insert(e2)
+	checkTrie(t, xft)
+
+	assert.Equal(t, e2, xft.Min())
+	assert.Equal(t, e1, xft.Max())
+
+	iter := xft.Iter(2)
+	assert.Equal(t, Entries{e2, e1}, iter.exhaust())
+
+	iter = xft.Iter(5)
+	assert.Equal(t, Entries{e2, e1}, iter.exhaust())
+
+	iter = xft.Iter(6)
+	assert.Equal(t, Entries{e1}, iter.exhaust())
+
+	iter = xft.Iter(11)
+	assert.Equal(t, Entries{}, iter.exhaust())
 }
 
 func BenchmarkSuccessor(b *testing.B) {
