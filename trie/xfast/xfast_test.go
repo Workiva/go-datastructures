@@ -39,13 +39,21 @@ func checkSuccessor(t *testing.T, xft *XFastTrie) {
 	for n != nil {
 		successor = n.children[1]
 		hasSuccesor := successor != nil
+		immediateSuccessor := false
 		if hasSuccesor {
 			assert.Equal(t, n, successor.children[0])
+			if n.parent == successor.parent {
+				immediateSuccessor = true
+			}
 		}
 
 		for n.parent != nil {
 			side = whichSide(n, n.parent)
 			if isInternal(n.parent.children[1]) && isInternal(n.parent.children[0]) {
+				break
+			}
+			if immediateSuccessor && n.parent == successor.parent {
+				assert.Equal(t, successor, n.parent.children[1])
 				break
 			}
 			if side == 0 && !isInternal(n.parent.children[1]) && hasSuccesor {
@@ -64,12 +72,20 @@ func checkPredecessor(t *testing.T, xft *XFastTrie) {
 	for n != nil {
 		predecessor = n.children[0]
 		hasPredecessor := predecessor != nil
+		immediatePredecessor := false
 		if hasPredecessor {
 			assert.Equal(t, n, predecessor.children[1])
+			if n.parent == predecessor.parent {
+				immediatePredecessor = true
+			}
 		}
 		for n.parent != nil {
 			side = whichSide(n, n.parent)
 			if isInternal(n.parent.children[0]) && isInternal(n.parent.children[1]) {
+				break
+			}
+			if immediatePredecessor && n.parent == predecessor.parent {
+				assert.Equal(t, predecessor, n.parent.children[0])
 				break
 			}
 			if side == 1 && !isInternal(n.parent.children[0]) && hasPredecessor {
@@ -360,6 +376,120 @@ func TestInsertPredecessor(t *testing.T) {
 
 	iter = xft.Iter(11)
 	assert.Equal(t, Entries{}, iter.exhaust())
+}
+
+func TestDeleteOnlyBranch(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(10)
+	xft.Insert(e1)
+
+	xft.Delete(10)
+	checkTrie(t, xft)
+	assert.Equal(t, uint64(0), xft.Len())
+	assert.Nil(t, xft.Min())
+	assert.Nil(t, xft.Max())
+	for _, hm := range xft.layers {
+		assert.Len(t, hm, 0)
+	}
+
+	assert.NotNil(t, xft.root)
+	assert.Nil(t, xft.root.children[0])
+	assert.Nil(t, xft.root.children[1])
+
+	iter := xft.Iter(0)
+	assert.False(t, iter.Next())
+}
+
+func TestDeleteLargeBranch(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(math.MaxUint8)
+
+	xft.Insert(e1, e2)
+	checkTrie(t, xft)
+
+	xft.Delete(0)
+	assert.Equal(t, e2, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	assert.Nil(t, xft.root.children[0])
+
+	n := xft.max
+	for n != nil {
+		assert.Nil(t, n.children[0])
+		n = n.parent
+	}
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+}
+
+func TestDeleteLateBranching(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(1)
+
+	xft.Insert(e1, e2)
+	checkTrie(t, xft)
+
+	xft.Delete(1)
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e1, xft.Max())
+	checkTrie(t, xft)
+
+	n := xft.min
+	for n != nil {
+		assert.Nil(t, n.children[1])
+		n = n.parent
+	}
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e1}, iter.exhaust())
+}
+
+func TestDeleteLateBranchingMin(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(1)
+
+	xft.Insert(e1, e2)
+	checkTrie(t, xft)
+
+	xft.Delete(0)
+	assert.Equal(t, e2, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	assert.Nil(t, xft.min.children[0])
+	n := xft.min.parent
+	assert.Nil(t, n.children[0])
+	n = n.parent
+	for n != nil {
+		assert.Nil(t, n.children[1])
+		n = n.parent
+	}
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+}
+
+func TestDeleteMiddleBranch(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(math.MaxUint8)
+	e3 := newMockEntry(64) // [0, 1, 0, 0, 0, 0, 0, 0]
+
+	xft.Insert(e1, e2, e3)
+	checkTrie(t, xft)
+
+	xft.Delete(64)
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e1, e2}, iter.exhaust())
 }
 
 func BenchmarkSuccessor(b *testing.B) {

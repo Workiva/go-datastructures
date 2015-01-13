@@ -45,7 +45,14 @@ insert and delete in O(log log M) time and consumes O(n) space.
 
 package xfast
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
+
+func init() {
+	log.Println(`I HATE THIS.`)
+}
 
 // isInternal returns a bool indicating if the provided
 // node is an internal node, that is, non-leaf node.
@@ -443,7 +450,7 @@ func (xft *XFastTrie) delete(key uint64) {
 	delete(xft.layers[xft.bits-1], key)
 	leftOrRight := whichSide(n, n.parent)
 	n.parent.children[leftOrRight] = nil
-	n.parent, n.children[0], n.children[1] = nil, nil, nil
+	n.children[0], n.children[1] = nil, nil
 	n = n.parent
 	hasImmediateSibling := false
 	if successor != nil && successor.parent == n {
@@ -460,22 +467,22 @@ func (xft *XFastTrie) delete(key uint64) {
 		// now as no further node will be removed.  We should also
 		// abort if the first parent of a leaf references the pre
 		if hasInternal(n) || (i == 1 && hasImmediateSibling) {
+			n = n.parent // we had one side deleted, need to set the other
 			break
 		}
 
 		leftOrRight = whichSide(n, n.parent)
 		n.parent.children[leftOrRight] = nil
-		n.parent, n.children[0], n.children[1] = nil, nil, nil
-		delete(xft.layers[xft.bits-i-1], key&masks[xft.diff+i])
+		n.children[0], n.children[1] = nil, nil
+		delete(xft.layers[xft.bits-i-1], key&masks[len(masks)-1-int(i)])
 		n = n.parent
+		i++
 	}
-	n = n.parent // this could be nil
 
+	// we need to check now and update threads, but in the leaves
+	// and in their branches
 	if predecessor != nil {
-		// set this predecessor's successor to successor, this
-		// may be nil
 		predecessor.children[1] = successor
-		// walk up the predecessor branch to the last
 		xft.walkUpPredecessor(n, successor, predecessor)
 	}
 
@@ -493,6 +500,7 @@ func (xft *XFastTrie) delete(key uint64) {
 		xft.min = successor
 	}
 
+	// decrement number of nodes
 	xft.num--
 }
 
