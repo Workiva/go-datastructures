@@ -26,18 +26,6 @@ import (
 	"github.com/Workiva/go-datastructures/slice"
 )
 
-func whichSide(n, parent *node) int {
-	if parent.children[0] == n {
-		return 0
-	}
-
-	if parent.children[1] == n {
-		return 1
-	}
-
-	panic(fmt.Sprintf(`Node: %+v, %p not a child of: %+v, %p`, n, n, parent, parent))
-}
-
 func checkTrie(t *testing.T, xft *XFastTrie) {
 	checkSuccessor(t, xft)
 	checkPredecessor(t, xft)
