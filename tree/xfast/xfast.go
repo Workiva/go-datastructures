@@ -52,10 +52,12 @@ var positions = func() [64]uint64 {
 }()
 
 type node struct {
+	// entry will
 	entry    Entry
 	children [2]*node
-	parent   *node // i hate this, but it is really the best way
+	// i hate this, but it is really the best way
 	// to walk up successor and predecessor threads
+	parent *node
 }
 
 func newNode(parent *node, entry Entry) *node {
@@ -89,7 +91,6 @@ type XFastTrie struct {
 	layers     []map[uint64]*node
 	root       *node
 	num        uint64
-	cache      []*node // we'll not need this for the leaf node
 	bits, diff uint8
 	min, max   *node
 }
@@ -116,7 +117,6 @@ func (xft *XFastTrie) init(intType interface{}) {
 		xft.layers[i] = make(map[uint64]*node, 50) // we can obviously be more intelligent about this.
 	}
 	xft.num = 0
-	xft.cache = make([]*node, bits)
 	xft.root = newNode(nil, nil)
 }
 
