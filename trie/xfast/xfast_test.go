@@ -14,13 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Package err implements a threadsafe error interface.  In my places,
-I found myself needing a lock to protect writing to a common error interface
-from multiple go routines (channels are great but slow).  This just makes
-that process more convenient.
-*/
-
 package xfast
 
 import (

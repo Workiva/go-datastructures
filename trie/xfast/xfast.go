@@ -15,13 +15,6 @@ limitations under the License.
 */
 
 /*
-Package err implements a threadsafe error interface.  In my places,
-I found myself needing a lock to protect writing to a common error interface
-from multiple go routines (channels are great but slow).  This just makes
-that process more convenient.
-*/
-
-/*
 Package xfast provides access to a sorted tree that treats integers
 as if they were words of m bits, where m can be 8, 16, 32, or 64.
 The advantage to storing integers as a trie of words is that operations
