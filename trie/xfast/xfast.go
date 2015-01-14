@@ -45,6 +45,8 @@ insert and delete in O(log log M) time and consumes O(n) space.
 
 package xfast
 
+import "fmt"
+
 // isInternal returns a bool indicating if the provided
 // node is an internal node, that is, non-leaf node.
 func isInternal(n *node) bool {
@@ -52,6 +54,12 @@ func isInternal(n *node) bool {
 		return false
 	}
 	return n.entry == nil
+}
+
+// hasInternal returns a bool indicating if the provided
+// node has a child that is an internal node.
+func hasInternal(n *node) bool {
+	return isInternal(n.children[0]) || isInternal(n.children[1])
 }
 
 // isLeaf returns a bool indicating if the provided node
@@ -151,6 +159,23 @@ func binarySearchHashMaps(layers []map[uint64]*node, key uint64) (int, *node) {
 	}
 
 	return low, node
+}
+
+// whichSide returns an int representing the side on which
+// the node resides in its parent.  NOTE: this function will panic
+// if the child does not within the parent.  This situation should
+// should be caught as early as possible as if it happens data
+// coming from the x-fast trie cannot be trusted.
+func whichSide(n, parent *node) int {
+	if parent.children[0] == n {
+		return 0
+	}
+
+	if parent.children[1] == n {
+		return 1
+	}
+
+	panic(fmt.Sprintf(`Node: %+v, %p not a child of: %+v, %p`, n, n, parent, parent))
 }
 
 // XFastTrie is a datastructure for storing integers in a known
@@ -403,6 +428,81 @@ func (xft *XFastTrie) walkUpNode(root, node, predecessor, successor *node) {
 func (xft *XFastTrie) Insert(entries ...Entry) {
 	for _, e := range entries {
 		xft.insert(e)
+	}
+}
+
+func (xft *XFastTrie) delete(key uint64) {
+	n := xft.layers[xft.bits-1][key]
+	if n == nil { // there's no matching k, v pair
+		return
+	}
+
+	successor, predecessor := n.children[1], n.children[0]
+
+	i := uint8(1)
+	delete(xft.layers[xft.bits-1], key)
+	leftOrRight := whichSide(n, n.parent)
+	n.parent.children[leftOrRight] = nil
+	n.children[0], n.children[1] = nil, nil
+	n = n.parent
+	hasImmediateSibling := false
+	if successor != nil && successor.parent == n {
+		hasImmediateSibling = true
+	}
+	if predecessor != nil && predecessor.parent == n {
+		hasImmediateSibling = true
+	}
+
+	// this loop will kill any nodes that no longer link to internal
+	// nodes
+	for n != nil && n.parent != nil {
+		// if we have an internal node remaining we should abort
+		// now as no further node will be removed.  We should also
+		// abort if the first parent of a leaf references the pre
+		if hasInternal(n) || (i == 1 && hasImmediateSibling) {
+			n = n.parent // we had one side deleted, need to set the other
+			break
+		}
+
+		leftOrRight = whichSide(n, n.parent)
+		n.parent.children[leftOrRight] = nil
+		n.children[0], n.children[1] = nil, nil
+		delete(xft.layers[xft.bits-i-1], key&masks[len(masks)-1-int(i)])
+		n = n.parent
+		i++
+	}
+
+	// we need to check now and update threads, but in the leaves
+	// and in their branches
+	if predecessor != nil {
+		predecessor.children[1] = successor
+		xft.walkUpPredecessor(n, successor, predecessor)
+	}
+
+	if successor != nil {
+		successor.children[0] = predecessor
+		xft.walkUpSuccessor(n, predecessor, successor)
+	}
+
+	// check max/min indices
+	if xft.max.entry.Key() == key {
+		xft.max = predecessor
+	}
+
+	if xft.min.entry.Key() == key {
+		xft.min = successor
+	}
+
+	// decrement number of nodes
+	xft.num--
+}
+
+// Delete will delete the provided keys from the trie.  If an entry
+// associated with a provided key cannot be found, that deletion is
+// a no-op.  Each deletion is an O(log M) operation.
+func (xft *XFastTrie) Delete(keys ...uint64) {
+	for _, key := range keys {
+		xft.delete(key)
 	}
 }
 

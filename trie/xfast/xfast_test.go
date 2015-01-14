@@ -26,18 +26,6 @@ import (
 	"github.com/Workiva/go-datastructures/slice"
 )
 
-func whichSide(n, parent *node) int {
-	if parent.children[0] == n {
-		return 0
-	}
-
-	if parent.children[1] == n {
-		return 1
-	}
-
-	panic(fmt.Sprintf(`Node: %+v, %p not a child of: %+v, %p`, n, n, parent, parent))
-}
-
 func checkTrie(t *testing.T, xft *XFastTrie) {
 	checkSuccessor(t, xft)
 	checkPredecessor(t, xft)
@@ -51,13 +39,21 @@ func checkSuccessor(t *testing.T, xft *XFastTrie) {
 	for n != nil {
 		successor = n.children[1]
 		hasSuccesor := successor != nil
+		immediateSuccessor := false
 		if hasSuccesor {
 			assert.Equal(t, n, successor.children[0])
+			if n.parent == successor.parent {
+				immediateSuccessor = true
+			}
 		}
 
 		for n.parent != nil {
 			side = whichSide(n, n.parent)
 			if isInternal(n.parent.children[1]) && isInternal(n.parent.children[0]) {
+				break
+			}
+			if immediateSuccessor && n.parent == successor.parent {
+				assert.Equal(t, successor, n.parent.children[1])
 				break
 			}
 			if side == 0 && !isInternal(n.parent.children[1]) && hasSuccesor {
@@ -76,12 +72,20 @@ func checkPredecessor(t *testing.T, xft *XFastTrie) {
 	for n != nil {
 		predecessor = n.children[0]
 		hasPredecessor := predecessor != nil
+		immediatePredecessor := false
 		if hasPredecessor {
 			assert.Equal(t, n, predecessor.children[1])
+			if n.parent == predecessor.parent {
+				immediatePredecessor = true
+			}
 		}
 		for n.parent != nil {
 			side = whichSide(n, n.parent)
 			if isInternal(n.parent.children[0]) && isInternal(n.parent.children[1]) {
+				break
+			}
+			if immediatePredecessor && n.parent == predecessor.parent {
+				assert.Equal(t, predecessor, n.parent.children[0])
 				break
 			}
 			if side == 1 && !isInternal(n.parent.children[0]) && hasPredecessor {
@@ -374,6 +378,150 @@ func TestInsertPredecessor(t *testing.T) {
 	assert.Equal(t, Entries{}, iter.exhaust())
 }
 
+func TestDeleteOnlyBranch(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(10)
+	xft.Insert(e1)
+
+	xft.Delete(10)
+	checkTrie(t, xft)
+	assert.Equal(t, uint64(0), xft.Len())
+	assert.Nil(t, xft.Min())
+	assert.Nil(t, xft.Max())
+	for _, hm := range xft.layers {
+		assert.Len(t, hm, 0)
+	}
+
+	assert.NotNil(t, xft.root)
+	assert.Nil(t, xft.root.children[0])
+	assert.Nil(t, xft.root.children[1])
+
+	iter := xft.Iter(0)
+	assert.False(t, iter.Next())
+}
+
+func TestDeleteLargeBranch(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(math.MaxUint8)
+
+	xft.Insert(e1, e2)
+	checkTrie(t, xft)
+
+	xft.Delete(0)
+	assert.Equal(t, e2, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	assert.Nil(t, xft.root.children[0])
+
+	n := xft.max
+	for n != nil {
+		assert.Nil(t, n.children[0])
+		n = n.parent
+	}
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+}
+
+func TestDeleteLateBranching(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(1)
+
+	xft.Insert(e1, e2)
+	checkTrie(t, xft)
+
+	xft.Delete(1)
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e1, xft.Max())
+	checkTrie(t, xft)
+
+	n := xft.min
+	for n != nil {
+		assert.Nil(t, n.children[1])
+		n = n.parent
+	}
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e1}, iter.exhaust())
+}
+
+func TestDeleteLateBranchingMin(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(1)
+
+	xft.Insert(e1, e2)
+	checkTrie(t, xft)
+
+	xft.Delete(0)
+	assert.Equal(t, e2, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	assert.Nil(t, xft.min.children[0])
+	n := xft.min.parent
+	assert.Nil(t, n.children[0])
+	n = n.parent
+	for n != nil {
+		assert.Nil(t, n.children[1])
+		n = n.parent
+	}
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+}
+
+func TestDeleteMiddleBranch(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(math.MaxUint8)
+	e3 := newMockEntry(64) // [0, 1, 0, 0, 0, 0, 0, 0]
+
+	xft.Insert(e1, e2, e3)
+	checkTrie(t, xft)
+
+	xft.Delete(64)
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e1, e2}, iter.exhaust())
+}
+
+func TestDeleteMiddleBranchOtherSide(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(0)
+	e2 := newMockEntry(math.MaxUint8)
+	e3 := newMockEntry(128) // [1, 0, 0, 0, 0, 0, 0, 0]
+
+	xft.Insert(e1, e2, e3)
+	checkTrie(t, xft)
+
+	xft.Delete(128)
+	assert.Equal(t, e1, xft.Min())
+	assert.Equal(t, e2, xft.Max())
+	checkTrie(t, xft)
+
+	iter := xft.Iter(0)
+	assert.Equal(t, Entries{e1, e2}, iter.exhaust())
+}
+
+func TestDeleteNotFound(t *testing.T) {
+	xft := New(uint8(0))
+	e1 := newMockEntry(64)
+	xft.Insert(e1)
+	checkTrie(t, xft)
+
+	xft.Delete(128)
+	assert.Equal(t, e1, xft.Max())
+	assert.Equal(t, e1, xft.Min())
+	checkTrie(t, xft)
+}
+
 func BenchmarkSuccessor(b *testing.B) {
 	numItems := 10000
 	xft := New(uint64(0))
@@ -386,6 +534,24 @@ func BenchmarkSuccessor(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		xft.Successor(uint64(i))
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	xs := make([]*XFastTrie, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		x := New(uint8(0))
+		x.Insert(newMockEntry(0))
+		xs = append(xs, x)
+	}
+
+	// this is actually a pretty bad case for the x-fast
+	// trie as the entire branch will have to be walked.
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		xs[i].Delete(0)
 	}
 }
 
