@@ -7,7 +7,7 @@ import (
 )
 
 func TestEntriesInsert(t *testing.T) {
-	es := entries{}
+	es := Entries{}
 
 	e1 := newMockEntry(5)
 	e2 := newMockEntry(1)
@@ -15,16 +15,16 @@ func TestEntriesInsert(t *testing.T) {
 	es.insert(e1)
 	es.insert(e2)
 
-	assert.Equal(t, entries{e2, e1}, es)
+	assert.Equal(t, Entries{e2, e1}, es)
 
 	e3 := newMockEntry(3)
 	es.insert(e3)
 
-	assert.Equal(t, entries{e2, e3, e1}, es)
+	assert.Equal(t, Entries{e2, e3, e1}, es)
 }
 
 func TestEntriesDelete(t *testing.T) {
-	es := entries{}
+	es := Entries{}
 
 	e1 := newMockEntry(5)
 	e2 := newMockEntry(1)
@@ -32,14 +32,14 @@ func TestEntriesDelete(t *testing.T) {
 	es.insert(e2)
 
 	es.delete(5)
-	assert.Equal(t, entries{e2}, es)
+	assert.Equal(t, Entries{e2}, es)
 
 	es.delete(1)
-	assert.Equal(t, entries{}, es)
+	assert.Equal(t, Entries{}, es)
 }
 
 func TestEntriesMax(t *testing.T) {
-	es := entries{}
+	es := Entries{}
 	max, ok := es.max()
 	assert.Equal(t, uint64(0), max)
 	assert.False(t, ok)
@@ -58,7 +58,7 @@ func TestEntriesMax(t *testing.T) {
 }
 
 func TestEntriesGet(t *testing.T) {
-	es := entries{}
+	es := Entries{}
 
 	e1 := newMockEntry(5)
 	e2 := newMockEntry(1)
@@ -76,7 +76,7 @@ func TestEntriesGet(t *testing.T) {
 }
 
 func TestEntriesSuccessor(t *testing.T) {
-	es := entries{}
+	es := Entries{}
 
 	successor, i := es.successor(5)
 	assert.Equal(t, -1, i)
@@ -105,7 +105,7 @@ func TestEntriesSuccessor(t *testing.T) {
 }
 
 func TestEntriesPredecessor(t *testing.T) {
-	es := entries{}
+	es := Entries{}
 
 	predecessor, i := es.predecessor(5)
 	assert.Equal(t, -1, i)
