@@ -1,3 +1,19 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package yfast
 
 import (
@@ -37,6 +53,18 @@ func TestTrieSimpleInsert(t *testing.T) {
 	assert.Nil(t, result)
 
 	assert.Equal(t, uint64(3), yfast.Len())
+}
+
+func TestTrieOverwriteInsert(t *testing.T) {
+	yfast := New(uint8(0))
+
+	e1 := newMockEntry(3)
+	e2 := newMockEntry(3)
+	yfast.Insert(e1)
+
+	yfast.Insert(e2)
+	assert.Equal(t, e2, yfast.Get(3))
+	assert.Equal(t, uint64(1), yfast.Len())
 }
 
 func TestTrieDelete(t *testing.T) {
@@ -129,6 +157,40 @@ func TestTriePredecessor(t *testing.T) {
 	assert.Equal(t, e2, predecessor)
 }
 
+func TestTrieIterator(t *testing.T) {
+	yfast := New(uint8(0))
+
+	iter := yfast.Iter(5)
+	assert.Equal(t, Entries{}, iter.exhaust())
+
+	e1 := newMockEntry(5)
+	yfast.Insert(e1)
+
+	iter = yfast.Iter(5)
+	assert.Equal(t, Entries{e1}, iter.exhaust())
+
+	e2 := newMockEntry(12)
+	yfast.Insert(e2)
+
+	iter = yfast.Iter(5)
+	assert.Equal(t, Entries{e1, e2}, iter.exhaust())
+
+	iter = yfast.Iter(6)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+
+	e3 := newMockEntry(6)
+	yfast.Insert(e3)
+
+	iter = yfast.Iter(7)
+	assert.Equal(t, Entries{e2}, iter.exhaust())
+
+	iter = yfast.Iter(0)
+	assert.Equal(t, Entries{e1, e3, e2}, iter.exhaust())
+
+	iter = yfast.Iter(13)
+	assert.Equal(t, Entries{}, iter.exhaust())
+}
+
 func BenchmarkInsert(b *testing.B) {
 	yfast := New(uint64(0))
 	entries := generateEntries(b.N)
@@ -200,5 +262,21 @@ func BenchmarkPredecessor(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		yfast.Predecessor(uint64(i))
+	}
+}
+
+func BenchmarkIterator(b *testing.B) {
+	numItems := 1000
+	entries := generateEntries(numItems)
+
+	yfast := New(uint64(0))
+	yfast.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for iter := yfast.Iter(0); iter.Next(); {
+			iter.Value()
+		}
 	}
 }

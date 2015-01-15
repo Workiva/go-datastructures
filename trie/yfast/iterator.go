@@ -1,21 +1,36 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package yfast
 
 import "github.com/Workiva/go-datastructures/trie/xfast"
 
+// iteratorExhausted is a magic value for an index to tell us
+// that the iterator has been exhausted.
 const iteratorExhausted = -2
 
+// iterExhausted is a helper function to tell us if an iterator
+// has been exhausted.
 func iterExhausted(iter *Iterator) bool {
 	return iter.index == iteratorExhausted
 }
 
-type iterator interface {
-	Next() bool
-	Value() xfast.Entry
-}
-
 // Iterator will iterate of the results of a query.
 type Iterator struct {
-	xfastIterator iterator
+	xfastIterator *xfast.Iterator
 	index         int
 	entries       *entriesWrapper
 }
@@ -71,6 +86,8 @@ func (iter *Iterator) exhaust() Entries {
 	return entries
 }
 
+// nilIterator is an iterator that will always return false
+// from Next() and nil for Value().
 func nilIterator() *Iterator {
 	return &Iterator{
 		index: iteratorExhausted,
