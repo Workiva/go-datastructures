@@ -47,8 +47,8 @@ package xfast
 
 import (
 	"fmt"
-	"log"
-	"time"
+	//"log"
+	//"time"
 )
 
 // isInternal returns a bool indicating if the provided
@@ -238,7 +238,7 @@ func (xft *XFastTrie) init(intType interface{}) {
 	xft.bits = bits
 	xft.diff = 64 - bits
 	for i := uint8(0); i < bits; i++ {
-		xft.layers[i] = make(map[uint64]*node, 50) // we can obviously be more intelligent about this.
+		xft.layers[i] = make(map[uint64]*node) // we can obviously be more intelligent about this.
 	}
 	xft.num = 0
 	xft.root = newNode(nil, nil)
@@ -618,10 +618,10 @@ func (xft *XFastTrie) Get(key uint64) Entry {
 	// key.
 
 	m := xft.layers[xft.bits-1]
-	t0 := time.Now()
+	//t0 := time.Now()
 	n := m[key]
-	d := time.Since(t0)
-	log.Printf(`XFAST GET TIME: %+v`, d.Nanoseconds())
+	//d := time.Since(t0)
+	//log.Printf(`XFAST GET TIME: %+v`, d.Nanoseconds())
 	if n == nil {
 		return nil
 	}

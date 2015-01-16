@@ -110,20 +110,20 @@ func BenchmarkMultiDimensionalAddOverwrite(b *testing.B) {
 }
 
 func BenchmarkMultiDimensionalGet(b *testing.B) {
-	rt := new(2, uint64(0))
-	entries := generateRandomMockEntries(10000)
+	rt := new(2, uint32(0))
+	entries := generateMockEntries(1000000)
 	rt.Add(entries...)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		rt.Get(entries[i%10000])
+		rt.Get(entries[i%100])
 	}
 }
 
 func BenchmarkMap(b *testing.B) {
 	num := 1000000
-	m := make(map[uint64]*mockEntry, num)
+	m := make(map[uint64]*mockEntry, 50)
 	entries := generateMockEntries(num)
 
 	for _, e := range entries {
