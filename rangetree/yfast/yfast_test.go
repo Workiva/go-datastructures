@@ -1,6 +1,7 @@
 package yfast
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,14 @@ func generateMockEntries(num int) Entries {
 		entries = append(entries, newMockEntry(i, i))
 	}
 
+	return entries
+}
+
+func generateRandomMockEntries(num int) Entries {
+	entries := make(Entries, 0, num)
+	for i := 0; i < num; i++ {
+		entries = append(entries, newMockEntry(uint64(rand.Int63()), uint64(rand.Int63())))
+	}
 	return entries
 }
 
@@ -48,19 +57,21 @@ func TestRTAddMultiDimension(t *testing.T) {
 	rt := new(2, uint8(0))
 
 	e1 := newMockEntry(2, 3)
-	e2 := newMockEntry(3, 4)
+	e2 := newMockEntry(17, 4)
 
 	overwritten := rt.Add(e1, e2)
 	assert.Len(t, overwritten, 2)
 	assert.Equal(t, Entries{nil, nil}, overwritten)
 
+	println(`GET AFTER THIS`)
 	assert.Equal(t, Entries{e1}, rt.Get(newMockEntry(2, 3)))
-	assert.Equal(t, Entries{e2}, rt.Get(newMockEntry(3, 4)))
-	assert.Equal(t, Entries{e1, e2}, rt.Get(newMockEntry(2, 3), newMockEntry(3, 4)))
+	/*
+		assert.Equal(t, Entries{e2}, rt.Get(newMockEntry(3, 4)))
+		assert.Equal(t, Entries{e1, e2}, rt.Get(newMockEntry(2, 3), newMockEntry(3, 4)))
 
-	assert.Equal(t, Entries{nil}, rt.Get(newMockEntry(2, 4)))
-	assert.Equal(t, Entries{e1, nil}, rt.Get(newMockEntry(2, 3), newMockEntry(2, 1)))
-	assert.Equal(t, Entries{e2, nil}, rt.Get(newMockEntry(3, 4), newMockEntry(3, 5)))
+		assert.Equal(t, Entries{nil}, rt.Get(newMockEntry(2, 4)))
+		assert.Equal(t, Entries{e1, nil}, rt.Get(newMockEntry(2, 3), newMockEntry(2, 1)))
+		assert.Equal(t, Entries{e2, nil}, rt.Get(newMockEntry(3, 4), newMockEntry(3, 5)))*/
 }
 
 func TestRTAddMultiDimensionOverwrite(t *testing.T) {
@@ -100,12 +111,30 @@ func BenchmarkMultiDimensionalAddOverwrite(b *testing.B) {
 
 func BenchmarkMultiDimensionalGet(b *testing.B) {
 	rt := new(2, uint64(0))
-	entries := generateMockEntries(100000)
+	entries := generateRandomMockEntries(10000)
 	rt.Add(entries...)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		rt.Add(entries[i%100000])
+		rt.Get(entries[i%10000])
+	}
+}
+
+func BenchmarkMap(b *testing.B) {
+	num := 1000000
+	m := make(map[uint64]*mockEntry, num)
+	entries := generateMockEntries(num)
+
+	for _, e := range entries {
+		m[e.ValueAtDimension(0)] = &mockEntry{}
+	}
+
+	var ok *mockEntry
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ok = m[entries[i%num].ValueAtDimension(0)]
+	}
+	if ok == nil {
 	}
 }

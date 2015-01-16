@@ -86,6 +86,7 @@ func (rt *rangeTree) Add(entries ...Entry) Entries {
 func (rt *rangeTree) get(entry Entry) Entry {
 	var yfastEntry yfast.Entry
 	trie := rt.top
+	println(`STARTING LOOP`)
 	for i := uint64(0); i < rt.dimensions; i++ {
 		yfastEntry = trie.Get(entry.ValueAtDimension(i))
 		if yfastEntry == nil {
@@ -94,6 +95,7 @@ func (rt *rangeTree) get(entry Entry) Entry {
 		trie = yfastEntry.(*dimensionalWrapper).trie
 	}
 
+	println(`LOOP DONE`)
 	return yfastEntry.(*dimensionalWrapper).entry
 }
 
@@ -107,7 +109,7 @@ func (rt *rangeTree) Get(entries ...Entry) Entries {
 }
 
 func (rt *rangeTree) delete(entry Entry) Entry {
-
+	return nil
 }
 
 func new(dimensions uint64, bitsize interface{}) *rangeTree {

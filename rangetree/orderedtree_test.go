@@ -130,18 +130,19 @@ func TestOTAddLargeNumbersMultiDimension(t *testing.T) {
 }
 
 func BenchmarkOTAddItemsMultiDimensions(b *testing.B) {
-	numItems := uint64(1000)
+	numItems := 100000
 	entries := make(Entries, 0, numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := uint64(0); i < uint64(numItems); i++ {
 		entries = append(entries, constructMockEntry(i, int64(i), int64(i)))
 	}
 
+	tree := newOrderedTree(2)
+	tree.Add(entries...)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newOrderedTree(2)
-		tree.Add(entries...)
+		tree.Add(entries[i%numItems])
 	}
 }
 

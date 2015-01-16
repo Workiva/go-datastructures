@@ -45,7 +45,11 @@ insert and delete in O(log log M) time and consumes O(n) space.
 
 package xfast
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"time"
+)
 
 // isInternal returns a bool indicating if the provided
 // node is an internal node, that is, non-leaf node.
@@ -612,7 +616,12 @@ func (xft *XFastTrie) Iter(key uint64) *Iterator {
 func (xft *XFastTrie) Get(key uint64) Entry {
 	// only have to check the last hashmap for the provided
 	// key.
-	n := xft.layers[xft.bits-1][key]
+
+	m := xft.layers[xft.bits-1]
+	t0 := time.Now()
+	n := m[key]
+	d := time.Since(t0)
+	log.Printf(`XFAST GET TIME: %+v`, d.Nanoseconds())
 	if n == nil {
 		return nil
 	}
