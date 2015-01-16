@@ -1,6 +1,14 @@
 package yfast
 
-import "github.com/Workiva/go-datastructures/trie/yfast"
+import (
+	"log"
+
+	"github.com/Workiva/go-datastructures/trie/yfast"
+)
+
+func init() {
+	log.Printf(`I HATE THIS.`)
+}
 
 // isLastDimension returns a bool indicating if the provided
 // value is the last dimension.  Because the user provides
@@ -43,7 +51,7 @@ func (rt *rangeTree) add(entry Entry) Entry {
 	var yfastEntry yfast.Entry
 	for i := uint64(0); i < rt.dimensions; i++ {
 		key = entry.ValueAtDimension(i)
-		yfastEntry = trie.Get(entry.ValueAtDimension(i))
+		yfastEntry = trie.Get(key)
 		if yfastEntry == nil {
 			if isLastDimension(i, rt.dimensions) {
 				wrapper = newWrapper(key, entry, nil)
@@ -83,6 +91,7 @@ func (rt *rangeTree) get(entry Entry) Entry {
 		if yfastEntry == nil {
 			return nil
 		}
+		trie = yfastEntry.(*dimensionalWrapper).trie
 	}
 
 	return yfastEntry.(*dimensionalWrapper).entry
@@ -95,6 +104,10 @@ func (rt *rangeTree) Get(entries ...Entry) Entries {
 	}
 
 	return result
+}
+
+func (rt *rangeTree) delete(entry Entry) Entry {
+
 }
 
 func new(dimensions uint64, bitsize interface{}) *rangeTree {
