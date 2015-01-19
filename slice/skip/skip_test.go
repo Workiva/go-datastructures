@@ -126,7 +126,7 @@ func TestIter(t *testing.T) {
 }
 
 func BenchmarkInsert(b *testing.B) {
-	numItems := 10000
+	numItems := b.N
 	sl := New(uint64(0))
 
 	entries := generateMockEntries(numItems)
@@ -139,7 +139,7 @@ func BenchmarkInsert(b *testing.B) {
 }
 
 func BenchmarkGet(b *testing.B) {
-	numItems := 10000
+	numItems := b.N
 	sl := New(uint64(0))
 
 	entries := generateMockEntries(numItems)
