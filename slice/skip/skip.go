@@ -1,14 +1,40 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+Package skip defines a skiplist datastructure.  That is, a data structure
+that probabilistically determines relationships between keys.  By doing
+so, it becomes easier to program than a binary search tree but maintains
+similar speeds.
+
+Performance characteristics:
+Insert: O(log n)
+Search: O(log n)
+Delete: O(log n)
+Space: O(n)
+
+More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
+*/
+
 package skip
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
 
 const p = .5 // the p level defines the probability that a node
 // with a value at level i also has a value at i+1.  This number
@@ -41,7 +67,7 @@ func generateLevel(maxLevel uint8) uint8 {
 // from a programmatic perspective (no rotations).
 type SkipList struct {
 	maxLevel, level uint8
-	head, tail      *node
+	head            *node
 	num             uint64
 	// a list of nodes that can be reused, should reduce
 	// the number of allocations in the insert/delete case.
