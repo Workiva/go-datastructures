@@ -35,6 +35,10 @@ func generateLevel(maxLevel uint8) uint8 {
 	return level
 }
 
+// Skip list is a datastructure that probabalistically determines
+// relationships between nodes.  This results in a structure
+// that performs similarly to a BST but is much easier to build
+// from a programmatic perspective (no rotations).
 type SkipList struct {
 	maxLevel, level uint8
 	head, tail      *node
@@ -83,6 +87,9 @@ func (sl *SkipList) search(key uint64, update []*node) *node {
 	return n.forward[0]
 }
 
+// Get will retrieve values associated with the keys provided.  If an
+// associated value could not be found, a nil is returned in its place.
+// This is an O(log n) operation.
 func (sl *SkipList) Get(keys ...uint64) Entries {
 	entries := make(Entries, 0, len(keys))
 
@@ -163,6 +170,9 @@ func (sl *SkipList) delete(key uint64) Entry {
 	return n.entry
 }
 
+// Delete will remove the provided keys from the skiplist and return
+// a list of in-order entries that were deleted.  This is a no-op if
+// an associated key could not be found.  This is an O(log n) operation.
 func (sl *SkipList) Delete(keys ...uint64) Entries {
 	deleted := make(Entries, 0, len(keys))
 
@@ -178,6 +188,30 @@ func (sl *SkipList) Len() uint64 {
 	return sl.num
 }
 
+func (sl *SkipList) iter(key uint64) *Iterator {
+	n := sl.search(key, nil)
+	if n == nil {
+		return nilIterator()
+	}
+
+	return &Iterator{
+		first: true,
+		n:     n,
+	}
+}
+
+// Iter will return an iterator that can be used to iterate
+// over all the values with a key equal to or greater than
+// the key provided.
+func (sl *SkipList) Iter(key uint64) *Iterator {
+	return sl.iter(key)
+}
+
+// New will allocate, initialize, and return a new skiplist.
+// The provided parameter should be of type uint and will determine
+// the maximum possible level that will be created to ensure
+// a random and quick distribution of levels.  Parameter must
+// be a uint type.
 func New(ifc interface{}) *SkipList {
 	sl := &SkipList{}
 	sl.init(ifc)

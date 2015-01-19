@@ -74,6 +74,9 @@ func TestDelete(t *testing.T) {
 	assert.Equal(t, Entries{m1}, deleted)
 	assert.Equal(t, uint64(0), sl.Len())
 	assert.Equal(t, Entries{nil}, sl.Get(5))
+
+	deleted = sl.Delete(5)
+	assert.Equal(t, Entries{nil}, deleted)
 }
 
 func TestDeleteAll(t *testing.T) {
@@ -86,6 +89,29 @@ func TestDeleteAll(t *testing.T) {
 	assert.Equal(t, Entries{m1, m2}, deleted)
 	assert.Equal(t, uint64(0), sl.Len())
 	assert.Equal(t, Entries{nil, nil}, sl.Get(m1.Key(), m2.Key()))
+}
+
+func TestIter(t *testing.T) {
+	sl := New(uint8(0))
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(10)
+
+	sl.Insert(m1, m2)
+
+	iter := sl.Iter(0)
+	assert.Equal(t, Entries{m1, m2}, iter.exhaust())
+
+	iter = sl.Iter(5)
+	assert.Equal(t, Entries{m1, m2}, iter.exhaust())
+
+	iter = sl.Iter(6)
+	assert.Equal(t, Entries{m2}, iter.exhaust())
+
+	iter = sl.Iter(10)
+	assert.Equal(t, Entries{m2}, iter.exhaust())
+
+	iter = sl.Iter(11)
+	assert.Equal(t, Entries{}, iter.exhaust())
 }
 
 func BenchmarkInsert(b *testing.B) {
@@ -112,5 +138,19 @@ func BenchmarkGet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		sl.Get(entries[i%numItems].Key())
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	numItems := b.N
+	sl := New(uint64(0))
+
+	entries := generateMockEntries(numItems)
+	sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.Delete(entries[i].Key())
 	}
 }
