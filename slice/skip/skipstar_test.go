@@ -148,7 +148,7 @@ func BenchmarkIterStar(b *testing.B) {
 }
 
 func BenchmarkStarPrepend(b *testing.B) {
-	numItems := 1000
+	numItems := b.N
 	sl := NewStar(uint64(0))
 
 	entries := make(Entries, 0, numItems)
