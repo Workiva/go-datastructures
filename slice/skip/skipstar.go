@@ -32,12 +32,6 @@ BenchmarkStarDelete-8	 3000000	       469 ns/op
 */
 package skip
 
-import "log"
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
-
 // SkipList* implements all methods of a standard skip list but attempts
 // to improve performance by ensuring cache locality.
 type SkipListStar struct {

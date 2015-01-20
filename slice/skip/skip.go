@@ -101,7 +101,7 @@ func (sl *SkipList) search(key uint64, update []*node) *node {
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.forward[offset] != nil && n.forward[offset].key() < key {
+		for n.forward[offset] != nil && n.forward[offset].entry.Key() < key {
 			n = n.forward[offset]
 		}
 
