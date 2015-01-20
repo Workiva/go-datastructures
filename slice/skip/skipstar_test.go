@@ -100,3 +100,17 @@ func BenchmarkStarGet(b *testing.B) {
 		sl.Get(entries[i%numItems].Key())
 	}
 }
+
+func BenchmarkStarDelete(b *testing.B) {
+	numItems := b.N
+	sl := NewStar(uint64(0))
+
+	entries := generateMockEntries(numItems)
+	sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.Delete(entries[i%numItems].Key())
+	}
+}

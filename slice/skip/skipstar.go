@@ -99,6 +99,9 @@ func (ssl *SkipStarList) delete(key uint64) Entry {
 	deleted := eb.entries.delete(key)
 	if deleted != nil {
 		ssl.num--
+		if len(eb.entries) == 0 {
+			ssl.sl.Delete(eb.key)
+		}
 	}
 
 	return deleted
