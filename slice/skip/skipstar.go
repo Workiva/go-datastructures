@@ -23,12 +23,16 @@ over a standard skip list.  This also keeps any memcopy operation limited
 to O(log M) where M is the size of the desired universe.
 
 Performance vs standard skip list.
-BenchmarkInsert-8	 2000000	       949 ns/op
-BenchmarkGet-8	 3000000	       516 ns/op
-BenchmarkDelete-8	 3000000	       499 ns/op
-BenchmarkStarInsert-8	 3000000	       453 ns/op
-BenchmarkStarGet-8	 3000000	       524 ns/op
-BenchmarkStarDelete-8	 3000000	       469 ns/op
+BenchmarkInsert-8	 2000000	       976 ns/op
+BenchmarkGet-8	 3000000	       442 ns/op
+BenchmarkDelete-8	 3000000	       426 ns/op
+BenchmarkPrepend-8	 2000000	       932 ns/op
+BenchmarkStarInsert-8	 3000000	       398 ns/op
+BenchmarkStarGet-8	 5000000	       488 ns/op
+BenchmarkStarDelete-8	 3000000	       440 ns/op
+BenchmarkIterStar-8	   30000	    122984 ns/op
+BenchmarkStarPrepend-8	 3000000	       618 ns/op
+
 */
 package skip
 
