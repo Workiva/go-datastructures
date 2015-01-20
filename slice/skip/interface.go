@@ -25,3 +25,9 @@ type Entry interface {
 
 // Entries is a typed list of interface Entry.
 type Entries []Entry
+
+type Iterator interface {
+	Next() bool
+	Value() Entry
+	exhaust() Entries
+}

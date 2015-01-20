@@ -214,13 +214,13 @@ func (sl *SkipList) Len() uint64 {
 	return sl.num
 }
 
-func (sl *SkipList) iter(key uint64) *Iterator {
+func (sl *SkipList) iter(key uint64) *iterator {
 	n := sl.search(key, nil)
 	if n == nil {
 		return nilIterator()
 	}
 
-	return &Iterator{
+	return &iterator{
 		first: true,
 		n:     n,
 	}
@@ -229,7 +229,7 @@ func (sl *SkipList) iter(key uint64) *Iterator {
 // Iter will return an iterator that can be used to iterate
 // over all the values with a key equal to or greater than
 // the key provided.
-func (sl *SkipList) Iter(key uint64) *Iterator {
+func (sl *SkipList) Iter(key uint64) Iterator {
 	return sl.iter(key)
 }
 
