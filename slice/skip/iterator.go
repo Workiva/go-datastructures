@@ -18,7 +18,7 @@ package skip
 
 const iteratorExhausted = -2
 
-// Iterator represents an object that can be iterated.  It will
+// iterator represents an object that can be iterated.  It will
 // return false on Next and nil on Value if there are no further
 // values to be iterated.
 type iterator struct {
@@ -69,16 +69,21 @@ func nilIterator() *iterator {
 	return &iterator{}
 }
 
+// starIterator is used as an iterator by the SkipList*.
 type starIterator struct {
 	entries Entries
 	iter    Iterator
 	index   int
 }
 
+// isExhausted returns a bool indicating if all values have been
+// iterated.
 func (si *starIterator) isExhausted() bool {
 	return si.index == iteratorExhausted
 }
 
+// Next returns a bool indicating if there are any further values
+// in this iterator.
 func (si *starIterator) Next() bool {
 	if si.isExhausted() {
 		return false
@@ -99,6 +104,8 @@ func (si *starIterator) Next() bool {
 	return true
 }
 
+// Value returns an Entry representing the iterator's present
+// position in the query.  Returns nil if no values remain to iterate.
 func (si *starIterator) Value() Entry {
 	if si.isExhausted() {
 		return nil
