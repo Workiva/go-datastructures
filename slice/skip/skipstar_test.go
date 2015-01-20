@@ -114,3 +114,37 @@ func BenchmarkStarDelete(b *testing.B) {
 		sl.Delete(entries[i%numItems].Key())
 	}
 }
+
+func BenchmarkIterStar(b *testing.B) {
+	numItems := b.N
+	sl := NewStar(uint64(0))
+
+	entries := generateMockEntries(numItems)
+	sl.Insert(entries...)
+
+	var iter Iterator
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for iter = sl.Iter(0); iter.Next(); {
+		}
+	}
+}
+
+func BenchmarkStarPrepend(b *testing.B) {
+	numItems := 1000
+	sl := NewStar(uint64(0))
+
+	entries := make(Entries, 0, numItems)
+	for i := b.N; i < b.N+numItems; i++ {
+		entries = append(entries, newMockEntry(uint64(i)))
+	}
+
+	sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.Insert(newMockEntry(uint64(i)))
+	}
+}
