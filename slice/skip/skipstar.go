@@ -40,7 +40,7 @@ func init() {
 
 // SkipList* implements all methods of a standard skip list but attempts
 // to improve performance by ensuring cache locality.
-type SkipStarList struct {
+type SkipListStar struct {
 	ary uint8
 	num uint64
 	sl  *SkipList
@@ -66,7 +66,7 @@ func newEntryBundle(key uint64, size uint8) *entryBundle {
 	}
 }
 
-func (ssl *SkipStarList) init(ifc interface{}) {
+func (ssl *SkipListStar) init(ifc interface{}) {
 	switch ifc.(type) {
 	case uint8:
 		ssl.ary = 8
@@ -80,12 +80,12 @@ func (ssl *SkipStarList) init(ifc interface{}) {
 	ssl.sl = New(ifc)
 }
 
-func (ssl *SkipStarList) getNormalizedKey(key uint64) uint64 {
+func (ssl *SkipListStar) getNormalizedKey(key uint64) uint64 {
 	key = key/uint64(ssl.ary) + 1
 	return key * uint64(ssl.ary)
 }
 
-func (ssl *SkipStarList) insert(entry Entry) Entry {
+func (ssl *SkipListStar) insert(entry Entry) Entry {
 	key := ssl.getNormalizedKey(entry.Key())
 	eb, ok := ssl.sl.Get(entry.Key())[0].(*entryBundle)
 	if !ok {
@@ -104,7 +104,7 @@ func (ssl *SkipStarList) insert(entry Entry) Entry {
 // existing entry with a matching key will be overwritten.  The returned
 // list of a list of entries that were overwritten, in order.  A nil
 // will be in the in-order position for any non-overwritten entries.
-func (ssl *SkipStarList) Insert(entries ...Entry) Entries {
+func (ssl *SkipListStar) Insert(entries ...Entry) Entries {
 	overwritten := make(Entries, 0, len(entries))
 	for _, e := range entries {
 		overwritten = append(overwritten, ssl.insert(e))
@@ -113,7 +113,7 @@ func (ssl *SkipStarList) Insert(entries ...Entry) Entries {
 	return overwritten
 }
 
-func (ssl *SkipStarList) get(key uint64) Entry {
+func (ssl *SkipListStar) get(key uint64) Entry {
 	normalizedKey := ssl.getNormalizedKey(key)
 	eb, ok := ssl.sl.Get(normalizedKey)[0].(*entryBundle)
 	if ok {
@@ -124,7 +124,7 @@ func (ssl *SkipStarList) get(key uint64) Entry {
 
 // Get will return a list of entries associated with the provided keys.
 // A nil will be returned for any key not found.
-func (ssl *SkipStarList) Get(keys ...uint64) Entries {
+func (ssl *SkipListStar) Get(keys ...uint64) Entries {
 	entries := make(Entries, 0, len(keys))
 	for _, key := range keys {
 		entries = append(entries, ssl.get(key))
@@ -133,7 +133,7 @@ func (ssl *SkipStarList) Get(keys ...uint64) Entries {
 	return entries
 }
 
-func (ssl *SkipStarList) delete(key uint64) Entry {
+func (ssl *SkipListStar) delete(key uint64) Entry {
 	normalizedKey := ssl.getNormalizedKey(key)
 	eb, ok := ssl.sl.Get(normalizedKey)[0].(*entryBundle)
 	if !ok {
@@ -153,7 +153,7 @@ func (ssl *SkipStarList) delete(key uint64) Entry {
 
 // Delete will remove the provided keys from the SkipList* and
 // return a list of entries that were deleted.
-func (ssl *SkipStarList) Delete(keys ...uint64) Entries {
+func (ssl *SkipListStar) Delete(keys ...uint64) Entries {
 	deleted := make(Entries, 0, len(keys))
 	for _, key := range keys {
 		deleted = append(deleted, ssl.delete(key))
@@ -162,7 +162,7 @@ func (ssl *SkipStarList) Delete(keys ...uint64) Entries {
 	return deleted
 }
 
-func (ssl *SkipStarList) iter(key uint64) *starIterator {
+func (ssl *SkipListStar) iter(key uint64) *starIterator {
 	normalizedKey := ssl.getNormalizedKey(key)
 	iter := ssl.sl.Iter(normalizedKey)
 	if !iter.Next() {
@@ -181,20 +181,20 @@ func (ssl *SkipStarList) iter(key uint64) *starIterator {
 
 // Iter will return an iterator that will visit every value
 // equal to or greater than the provided key.
-func (ssl *SkipStarList) Iter(key uint64) Iterator {
+func (ssl *SkipListStar) Iter(key uint64) Iterator {
 	return ssl.iter(key)
 }
 
 // Len returns the number of items in the SkipList*.
-func (ssl *SkipStarList) Len() uint64 {
+func (ssl *SkipListStar) Len() uint64 {
 	return ssl.num
 }
 
-// NewStar will allocate, initialize, and return a new SkipStarList.
+// NewStar will allocate, initialize, and return a new SkipListStar.
 // The Skip* list has an node size defined by the provided interface
 // parameter.  This parameter must be a uint type (uint8, uint16, etc).
-func NewStar(ifc interface{}) *SkipStarList {
-	ssl := &SkipStarList{}
+func NewStar(ifc interface{}) *SkipListStar {
+	ssl := &SkipListStar{}
 	ssl.init(ifc)
 	return ssl
 }
