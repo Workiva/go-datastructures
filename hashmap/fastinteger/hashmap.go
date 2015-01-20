@@ -152,6 +152,15 @@ func (fi *FastIntegerHashMap) Cap() uint64 {
 	return uint64(len(fi.packets))
 }
 
+// Reset will erase all data in this hashmap while retaining current
+// capacity.
+func (fi *FastIntegerHashMap) Reset() {
+	for i := range fi.packets {
+		fi.packets[i] = nil
+	}
+	fi.count = 0
+}
+
 // New returns a new FastIntegerHashMap with a bucket size specified
 // by hint.
 func New(hint uint64) *FastIntegerHashMap {

@@ -27,6 +27,20 @@ func (ns nodes) reset() nodes {
 	return ns
 }
 
+// copy will create a deep copy of this list of nodes and return it.
+func (ns nodes) copy() nodes {
+	cp := make(nodes, len(ns))
+	for i, n := range ns {
+		if n == nil {
+			break
+		}
+
+		cp[i] = n.copy()
+	}
+
+	return cp
+}
+
 type node struct {
 	// forward denotes the forward pointing pointers in this
 	// node.
@@ -39,6 +53,16 @@ type node struct {
 // with this node.
 func (n *node) key() uint64 {
 	return n.entry.Key()
+}
+
+// copy will make a shallow copy of this node and return the result.
+func (n *node) copy() *node {
+	forward := make(nodes, len(n.forward))
+	copy(forward, n.forward)
+	return &node{
+		forward: forward,
+		entry:   n.entry,
+	}
 }
 
 // newNode will allocate and return a new node with the entry

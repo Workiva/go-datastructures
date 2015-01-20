@@ -121,6 +121,23 @@ func TestDeleteAll(t *testing.T) {
 	}
 }
 
+func TestReset(t *testing.T) {
+	hm := New(10)
+
+	hm.Set(5, 5)
+	hm.Set(10, 10)
+
+	hm.Reset()
+
+	assert.Equal(t, uint64(0), hm.Len())
+	assert.False(t, hm.Exists(5))
+	assert.False(t, hm.Exists(10))
+
+	hm.Set(6, 6)
+
+	assert.True(t, hm.Exists(6))
+}
+
 func BenchmarkInsert(b *testing.B) {
 	numItems := uint64(1000)
 

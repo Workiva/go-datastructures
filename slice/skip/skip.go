@@ -52,13 +52,13 @@ var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
-	for level = uint8(1); level < maxLevel-1; level++ {
+	for level = uint8(1); level < maxLevel; level++ {
 		if generator.Float64() >= p {
 			return level
 		}
 	}
 
-	return level
+	return level - 1
 }
 
 // Skip list is a datastructure that probabalistically determines
