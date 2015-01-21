@@ -41,6 +41,7 @@ func TestSimpleInsert(t *testing.T) {
 	assert.Equal(t, Entries{m1}, sl.Get(5))
 	assert.Equal(t, uint64(1), sl.Len())
 	assert.Equal(t, Entries{nil}, overwritten)
+	assert.Equal(t, Entries{nil}, sl.Get(1))
 
 	overwritten = sl.Insert(m2)
 	assert.Equal(t, Entries{m2}, sl.Get(6))
