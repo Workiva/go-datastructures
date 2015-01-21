@@ -25,3 +25,18 @@ type Entry interface {
 
 // Entries is a typed list of interface Entry.
 type Entries []Entry
+
+// Iterator defines an interface that allows a consumer to iterate
+// all results of a query.  All values will be visited in-order.
+type Iterator interface {
+	// Next returns a bool indicating if there is future value
+	// in the iterator and moves the iterator to that value.
+	Next() bool
+	// Value returns an Entry representing the iterator's current
+	// position.  If there is no value, this returns nil.
+	Value() Entry
+	// exhaust is a helper method that will iterate this iterator
+	// to completion and return a list of resulting Entries
+	// in order.
+	exhaust() Entries
+}

@@ -16,6 +16,8 @@ limitations under the License.
 
 package skip
 
+import "github.com/stretchr/testify/mock"
+
 type mockEntry struct {
 	key uint64
 }
@@ -26,4 +28,27 @@ func (me *mockEntry) Key() uint64 {
 
 func newMockEntry(key uint64) *mockEntry {
 	return &mockEntry{key}
+}
+
+type mockIterator struct {
+	mock.Mock
+}
+
+func (mi *mockIterator) Next() bool {
+	args := mi.Called()
+	return args.Bool(0)
+}
+
+func (mi *mockIterator) Value() Entry {
+	args := mi.Called()
+	result, ok := args.Get(0).(Entry)
+	if !ok {
+		return nil
+	}
+
+	return result
+}
+
+func (mi *mockIterator) exhaust() Entries {
+	return nil
 }

@@ -139,3 +139,18 @@ func TestInsertDelete(t *testing.T) {
 	assert.Len(t, ns, 0)
 	assert.Equal(t, Entries{n2.entry, n3.entry, n1.entry}, deleted)
 }
+
+func BenchmarkPrepend(b *testing.B) {
+	numItems := 100000
+	ns := make(orderedNodes, 0, numItems)
+
+	for i := b.N; i < b.N+numItems; i++ {
+		ns.add(newNode(int64(i), constructMockEntry(uint64(i), int64(i)), false))
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ns.add(newNode(int64(i), constructMockEntry(uint64(i), int64(i)), false))
+	}
+}

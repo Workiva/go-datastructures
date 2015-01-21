@@ -165,3 +165,21 @@ func BenchmarkDelete(b *testing.B) {
 		sl.Delete(entries[i].Key())
 	}
 }
+
+func BenchmarkPrepend(b *testing.B) {
+	numItems := b.N
+	sl := New(uint64(0))
+
+	entries := make(Entries, 0, numItems)
+	for i := b.N; i < b.N+numItems; i++ {
+		entries = append(entries, newMockEntry(uint64(i)))
+	}
+
+	sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.Insert(newMockEntry(uint64(i)))
+	}
+}

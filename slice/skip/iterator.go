@@ -16,17 +16,19 @@ limitations under the License.
 
 package skip
 
-// Iterator represents an object that can be iterated.  It will
+const iteratorExhausted = -2
+
+// iterator represents an object that can be iterated.  It will
 // return false on Next and nil on Value if there are no further
 // values to be iterated.
-type Iterator struct {
+type iterator struct {
 	first bool
 	n     *node
 }
 
 // Next returns a bool indicating if there are any further values
 // in this iterator.
-func (iter *Iterator) Next() bool {
+func (iter *iterator) Next() bool {
 	if iter.first {
 		iter.first = false
 		return iter.n != nil
@@ -42,7 +44,7 @@ func (iter *Iterator) Next() bool {
 
 // Value returns an Entry representing the iterator's present
 // position in the query.  Returns nil if no values remain to iterate.
-func (iter *Iterator) Value() Entry {
+func (iter *iterator) Value() Entry {
 	if iter.n == nil {
 		return nil
 	}
@@ -52,7 +54,7 @@ func (iter *Iterator) Value() Entry {
 
 // exhaust is a helper method to exhaust this iterator and return
 // all remaining entries.
-func (iter *Iterator) exhaust() Entries {
+func (iter *iterator) exhaust() Entries {
 	entries := make(Entries, 0, 10)
 	for i := iter; i.Next(); {
 		entries = append(entries, i.Value())
@@ -63,6 +65,64 @@ func (iter *Iterator) exhaust() Entries {
 
 // nilIterator returns an iterator that will always return false
 // for Next and nil for Value.
-func nilIterator() *Iterator {
-	return &Iterator{}
+func nilIterator() *iterator {
+	return &iterator{}
+}
+
+// starIterator is used as an iterator by the SkipList*.
+type starIterator struct {
+	entries Entries
+	iter    Iterator
+	index   int
+}
+
+// isExhausted returns a bool indicating if all values have been
+// iterated.
+func (si *starIterator) isExhausted() bool {
+	return si.index == iteratorExhausted
+}
+
+// Next returns a bool indicating if there are any further values
+// in this iterator.
+func (si *starIterator) Next() bool {
+	if si.isExhausted() {
+		return false
+	}
+
+	si.index++
+	if si.index >= len(si.entries) {
+		canNext := si.iter.Next()
+		if !canNext {
+			si.index = iteratorExhausted
+			return false
+		}
+
+		si.entries = si.iter.Value().(*entryBundle).entries
+		si.index = 0
+	}
+
+	return true
+}
+
+// Value returns an Entry representing the iterator's present
+// position in the query.  Returns nil if no values remain to iterate.
+func (si *starIterator) Value() Entry {
+	if si.isExhausted() {
+		return nil
+	}
+
+	if si.entries == nil || si.index < 0 || si.index >= len(si.entries) {
+		return nil
+	}
+
+	return si.entries[si.index]
+}
+
+func (si *starIterator) exhaust() Entries {
+	entries := make(Entries, 0, 20)
+	for i := si; i.Next(); {
+		entries = append(entries, i.Value())
+	}
+
+	return entries
 }
