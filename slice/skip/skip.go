@@ -122,10 +122,10 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	var n *node
 	for _, key := range keys {
 		n = sl.search(key, nil)
-		if n == nil {
-			entries = append(entries, nil)
-		} else {
+		if n != nil && n.entry.Key() == key {
 			entries = append(entries, n.entry)
+		} else {
+			entries = append(entries, nil)
 		}
 	}
 
