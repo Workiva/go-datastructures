@@ -85,7 +85,7 @@ func (ssl *SkipListStar) getNormalizedKey(key uint64) uint64 {
 
 func (ssl *SkipListStar) insert(entry Entry) Entry {
 	key := ssl.getNormalizedKey(entry.Key())
-	eb, ok := ssl.sl.Get(entry.Key())[0].(*entryBundle)
+	eb, ok := ssl.sl.Get(key)[0].(*entryBundle)
 	if !ok {
 		eb = newEntryBundle(key, ssl.ary)
 		ssl.sl.Insert(eb)
