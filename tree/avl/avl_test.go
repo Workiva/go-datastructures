@@ -1,15 +1,26 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package avl
 
 import (
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
 
 func generateMockEntries(num int) Entries {
 	entries := make(Entries, 0, num)
@@ -237,6 +248,53 @@ func TestAVLDeleteAll(t *testing.T) {
 	assert.Equal(t, Entries{m1, m2, m3, m4}, i2.Get(m1, m2, m3, m4))
 }
 
+func TestAVLDeleteNotLeaf(t *testing.T) {
+	i1 := NewImmutable()
+	m1 := mockEntry(1)
+	m2 := mockEntry(5)
+	m3 := mockEntry(10)
+	m4 := mockEntry(15)
+
+	i2, _ := i1.Insert(m2, m1, m3, m4)
+	i3, deleted := i2.Delete(m3)
+	assert.Equal(t, Entries{m3}, deleted)
+	assert.Equal(t, uint64(3), i3.Len())
+}
+
+func TestAVLBulkDeleteAll(t *testing.T) {
+	i1 := NewImmutable()
+	entries := generateMockEntries(5)
+	i2, _ := i1.Insert(entries...)
+
+	i3, deleted := i2.Delete(entries...)
+	assert.Equal(t, entries, deleted)
+	assert.Equal(t, uint64(0), i3.Len())
+
+	i3, deleted = i2.Delete(entries...)
+	assert.Equal(t, entries, deleted)
+	assert.Equal(t, uint64(0), i3.Len())
+}
+
+func TestAVLDeleteReplay(t *testing.T) {
+	i1 := NewImmutable()
+	m1 := mockEntry(1)
+	m2 := mockEntry(5)
+	m3 := mockEntry(10)
+	m4 := mockEntry(15)
+
+	i2, _ := i1.Insert(m2, m1, m3, m4)
+
+	i3, deleted := i2.Delete(m3)
+	assert.Equal(t, uint64(3), i3.Len())
+	assert.Equal(t, Entries{m3}, deleted)
+	assert.Equal(t, uint64(4), i2.Len())
+
+	i3, deleted = i2.Delete(m3)
+	assert.Equal(t, uint64(3), i3.Len())
+	assert.Equal(t, Entries{m3}, deleted)
+	assert.Equal(t, uint64(4), i2.Len())
+}
+
 func BenchmarkImmutableInsert(b *testing.B) {
 	numItems := b.N
 	sl := NewImmutable()
@@ -275,5 +333,33 @@ func BenchmarkImmutableBulkInsert(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		sl.Insert(entries...)
+	}
+}
+
+func BenchmarkImmutableDelete(b *testing.B) {
+	numItems := b.N
+	sl := NewImmutable()
+
+	entries := generateMockEntries(numItems)
+	sl, _ = sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl, _ = sl.Delete(entries[i%numItems])
+	}
+}
+
+func BenchmarkImmutableBulkDelete(b *testing.B) {
+	numItems := b.N
+	sl := NewImmutable()
+
+	entries := generateMockEntries(numItems)
+	sl, _ = sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.Delete(entries...)
 	}
 }

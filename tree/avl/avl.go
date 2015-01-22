@@ -1,21 +1,45 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+The immutable AVL tree can be used as the foundation for many functional
+data types.  Combined with a B+ tree, you can make an immutable index which
+serves as the backbone for many different kinds of key/value stores.
+
+Time complexities:
+Space: O(n)
+Insert: O(log n)
+Delete: O(log n)
+Get: O(log n)
+*/
+
 package avl
 
-import (
-	"log"
-	"math"
-)
+import "math"
 
-func init() {
-	log.Println(`I HATE THIS.`)
-}
-
+// Immutable represents an immutable AVL tree.  This is acheived
+// by branch copying.
 type Immutable struct {
 	root   *node
 	number uint64
-	dummy  node
-	cache  nodes
+	dummy  node // helper for inserts.
 }
 
+// copy returns a copy of this immutable tree with a copy
+// of the root and a new dummy helper for the insertion operation.
 func (immutable *Immutable) copy() *Immutable {
 	var root *node
 	if immutable.root != nil {
@@ -29,10 +53,6 @@ func (immutable *Immutable) copy() *Immutable {
 	return cp
 }
 
-func (immutable *Immutable) resetCache() {
-	immutable.cache.reset()
-}
-
 func (immutable *Immutable) resetDummy() {
 	immutable.dummy.children[0], immutable.dummy.children[1] = nil, nil
 	immutable.dummy.balance = 0
@@ -42,7 +62,6 @@ func (immutable *Immutable) init() {
 	immutable.dummy = node{
 		children: [2]*node{},
 	}
-	immutable.cache = make(nodes, 64) // this should cover every number in the 64 bit universe
 }
 
 func (immutable *Immutable) get(entry Entry) Entry {
@@ -62,6 +81,8 @@ func (immutable *Immutable) get(entry Entry) Entry {
 	return nil
 }
 
+// Get will get the provided Entries from the tree.  If no matching
+// Entry is found, a nil is returned in its place.
 func (immutable *Immutable) Get(entries ...Entry) Entries {
 	result := make(Entries, 0, len(entries))
 	for _, e := range entries {
@@ -77,6 +98,7 @@ func (immutable *Immutable) Len() uint64 {
 }
 
 func (immutable *Immutable) insert(entry Entry) Entry {
+	// TODO: check cache to see if a node has already been copied.
 	if immutable.root == nil {
 		immutable.root = newNode(entry)
 		immutable.number++
@@ -93,6 +115,8 @@ func (immutable *Immutable) insert(entry Entry) Entry {
 
 	// set this AFTER clearing dummy
 	helper.children[1] = immutable.root
+	// we'll go ahead and copy on the way down as we'll need to branch
+	// copy no matter what.
 	for s, p = helper.children[1], helper.children[1]; ; {
 		dir = p.entry.Compare(entry)
 
@@ -135,9 +159,9 @@ func (immutable *Immutable) insert(entry Entry) Entry {
 	for p = s; p != q; p = p.children[normalized] {
 		normalized = normalizeComparison(p.entry.Compare(entry))
 		if normalized == 0 {
-			p.balance += -1
+			p.balance--
 		} else {
-			p.balance += 1
+			p.balance++
 		}
 	}
 
@@ -156,6 +180,9 @@ func (immutable *Immutable) insert(entry Entry) Entry {
 	return nil
 }
 
+// Insert will add the provided entries into the tree and return the new
+// state.  Also returned is a list of Entries that were overwritten.  If
+// nothing was overwritten for an Entry, a nil is returned in its place.
 func (immutable *Immutable) Insert(entries ...Entry) (*Immutable, Entries) {
 	if len(entries) == 0 {
 		return immutable, Entries{}
@@ -171,11 +198,15 @@ func (immutable *Immutable) Insert(entries ...Entry) (*Immutable, Entries) {
 }
 
 func (immutable *Immutable) delete(entry Entry) Entry {
+	// TODO: reuse cache and dirs, check cache to see if nodes
+	// really need to be copied.
 	if immutable.root == nil { // easy case, nothing to remove
 		return nil
 	}
 
 	var (
+		// we are going to make a list here representing our stack.
+		// This means we don't have to copy if a value wasn't found.
 		cache                      = make(nodes, 64)
 		it, p, q                   *node
 		top, done, dir, normalized int
@@ -201,7 +232,7 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 		it = it.children[normalized]
 	}
 	immutable.number--
-	oldEntry = it.entry
+	oldEntry = it.entry // we need to return this
 
 	// we need to make a branch copy now
 	for i := 0; i < top; i++ { // first item will be root
@@ -214,15 +245,16 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 			}
 		}
 	}
+	it = it.copy() // the node we found needs to be copied
 
-	if it.children[0] == nil || it.children[1] == nil {
+	if it.children[0] == nil || it.children[1] == nil { // need to set children on parent, splicing out
 		dir = intFromBool(it.children[0] == nil)
 		if top != 0 {
 			cache[top-1].children[dirs[top-1]] = it.children[dir]
 		} else {
 			immutable.root = it.children[dir]
 		}
-	} else {
+	} else { // climb up and set heirs
 		heir := it.children[1]
 		dirs[top] = 1
 		cache[top] = it
@@ -230,6 +262,7 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 
 		for heir.children[0] != nil {
 			dirs[top] = 0
+			cache[top] = heir
 			top++
 			heir = heir.children[0]
 		}
@@ -240,15 +273,17 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 
 	for top-1 >= 0 && done == 0 {
 		top--
+		// set bounded balance
 		if dirs[top] != 0 {
-			cache[top].balance += -1
+			cache[top].balance--
 		} else {
-			cache[top].balance += 1
+			cache[top].balance++
 		}
 
 		if math.Abs(float64(cache[top].balance)) == 1 {
 			break
 		} else if math.Abs(float64(cache[top].balance)) > 1 {
+			// any rotations done here
 			cache[top] = removeBalance(cache[top], dirs[top], &done)
 
 			if top != 0 {
@@ -263,6 +298,9 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 	return oldEntry
 }
 
+// Delete will remove the provided entries from this AVL tree and
+// return a new tree and any entries removed.  If an entry could not
+// be found, nil is returned in its place.
 func (immutable *Immutable) Delete(entries ...Entry) (*Immutable, Entries) {
 	if len(entries) == 0 {
 		return immutable, Entries{}
@@ -289,7 +327,7 @@ func insertBalance(root *node, dir int) *node {
 	if n.balance == bal {
 		root.balance, n.balance = 0, 0
 		root = rotate(root, takeOpposite(dir))
-	} else { /* n->balance == -bal */
+	} else {
 		adjustBalance(root, dir, int(bal))
 		root = doubleRotate(root, takeOpposite(dir))
 	}
@@ -298,7 +336,8 @@ func insertBalance(root *node, dir int) *node {
 }
 
 func removeBalance(root *node, dir int, done *int) *node {
-	n := root.children[takeOpposite(dir)]
+	n := root.children[takeOpposite(dir)].copy()
+	root.children[takeOpposite(dir)] = n
 	var bal int8
 	if dir == 0 {
 		bal = -1
@@ -343,7 +382,7 @@ func adjustBalance(root *node, dir, bal int) {
 	} else if int(nn.balance) == bal {
 		root.balance = int8(-bal)
 		n.balance = 0
-	} else { /* nn->balance == -bal */
+	} else {
 		root.balance = 0
 		n.balance = int8(bal)
 	}
@@ -367,6 +406,8 @@ func doubleRotate(parent *node, dir int) *node {
 	return rotate(parent, dir)
 }
 
+// normalizeComparison converts the value returned from Entry.Compare
+// into a direction, ie, left or right, 0 or 1.
 func normalizeComparison(i int) int {
 	if i < 0 {
 		return 1
@@ -379,6 +420,8 @@ func normalizeComparison(i int) int {
 	return -1
 }
 
+// NewImmutable allocates, initializes, and returns a new immutable
+// AVL tree.
 func NewImmutable() *Immutable {
 	immutable := &Immutable{}
 	immutable.init()
