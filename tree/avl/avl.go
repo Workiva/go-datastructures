@@ -170,8 +170,111 @@ func (immutable *Immutable) Insert(entries ...Entry) (*Immutable, Entries) {
 	return cp, overwritten
 }
 
-func (immutable *Immutable) remove(entry Entry) Entry {
-	return nil
+func (immutable *Immutable) delete(entry Entry) Entry {
+	if immutable.root == nil { // easy case, nothing to remove
+		return nil
+	}
+
+	var (
+		cache                      = make(nodes, 64)
+		it, p, q                   *node
+		top, done, dir, normalized int
+		dirs                       = make([]int, 64)
+		oldEntry                   Entry
+	)
+
+	it = immutable.root
+
+	for {
+		if it == nil {
+			return nil
+		}
+
+		dir = it.entry.Compare(entry)
+		if dir == 0 {
+			break
+		}
+		normalized = normalizeComparison(dir)
+		dirs[top] = normalized
+		cache[top] = it
+		top++
+		it = it.children[normalized]
+	}
+	immutable.number--
+	oldEntry = it.entry
+
+	// we need to make a branch copy now
+	for i := 0; i < top; i++ { // first item will be root
+		p = cache[i]
+		if p.children[dirs[i]] != nil {
+			q = p.children[dirs[i]].copy()
+			p.children[dirs[i]] = q
+			if i != top-1 {
+				cache[i+1] = q
+			}
+		}
+	}
+
+	if it.children[0] == nil || it.children[1] == nil {
+		dir = intFromBool(it.children[0] == nil)
+		if top != 0 {
+			cache[top-1].children[dirs[top-1]] = it.children[dir]
+		} else {
+			immutable.root = it.children[dir]
+		}
+	} else {
+		heir := it.children[1]
+		dirs[top] = 1
+		cache[top] = it
+		top++
+
+		for heir.children[0] != nil {
+			dirs[top] = 0
+			top++
+			heir = heir.children[0]
+		}
+
+		it.entry = heir.entry
+		cache[top-1].children[intFromBool(cache[top-1] == it)] = heir.children[1]
+	}
+
+	for top-1 >= 0 && done == 0 {
+		top--
+		if dirs[top] != 0 {
+			cache[top].balance += -1
+		} else {
+			cache[top].balance += 1
+		}
+
+		if math.Abs(float64(cache[top].balance)) == 1 {
+			break
+		} else if math.Abs(float64(cache[top].balance)) > 1 {
+			cache[top] = removeBalance(cache[top], dirs[top], &done)
+
+			if top != 0 {
+				cache[top-1].children[dirs[top-1]] = cache[top]
+			} else {
+				immutable.root = cache[0]
+			}
+		}
+
+	}
+
+	return oldEntry
+}
+
+func (immutable *Immutable) Delete(entries ...Entry) (*Immutable, Entries) {
+	if len(entries) == 0 {
+		return immutable, Entries{}
+	}
+
+	deleted := make(Entries, 0, len(entries))
+	cp := immutable.copy()
+	for _, e := range entries {
+		deleted = append(deleted, cp.delete(e))
+	}
+
+	return cp, deleted
 }
 
 func insertBalance(root *node, dir int) *node {

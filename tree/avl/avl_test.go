@@ -155,6 +155,88 @@ func TestAVLInsertOverwrite(t *testing.T) {
 	assert.Equal(t, Entries{m3}, i2.Get(m3))
 }
 
+func TestAVLSimpleDelete(t *testing.T) {
+	i1 := NewImmutable()
+	m1 := mockEntry(10)
+	m2 := mockEntry(15)
+	m3 := mockEntry(20)
+
+	i2, _ := i1.Insert(m1, m2, m3)
+
+	i3, deleted := i2.Delete(m3)
+	assert.Equal(t, Entries{m3}, deleted)
+	assert.Equal(t, uint64(3), i2.Len())
+	assert.Equal(t, uint64(2), i3.Len())
+	assert.Equal(t, Entries{m1, m2, m3}, i2.Get(m1, m2, m3))
+	assert.Equal(t, Entries{m1, m2, nil}, i3.Get(m1, m2, m3))
+
+	i4, deleted := i3.Delete(m2)
+	assert.Equal(t, Entries{m2}, deleted)
+	assert.Equal(t, uint64(2), i3.Len())
+	assert.Equal(t, uint64(1), i4.Len())
+	assert.Equal(t, Entries{m1, m2, nil}, i3.Get(m1, m2, m3))
+	assert.Equal(t, Entries{m1, nil, nil}, i4.Get(m1, m2, m3))
+
+	i5, deleted := i4.Delete(m1)
+	assert.Equal(t, Entries{m1}, deleted)
+	assert.Equal(t, uint64(0), i5.Len())
+	assert.Equal(t, uint64(1), i4.Len())
+	assert.Equal(t, Entries{m1, nil, nil}, i4.Get(m1, m2, m3))
+	assert.Equal(t, Entries{nil, nil, nil}, i5.Get(m1, m2, m3))
+}
+
+func TestAVLDeleteWithRotation(t *testing.T) {
+	i1 := NewImmutable()
+	m1 := mockEntry(1)
+	m2 := mockEntry(5)
+	m3 := mockEntry(10)
+	m4 := mockEntry(15)
+	m5 := mockEntry(20)
+
+	i2, _ := i1.Insert(m1, m2, m3, m4, m5)
+	assert.Equal(t, uint64(5), i2.Len())
+
+	i3, deleted := i2.Delete(m1)
+	assert.Equal(t, uint64(4), i3.Len())
+	assert.Equal(t, Entries{m1}, deleted)
+	assert.Equal(t, Entries{m1, m2, m3, m4, m5}, i2.Get(m1, m2, m3, m4, m5))
+	assert.Equal(t, Entries{nil, m2, m3, m4, m5}, i3.Get(m1, m2, m3, m4, m5))
+}
+
+func TestAVLDeleteWithDoubleRotation(t *testing.T) {
+	i1 := NewImmutable()
+	m1 := mockEntry(1)
+	m2 := mockEntry(5)
+	m3 := mockEntry(10)
+	m4 := mockEntry(15)
+
+	i2, _ := i1.Insert(m2, m1, m3, m4)
+	assert.Equal(t, uint64(4), i2.Len())
+
+	i3, deleted := i2.Delete(m1)
+	assert.Equal(t, Entries{m1}, deleted)
+	assert.Equal(t, uint64(3), i3.Len())
+	assert.Equal(t, Entries{m1, m2, m3, m4}, i2.Get(m1, m2, m3, m4))
+	assert.Equal(t, Entries{nil, m2, m3, m4}, i3.Get(m1, m2, m3, m4))
+}
+
+func TestAVLDeleteAll(t *testing.T) {
+	i1 := NewImmutable()
+	m1 := mockEntry(1)
+	m2 := mockEntry(5)
+	m3 := mockEntry(10)
+	m4 := mockEntry(15)
+
+	i2, _ := i1.Insert(m2, m1, m3, m4)
+	assert.Equal(t, uint64(4), i2.Len())
+
+	i3, deleted := i2.Delete(m1, m2, m3, m4)
+	assert.Equal(t, Entries{m1, m2, m3, m4}, deleted)
+	assert.Equal(t, uint64(0), i3.Len())
+	assert.Equal(t, Entries{nil, nil, nil, nil}, i3.Get(m1, m2, m3, m4))
+	assert.Equal(t, Entries{m1, m2, m3, m4}, i2.Get(m1, m2, m3, m4))
+}
+
 func BenchmarkImmutableInsert(b *testing.B) {
 	numItems := b.N
 	sl := NewImmutable()
