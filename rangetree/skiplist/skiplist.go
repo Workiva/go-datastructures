@@ -1,16 +1,12 @@
 package skiplist
 
 import (
-	"log"
-
 	"github.com/Workiva/go-datastructures/rangetree"
 	"github.com/Workiva/go-datastructures/slice/skip"
 )
 
-func init() {
-	log.Printf(`I HATE THIS`)
-}
-
+// isLastDimension simply returns dimension == lastDimension-1.
+// This panics if dimension >= lastDimension.
 func isLastDimension(dimension, lastDimension uint64) bool {
 	if dimension >= lastDimension { // useful in testing and denotes a serious problem
 		panic(`Dimension is greater than possible dimensions.`)
@@ -19,6 +15,8 @@ func isLastDimension(dimension, lastDimension uint64) bool {
 	return dimension == lastDimension-1
 }
 
+// needsDeletion returns a bool indicating if the provided value
+// needs to be deleted based on the provided index and number.
 func needsDeletion(value, index, number int64) bool {
 	if number > 0 {
 		return false
@@ -30,6 +28,8 @@ func needsDeletion(value, index, number int64) bool {
 	return offset >= 0 && offset < number
 }
 
+// dimensionalBundle is an intermediate holder up to the last
+// dimension and represents a wrapper around a skiplist.
 type dimensionalBundle struct {
 	key uint64
 	sl  *skip.SkipList
@@ -40,6 +40,8 @@ func (db *dimensionalBundle) Key() uint64 {
 	return db.key
 }
 
+// lastBundle represents a bundle living at the last dimension
+// of the tree.
 type lastBundle struct {
 	key   uint64
 	entry rangetree.Entry
@@ -100,6 +102,10 @@ func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 	panic(`Ran out of dimensions before for loop completed.`)
 }
 
+// Add will add the provided entries to the tree.  Any entries that
+// were overwritten will be returned in the order in which they
+// were overwritten.  If an entry's addition does not overwrite, a nil
+// is returned for that cell for its index in the provided entries.
 func (rt *skipListRT) Add(entries ...rangetree.Entry) rangetree.Entries {
 	overwritten := make(rangetree.Entries, 0, len(entries))
 	for _, e := range entries {
@@ -132,6 +138,9 @@ func (rt *skipListRT) get(entry rangetree.Entry) rangetree.Entry {
 	panic(`Reached past for loop without finding last dimension.`)
 }
 
+// Get will return any rangetree.Entries matching the provided entries.
+// Similar in functionality to a key lookup, this returns nil for any
+// entry that could not be found.
 func (rt *skipListRT) Get(entries ...rangetree.Entry) rangetree.Entries {
 	results := make(rangetree.Entries, 0, len(entries))
 	for _, e := range entries {
@@ -141,10 +150,14 @@ func (rt *skipListRT) Get(entries ...rangetree.Entry) rangetree.Entries {
 	return results
 }
 
+// Len returns the number of entries in the tree.
 func (rt *skipListRT) Len() uint64 {
 	return rt.number
 }
 
+// deleteRecursive is used by the delete logic.  The recursion depth
+// only goes as far as the number of dimensions, so this shouldn't be an
+// issue.
 func (rt *skipListRT) deleteRecursive(sl *skip.SkipList, dimension uint64,
 	entry rangetree.Entry) rangetree.Entry {
 
@@ -180,6 +193,7 @@ func (rt *skipListRT) delete(entry rangetree.Entry) rangetree.Entry {
 	return rt.deleteRecursive(rt.top, 0, entry)
 }
 
+// Delete will remove the provided entries from the tree.
 func (rt *skipListRT) Delete(entries ...rangetree.Entry) {
 	for _, e := range entries {
 		rt.delete(e)
@@ -214,10 +228,16 @@ func (rt *skipListRT) apply(sl *skip.SkipList, dimension uint64,
 	return true
 }
 
+// Apply will call the provided function with each entry that exists
+// within the provided range, in order.  Return false at any time to
+// cancel iteration.  Altering the entry in such a way that its location
+// changes will result in undefined behavior.
 func (rt *skipListRT) Apply(interval rangetree.Interval, fn func(rangetree.Entry) bool) {
 	rt.apply(rt.top, 0, interval, fn)
 }
 
+// Query will return a list of entries that fall within
+// the provided interval.
 func (rt *skipListRT) Query(interval rangetree.Interval) rangetree.Entries {
 	entries := make(rangetree.Entries, 0, 100)
 	rt.apply(rt.top, 0, interval, func(e rangetree.Entry) bool {
@@ -294,6 +314,11 @@ func (rt *skipListRT) insert(sl *skip.SkipList, dimension, insertDimension uint6
 	}
 }
 
+// InsertAtDimension will increment items at and above the given index
+// by the number provided.  Provide a negative number to to decrement.
+// Returned are two lists.  The first list is a list of entries that
+// were moved.  The second is a list entries that were deleted.  These
+// lists are exclusive.
 func (rt *skipListRT) InsertAtDimension(dimension uint64,
 	index, number int64) (rangetree.Entries, rangetree.Entries) {
 
@@ -318,6 +343,8 @@ func new(dimensions uint64) *skipListRT {
 	return sl
 }
 
+// New will allocate, initialize, and return a new rangetree.RangeTree
+// with the provided number of dimensions.
 func New(dimensions uint64) rangetree.RangeTree {
 	return new(dimensions)
 }
