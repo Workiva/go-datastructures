@@ -88,11 +88,13 @@ func (lb *lastBundle) Key() uint64 {
 type skipListRT struct {
 	top                *skip.SkipList
 	dimensions, number uint64
+	ifc                interface{}
 }
 
-func (rt *skipListRT) init(dimensions uint64) {
+func (rt *skipListRT) init(dimensions uint64, ifc interface{}) {
+	rt.ifc = ifc
 	rt.dimensions = dimensions
-	rt.top = skip.New(uint64(0))
+	rt.top = skip.New(rt.ifc)
 }
 
 func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
@@ -123,7 +125,7 @@ func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 		}
 
 		if e == nil { // we need the intermediate dimension
-			db = &dimensionalBundle{key: uint64(value), sl: skip.New(uint64(0))}
+			db = &dimensionalBundle{key: uint64(value), sl: skip.New(rt.ifc)}
 			sl.Insert(db)
 		} else {
 			db = e.(*dimensionalBundle)
@@ -370,14 +372,14 @@ func (rt *skipListRT) InsertAtDimension(dimension uint64,
 	return affected, deleted
 }
 
-func new(dimensions uint64) *skipListRT {
+func new(dimensions uint64, ifc interface{}) *skipListRT {
 	sl := &skipListRT{}
-	sl.init(dimensions)
+	sl.init(dimensions, ifc)
 	return sl
 }
 
 // New will allocate, initialize, and return a new rangetree.RangeTree
 // with the provided number of dimensions.
-func New(dimensions uint64) rangetree.RangeTree {
-	return new(dimensions)
+func New(dimensions uint64, ifc interface{}) rangetree.RangeTree {
+	return new(dimensions, ifc)
 }

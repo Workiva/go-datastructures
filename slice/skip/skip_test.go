@@ -43,11 +43,18 @@ func TestSimpleInsert(t *testing.T) {
 	assert.Equal(t, Entries{nil}, overwritten)
 	assert.Equal(t, Entries{nil}, sl.Get(1))
 
+	println(`SHIT STARTING HERE`)
 	overwritten = sl.Insert(m2)
-	assert.Equal(t, Entries{m2}, sl.Get(6))
-	assert.Equal(t, Entries{nil}, sl.Get(7))
-	assert.Equal(t, uint64(2), sl.Len())
 	assert.Equal(t, Entries{nil}, overwritten)
+	assert.Equal(t, Entries{m2}, sl.Get(6))
+	t.Logf(`HEAD: %+v, %p`, sl.head, sl.head)
+	t.Logf(`FORWARD: %+v, %p`, sl.head.forward[0], sl.head.forward[0])
+	t.Logf(`FORWARD.FORWARD: %+v, %p`, sl.head.forward[0].forward[0], sl.head.forward[0].forward[0])
+	//assert.Equal(t, Entries{nil}, sl.Get(7))
+	//assert.Equal(t, uint64(2), sl.Len())
+
+	//t.Logf(`SL HEAD: %+v`, sl.head.forward[0])
+	//t.Fail()
 }
 
 func TestSimpleOverwrite(t *testing.T) {
@@ -77,6 +84,7 @@ func TestInsertOutOfOrder(t *testing.T) {
 	assert.Equal(t, Entries{m1, m2}, sl.Get(6, 5))
 }
 
+/*
 func TestDelete(t *testing.T) {
 	m1 := newMockEntry(5)
 	sl := New(uint8(0))
@@ -124,7 +132,7 @@ func TestIter(t *testing.T) {
 
 	iter = sl.Iter(11)
 	assert.Equal(t, Entries{}, iter.exhaust())
-}
+}*/
 
 func BenchmarkInsert(b *testing.B) {
 	numItems := b.N

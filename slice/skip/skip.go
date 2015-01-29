@@ -32,9 +32,14 @@ More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
 package skip
 
 import (
+	"log"
 	"math/rand"
 	"time"
 )
+
+func init() {
+	log.Printf(`I HATE THIS.`)
+}
 
 const p = .5 // the p level defines the probability that a node
 // with a value at level i also has a value at i+1.  This number
@@ -53,7 +58,7 @@ var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
 	for level = uint8(1); level < maxLevel-1; level++ {
-		if generator.Float64() >= p {
+		if generator.NormFloat64() >= p {
 			return level
 		}
 	}
@@ -93,23 +98,62 @@ func (sl *SkipList) init(ifc interface{}) {
 }
 
 func (sl *SkipList) search(key uint64, update []*node) *node {
+	if update != nil {
+		return sl.searchForInsert(key, update)
+	}
+
+	return sl.searchForGet(key)
+}
+
+func (sl *SkipList) searchForGet(key uint64) *node {
+	n := sl.head
+	index := int(sl.level)
+
+	for n != nil && n.key() <= key {
+		index = n.forward.search(key, 0, index)
+		if index == 0 && (n.forward[index] == nil || n.forward[index].key() > key) {
+			return n
+		}
+		n = n.forward[index]
+	}
+
+	return n
+}
+
+func (sl *SkipList) searchForInsert(key uint64, update []*node) *node {
+	//println(`SEARCHING`)
+	counter := 0
 	if sl.num == 0 { // nothing in the list
 		return nil
 	}
 
+	//log.Printf(`SL.level: %+v`, sl.level)
+	//log.Printf(`SL: %+v`, sl.head.forward[0].forward[0])
 	var offset uint8
 	n := sl.head
+
 	for i := uint8(0); i <= sl.level; i++ {
+		counter++
 		offset = sl.level - i
-		for n.forward[offset] != nil && n.forward[offset].entry.Key() < key {
+		//log.Printf(`I: %+v, offset: %+v`, i, offset)
+		//log.Printf(`N: %+v`, n.entry)
+		for n.forward[offset] != nil && n.forward[offset].keyu <= key {
+			//println(`THIS`)
 			n = n.forward[offset]
+		}
+
+		if n != nil && n.entry != nil && n.entry.Key() == key {
+			//log.Printf(`COUNTER EARLY: %+v`, counter)
+			return n
 		}
 
 		if update != nil {
 			update[offset] = n
 		}
+		//log.Printf(`N.ENTRY: %+v`, n.entry)
 	}
 
+	//log.Printf(`COUNTER: %+v`, counter)
 	return n.forward[0]
 }
 
@@ -122,7 +166,7 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	var n *node
 	for _, key := range keys {
 		n = sl.search(key, nil)
-		if n != nil && n.entry.Key() == key {
+		if n != nil && n.entry != nil && n.entry.Key() == key {
 			entries = append(entries, n.entry)
 		} else {
 			entries = append(entries, nil)
@@ -132,9 +176,31 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	return entries
 }
 
-func (sl *SkipList) insert(entry Entry) Entry {
+func (sl *SkipList) PrintNodes() {
+	n := sl.head
+	for n != nil {
+		log.Printf(`N: %+v, %p`, n, n)
+		n = n.forward[0]
+	}
+}
+
+func (sl *SkipList) getOrInsert(entry Entry) Entry {
 	sl.cache.reset()
 	n := sl.search(entry.Key(), sl.cache)
+	if n != nil && n.key() == entry.Key() {
+		return n.entry
+	}
+
+	return sl.insert(entry, sl.cache, n)
+}
+
+func (sl *SkipList) insert(entry Entry, cache nodes, n *node) Entry {
+	if cache == nil {
+		sl.cache.reset()
+		n = sl.search(entry.Key(), sl.cache)
+		cache = sl.cache
+	}
+
 	if n != nil && n.key() == entry.Key() { // a simple update in this case
 		oldEntry := n.entry
 		n.entry = entry
@@ -145,15 +211,15 @@ func (sl *SkipList) insert(entry Entry) Entry {
 	nodeLevel := generateLevel(sl.maxLevel)
 	if nodeLevel > sl.level {
 		for i := sl.level; i <= nodeLevel; i++ {
-			sl.cache[i] = sl.head
+			cache[i] = sl.head
 		}
 		sl.level = nodeLevel
 	}
 
-	nn := newNode(entry, sl.maxLevel)
-	for i := uint8(0); i <= nodeLevel; i++ {
-		nn.forward[i] = sl.cache[i].forward[i]
-		sl.cache[i].forward[i] = nn
+	nn := newNode(entry, nodeLevel)
+	for i := uint8(0); i < nodeLevel; i++ {
+		nn.forward[i] = cache[i].forward[i]
+		cache[i].forward[i] = nn
 	}
 
 	return nil
@@ -165,7 +231,7 @@ func (sl *SkipList) insert(entry Entry) Entry {
 func (sl *SkipList) Insert(entries ...Entry) Entries {
 	overwritten := make(Entries, 0, len(entries))
 	for _, e := range entries {
-		overwritten = append(overwritten, sl.insert(e))
+		overwritten = append(overwritten, sl.insert(e, nil, nil))
 	}
 
 	return overwritten

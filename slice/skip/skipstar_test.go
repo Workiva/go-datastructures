@@ -16,6 +16,7 @@ limitations under the License.
 
 package skip
 
+/*
 import (
 	"testing"
 
@@ -164,3 +165,4 @@ func BenchmarkStarPrepend(b *testing.B) {
 		sl.Insert(newMockEntry(uint64(i)))
 	}
 }
+*/
