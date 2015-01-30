@@ -54,6 +54,21 @@ func (tree *btree) Iterate(key Key) *iterator {
 	return tree.root.find(key)
 }
 
+func (tree *btree) get(key Key) Key {
+	iter := tree.root.find(key)
+	iter.Next()
+	return iter.Value()
+}
+
+func (tree *btree) Get(keys ...Key) Keys {
+	results := make(Keys, 0, len(keys))
+	for _, k := range keys {
+		results = append(results, tree.get(k))
+	}
+
+	return results
+}
+
 func newBTree(nodeSize uint64) *btree {
 	return &btree{
 		nodeSize: nodeSize,

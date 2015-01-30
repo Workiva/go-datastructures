@@ -1,9 +1,6 @@
 package plus
 
-import (
-	"log"
-	"sort"
-)
+import "log"
 
 func init() {
 	log.Printf(`I HATE THIS`)
@@ -168,13 +165,13 @@ func (lnode *lnode) insert(tree *btree, key Key) bool {
 	i := keySearch(lnode.keys, key)
 	var inserted bool
 	if i == len(lnode.keys) { // simple append will do
-		lnode.keys = append(lnode.keys, newPayload(key))
+		lnode.keys = append(lnode.keys, key)
 		inserted = true
 	} else {
 		if lnode.keys[i].Compare(key) == 0 {
-			inserted = lnode.keys[i].(*payload).insert(key)
+			lnode.keys[i] = key
 		} else {
-			lnode.keys.insertAt(i, newPayload(key))
+			lnode.keys.insertAt(i, key)
 			inserted = true
 		}
 	}
@@ -211,7 +208,7 @@ func (node *lnode) split() (Key, node, node) {
 		return nil, nil, nil
 	}
 	i := len(node.keys) / 2
-	key := node.keys[i].(*payload).key()
+	key := node.keys[i]
 	otherKeys := make(keys, i, cap(node.keys))
 	ourKeys := make(keys, len(node.keys)-i, cap(node.keys))
 	// we perform these copies so these slices don't all end up
@@ -239,38 +236,6 @@ func newLeafNode(size uint64) *lnode {
 	}
 }
 
-type payload struct {
-	keys sortedByIDKeys
-}
-
-func (payload *payload) insert(key Key) bool {
-	return payload.keys.insert(key)
-}
-
-func (payload *payload) ID() uint64 {
-	return 0
-}
-
-func (payload *payload) Compare(key Key) int {
-	if len(payload.keys) == 0 {
-		panic(`WE HAVE A PAYLOAD WITH NO KEYS`)
-	}
-
-	return payload.keys[0].Compare(key)
-}
-
-func (payload *payload) key() Key {
-	return payload.keys[0]
-}
-
-func newPayload(key Key) *payload {
-	p := &payload{
-		keys: make(sortedByIDKeys, 0, 5),
-	}
-	p.keys = append(p.keys, key)
-	return p
-}
-
 type keys []Key
 
 func (keys keys) search(key Key) int {
@@ -292,29 +257,4 @@ func (keys keys) reverse() {
 	for i := 0; i < len(keys)/2; i++ {
 		keys[i], keys[len(keys)-i-1] = keys[len(keys)-i-1], keys[i]
 	}
-}
-
-type sortedByIDKeys keys
-
-func (sorted sortedByIDKeys) search(id uint64) int {
-	return sort.Search(len(sorted), func(i int) bool {
-		return sorted[i].ID() >= id
-	})
-}
-
-func (sorted *sortedByIDKeys) insert(key Key) bool {
-	i := sorted.search(key.ID())
-	if i == len(*sorted) {
-		*sorted = append(*sorted, key)
-		return true
-	}
-
-	if (*sorted)[i].ID() == key.ID() { // we don't allow duplicates
-		return false
-	}
-
-	*sorted = append(*sorted, nil)
-	copy((*sorted)[i+1:], (*sorted)[i:])
-	(*sorted)[i] = key
-	return true
 }

@@ -6,61 +6,39 @@ func init() {
 	log.Printf(`test`)
 }
 
-type payloadIterator struct {
-	keys  sortedByIDKeys
-	index int
-}
-
-func (pi *payloadIterator) next() bool {
-	pi.index++
-	if pi.index >= len(pi.keys) {
-		return false
-	}
-
-	return true
-}
-
-func (pi *payloadIterator) value() Key {
-	return pi.keys[pi.index]
-}
+const iteratorExhausted = -2
 
 type iterator struct {
 	node  *lnode
 	index int
-	pi    *payloadIterator
 }
 
 func (iter *iterator) Next() bool {
-	if iter.index == -2 {
+	if iter.index == iteratorExhausted {
 		return false
-	}
-
-	if iter.pi != nil {
-		if iter.pi.next() {
-			return true
-		}
-		iter.pi = nil
 	}
 
 	iter.index++
 	if iter.index >= len(iter.node.keys) {
 		iter.node = iter.node.pointer
 		if iter.node == nil {
-			iter.index = -2
+			iter.index = iteratorExhausted
 			return false
 		}
 		iter.index = 0
 	}
 
-	iter.pi = &payloadIterator{
-		keys:  iter.node.keys[iter.index].(*payload).keys,
-		index: -1,
-	}
-	return iter.pi.next()
+	return true
 }
 
 func (iter *iterator) Value() Key {
-	return iter.pi.value()
+	if iter.index == iteratorExhausted ||
+		iter.index < 0 || iter.index >= len(iter.node.keys) {
+
+		return nil
+	}
+
+	return iter.node.keys[iter.index]
 }
 
 // exhaust is a test function that's not exported
@@ -75,6 +53,6 @@ func (iter *iterator) exhaust() keys {
 
 func nilIterator() *iterator {
 	return &iterator{
-		index: -2,
+		index: iteratorExhausted,
 	}
 }

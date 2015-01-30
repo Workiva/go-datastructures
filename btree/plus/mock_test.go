@@ -1,11 +1,7 @@
 package plus
 
 type mockKey struct {
-	value, id uint64
-}
-
-func (mk *mockKey) ID() uint64 {
-	return mk.id
+	value int
 }
 
 func (mk *mockKey) Compare(other Key) int {
@@ -20,6 +16,6 @@ func (mk *mockKey) Compare(other Key) int {
 	return -1
 }
 
-func newMockKey(value, id uint64) *mockKey {
-	return &mockKey{value, id}
+func newMockKey(value int) *mockKey {
+	return &mockKey{value}
 }
