@@ -14,6 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+Package btree/plus implements the ubiquitous B+ tree.  As of this writing,
+the tree is not quite finished.  The delete-node merge functionaly needs
+to be added.  There are also some performance improvements that can be
+made, with some possible concurrency mechanisms.
+
+This is a mutable b-tree so it is not threadsafe.
+
+Performance characteristics:
+Space: O(n)
+Insert: O(log n)
+Search: O(log n)
+
+BenchmarkIteration-8	   	10000	   		 	109347 ns/op
+BenchmarkInsert-8	 		3000000	       		608 ns/op
+BenchmarkGet-8	 			3000000	       		627 ns/op
+*/
+
 package plus
 
 func keySearch(keys keys, key Key) int {
