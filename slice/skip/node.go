@@ -45,7 +45,7 @@ func (ns nodes) search(key uint64, low, high int) int {
 		}
 	}
 
-	return mid
+	return low - 1 // returns -1 if no suitable location found
 }
 
 type node struct {
@@ -54,13 +54,12 @@ type node struct {
 	forward nodes
 	// entry is the associated value with this node.
 	entry Entry
-	keyu  uint64
 }
 
 // key is a helper method to return the key of the entry associated
 // with this node.
 func (n *node) key() uint64 {
-	return n.keyu
+	return n.entry.Key()
 }
 
 // newNode will allocate and return a new node with the entry
@@ -70,9 +69,6 @@ func newNode(entry Entry, maxLevels uint8) *node {
 	n := &node{
 		entry:   entry,
 		forward: make(nodes, maxLevels),
-	}
-	if entry != nil {
-		n.keyu = entry.Key()
 	}
 	return n
 }

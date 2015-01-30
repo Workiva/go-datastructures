@@ -68,7 +68,7 @@ func generateLevel(maxLevel uint8) uint8 {
 
 // Skip list is a datastructure that probabalistically determines
 // relationships between nodes.  This results in a structure
-// that performs similarly to a BST but is much easier to build
+// that performs similarlyx to a BST but is much easier to build
 // from a programmatic perspective (no rotations).
 type SkipList struct {
 	maxLevel, level uint8
@@ -109,12 +109,17 @@ func (sl *SkipList) searchForGet(key uint64) *node {
 	n := sl.head
 	index := int(sl.level)
 
-	for n != nil && n.key() <= key {
+	for n != nil && index > 0 {
 		index = n.forward.search(key, 0, index)
-		if index == 0 && (n.forward[index] == nil || n.forward[index].key() > key) {
-			return n
+		if index < 0 {
+			return nil
 		}
-		n = n.forward[index]
+		for n.forward[index] != nil && n.forward[index].key() <= key {
+			n = n.forward[index]
+			if n.key() == key {
+				return n
+			}
+		}
 	}
 
 	return n
@@ -137,7 +142,7 @@ func (sl *SkipList) searchForInsert(key uint64, update []*node) *node {
 		offset = sl.level - i
 		//log.Printf(`I: %+v, offset: %+v`, i, offset)
 		//log.Printf(`N: %+v`, n.entry)
-		for n.forward[offset] != nil && n.forward[offset].keyu <= key {
+		for n.forward[offset] != nil && n.forward[offset].key() <= key {
 			//println(`THIS`)
 			n = n.forward[offset]
 		}

@@ -34,6 +34,7 @@ func generateMockEntries(num int) Entries {
 func TestSimpleInsert(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
+	m3 := newMockEntry(10)
 
 	sl := New(uint8(0))
 
@@ -44,9 +45,9 @@ func TestSimpleInsert(t *testing.T) {
 	assert.Equal(t, Entries{nil}, sl.Get(1))
 
 	println(`SHIT STARTING HERE`)
-	overwritten = sl.Insert(m2)
-	assert.Equal(t, Entries{nil}, overwritten)
-	assert.Equal(t, Entries{m2}, sl.Get(6))
+	overwritten = sl.Insert(m2, m3)
+	assert.Equal(t, Entries{nil, nil}, overwritten)
+	assert.Equal(t, Entries{m3}, sl.Get(10))
 	t.Logf(`HEAD: %+v, %p`, sl.head, sl.head)
 	t.Logf(`FORWARD: %+v, %p`, sl.head.forward[0], sl.head.forward[0])
 	t.Logf(`FORWARD.FORWARD: %+v, %p`, sl.head.forward[0].forward[0], sl.head.forward[0].forward[0])
@@ -81,7 +82,9 @@ func TestInsertOutOfOrder(t *testing.T) {
 	overwritten := sl.Insert(m1, m2)
 	assert.Equal(t, Entries{nil, nil}, overwritten)
 
-	assert.Equal(t, Entries{m1, m2}, sl.Get(6, 5))
+	if !assert.Equal(t, Entries{m1, m2}, sl.Get(6, 5)) {
+		sl.PrintNodes()
+	}
 }
 
 /*
