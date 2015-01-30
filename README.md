@@ -51,7 +51,7 @@ The sort package implements a multithreaded bucket sort that can be up to 3x fas
 Early work on some nonlinear optimization problems.  The initial implementation allows a simple use case with either linear or nonlinear constraints.  You can find min/max or target an optimal value.  The package currently employs a probablistic global restart system in an attempt to avoid local critical points.  More details can be found in that package.
 
 #### B+ Tree:
-Initial implementation of a B+ tree.  Delete method still needs added as well as some performance optimization.  Specific performance characteristics can be found in that package.  Despite the theoretical superiority of BSTs, the B-tree often has better all around performance due to cache locality.  The current implementation is mutable, but the immutable AVL tree can be used to build an immutable version.
+Initial implementation of a B+ tree.  Delete method still needs added as well as some performance optimization.  Specific performance characteristics can be found in that package.  Despite the theoretical superiority of BSTs, the B-tree often has better all around performance due to cache locality.  The current implementation is mutable, but the immutable AVL tree can be used to build an immutable version.  Unfortunately, to make the B-tree generic we require an interface and the most expensive operation in CPU profiling is the interface method which in turn calls into runtime.assertI2T.  We need generics.
 
 ### Installation
 
