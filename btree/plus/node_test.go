@@ -1,41 +1,62 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package plus
 
 import (
-	"log"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	log.Print(`hate this`)
-}
-
-func constructMockPayloads(num uint64) keys {
+func constructMockPayloads(num int) keys {
 	keys := make(keys, 0, num)
-	for i := uint64(0); i < num; i++ {
-		keys = append(keys, newPayload(newMockKey(i, i)))
+	for i := 0; i < num; i++ {
+		keys = append(keys, newMockKey(i))
 	}
 
 	return keys
 }
 
-func constructMockKeys(num uint64) keys {
+func constructMockKeys(num int) keys {
 	keys := make(keys, 0, num)
 
-	for i := uint64(0); i < num; i++ {
-		keys = append(keys, newMockKey(i, i))
+	for i := 0; i < num; i++ {
+		keys = append(keys, newMockKey(i))
 	}
 
 	return keys
 }
 
-func constructMockNodes(num uint64) nodes {
+func constructRandomMockKeys(num int) keys {
+	keys := make(keys, 0, num)
+	for i := 0; i < num; i++ {
+		keys = append(keys, newMockKey(rand.Int()))
+	}
+
+	return keys
+}
+
+func constructMockNodes(num int) nodes {
 	nodes := make(nodes, 0, num)
-	for i := uint64(0); i < num; i++ {
+	for i := 0; i < num; i++ {
 		keys := make(keys, 0, num)
-		for j := uint64(0); j < num; j++ {
-			keys = append(keys, newPayload(newMockKey(j*i+j, j*i+j)))
+		for j := 0; j < num; j++ {
+			keys = append(keys, newMockKey(j*i+j))
 		}
 
 		node := &lnode{
@@ -57,7 +78,7 @@ func constructMockInternalNode(nodes nodes) *inode {
 
 	keys := make(keys, 0, len(nodes)-1)
 	for i := 1; i < len(nodes); i++ {
-		keys = append(keys, nodes[i].(*lnode).keys[0].(*payload).key())
+		keys = append(keys, nodes[i].(*lnode).keys[0])
 	}
 
 	in := &inode{
@@ -70,43 +91,33 @@ func constructMockInternalNode(nodes nodes) *inode {
 func TestLeafNodeInsert(t *testing.T) {
 	tree := newBTree(3)
 	n := newLeafNode(3)
-	key := newMockKey(3, 3)
+	key := newMockKey(3)
 
 	n.insert(tree, key)
 
 	assert.Len(t, n.keys, 1)
 	assert.Nil(t, n.pointer)
-	assert.Equal(t, n.keys[0].(*payload).keys[0], key)
+	assert.Equal(t, n.keys[0], key)
 	assert.Equal(t, 0, n.keys[0].Compare(key))
 }
 
 func TestDuplicateLeafNodeInsert(t *testing.T) {
 	tree := newBTree(3)
 	n := newLeafNode(3)
-	k1 := newMockKey(3, 3)
-	k2 := newMockKey(3, 4)
+	k1 := newMockKey(3)
+	k2 := newMockKey(3)
 
 	assert.True(t, n.insert(tree, k1))
-	assert.True(t, n.insert(tree, k2))
+	assert.False(t, n.insert(tree, k2))
 	assert.False(t, n.insert(tree, k1))
-
-	assert.Len(t, n.keys, 1)
-	assert.Nil(t, n.pointer)
-	if !assert.Len(t, n.keys[0].(*payload).keys, 2) {
-		return
-	}
-	assert.Equal(t, n.keys[0].(*payload).keys[0], k1)
-	assert.Equal(t, n.keys[0].(*payload).keys[1], k2)
-	assert.Equal(t, 0, n.keys[0].Compare(k1))
-	assert.Equal(t, 0, n.keys[0].Compare(k2))
 }
 
 func TestMultipleLeafNodeInsert(t *testing.T) {
 	tree := newBTree(3)
 	n := newLeafNode(3)
 
-	k1 := newMockKey(3, 3)
-	k2 := newMockKey(4, 4)
+	k1 := newMockKey(3)
+	k2 := newMockKey(4)
 
 	assert.True(t, n.insert(tree, k1))
 	n.insert(tree, k2)
@@ -115,8 +126,8 @@ func TestMultipleLeafNodeInsert(t *testing.T) {
 		return
 	}
 	assert.Nil(t, n.pointer)
-	assert.Equal(t, k1, n.keys[0].(*payload).keys[0])
-	assert.Equal(t, k2, n.keys[1].(*payload).keys[0])
+	assert.Equal(t, k1, n.keys[0])
+	assert.Equal(t, k2, n.keys[1])
 }
 
 func TestLeafNodeSplitEvenNumber(t *testing.T) {
@@ -127,7 +138,7 @@ func TestLeafNodeSplitEvenNumber(t *testing.T) {
 	}
 
 	key, left, right := node.split()
-	assert.Equal(t, keys[2].(*payload).key(), key)
+	assert.Equal(t, keys[2], key)
 	assert.Equal(t, left.(*lnode).keys, keys[:2])
 	assert.Equal(t, right.(*lnode).keys, keys[2:])
 	assert.Equal(t, left.(*lnode).pointer, right)
@@ -141,7 +152,7 @@ func TestLeafNodeSplitOddNumber(t *testing.T) {
 	}
 
 	key, left, right := node.split()
-	assert.Equal(t, keys[1].(*payload).key(), key)
+	assert.Equal(t, keys[1], key)
 	assert.Equal(t, left.(*lnode).keys, keys[:1])
 	assert.Equal(t, right.(*lnode).keys, keys[1:])
 	assert.Equal(t, left.(*lnode).pointer, right)
@@ -155,7 +166,7 @@ func TestTwoKeysLeafNodeSplit(t *testing.T) {
 	}
 
 	key, left, right := node.split()
-	assert.Equal(t, keys[1].(*payload).key(), key)
+	assert.Equal(t, keys[1], key)
 	assert.Equal(t, left.(*lnode).keys, keys[:1])
 	assert.Equal(t, right.(*lnode).keys, keys[1:])
 	assert.Equal(t, left.(*lnode).pointer, right)
@@ -179,7 +190,7 @@ func TestInternalNodeSplit2_3_4(t *testing.T) {
 	in := constructMockInternalNode(nodes)
 
 	key, left, right := in.split()
-	assert.Equal(t, nodes[3].(*lnode).keys[0].(*payload).key(), key)
+	assert.Equal(t, nodes[3].(*lnode).keys[0], key)
 	assert.Len(t, left.(*inode).keys, 1)
 	assert.Len(t, right.(*inode).keys, 1)
 	assert.Equal(t, nodes[:2], left.(*inode).nodes)
@@ -191,7 +202,7 @@ func TestInternalNodeSplit3_4_5(t *testing.T) {
 	in := constructMockInternalNode(nodes)
 
 	key, left, right := in.split()
-	assert.Equal(t, nodes[4].(*lnode).keys[0].(*payload).key(), key)
+	assert.Equal(t, nodes[4].(*lnode).keys[0], key)
 	assert.Len(t, left.(*inode).keys, 2)
 	assert.Len(t, right.(*inode).keys, 1)
 	assert.Equal(t, nodes[:3], left.(*inode).nodes)
