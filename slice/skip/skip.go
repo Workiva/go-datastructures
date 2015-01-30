@@ -150,8 +150,8 @@ func (sl *SkipList) insert(entry Entry) Entry {
 		sl.level = nodeLevel
 	}
 
-	nn := newNode(entry, sl.maxLevel)
-	for i := uint8(0); i <= nodeLevel; i++ {
+	nn := newNode(entry, nodeLevel)
+	for i := uint8(0); i < nodeLevel; i++ {
 		nn.forward[i] = sl.cache[i].forward[i]
 		sl.cache[i].forward[i] = nn
 	}
