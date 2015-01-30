@@ -1,15 +1,10 @@
 package plus
 
 import (
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	log.Print(`hate this`)
-}
 
 func TestSearchKeys(t *testing.T) {
 	keys := keys{newMockKey(1), newMockKey(2), newMockKey(4)}
@@ -57,7 +52,7 @@ func TestTreeInsertQuery2_3_4(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -69,7 +64,7 @@ func TestTreeInsertQuery3_4_5(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -82,7 +77,7 @@ func TestTreeInsertReverseOrder2_3_4(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 	keys.reverse() // we want to fetch things in the correct
 	// ascending order
@@ -97,7 +92,7 @@ func TestTreeInsertReverseOrder3_4_5(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 	keys.reverse() // we want to fetch things in the correct
 	// ascending order
@@ -114,7 +109,7 @@ func TestTreeInsert3_4_5_WithEndDuplicate(t *testing.T) {
 	tree.Insert(duplicate)
 	keys[4] = duplicate
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -129,7 +124,7 @@ func TestTreeInsert3_4_5_WithMiddleDuplicate(t *testing.T) {
 	tree.Insert(duplicate)
 	keys[2] = duplicate
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -144,7 +139,7 @@ func TestTreeInsert3_4_5WithEarlyDuplicate(t *testing.T) {
 	tree.Insert(duplicate)
 	keys[0] = duplicate
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -158,7 +153,7 @@ func TestTreeInsert3_4_5WithDuplicateID(t *testing.T) {
 	tree.Insert(keys...)
 	tree.Insert(key)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -170,7 +165,7 @@ func TestTreeInsert3_4_5MiddleQuery(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(2))
+	iter := tree.Iter(newMockKey(2))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys[2:], result)
@@ -182,7 +177,7 @@ func TestTreeInsert3_4_5LateQuery(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(4))
+	iter := tree.Iter(newMockKey(4))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys[4:], result)
@@ -194,7 +189,7 @@ func TestTreeInsert3_4_5AfterQuery(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(5))
+	iter := tree.Iter(newMockKey(5))
 	result := iter.exhaust()
 
 	assert.Len(t, result, 0)
@@ -206,7 +201,7 @@ func TestTreeInternalNodeSplit(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
@@ -219,7 +214,7 @@ func TestTreeInternalNodeSplitReverseOrder(t *testing.T) {
 
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 	keys.reverse()
 
@@ -237,7 +232,7 @@ func TestTreeInternalNodeSplitRandomOrder(t *testing.T) {
 	tree := newBTree(4)
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(0))
+	iter := tree.Iter(newMockKey(0))
 	result := iter.exhaust()
 
 	assert.Len(t, result, 10)
@@ -257,13 +252,39 @@ func TestTreeRandomOrderQuery(t *testing.T) {
 	tree := newBTree(4)
 	tree.Insert(keys...)
 
-	iter := tree.Iterate(newMockKey(4))
+	iter := tree.Iter(newMockKey(4))
 	result := iter.exhaust()
 
 	assert.Len(t, result, 6)
 	for i, key := range result {
 		assert.Equal(t, newMockKey(i+4), key)
 	}
+}
+
+func TestTreeGet(t *testing.T) {
+	keys := constructRandomMockKeys(100)
+	tree := newBTree(64)
+	tree.Insert(keys...)
+
+	assert.Equal(t, uint64(100), tree.Len())
+	assert.Equal(t, keys, tree.Get(keys...))
+}
+
+func TestTreeGetNotFound(t *testing.T) {
+	keys := constructMockKeys(5)
+	tree := newBTree(64)
+	tree.Insert(keys...)
+
+	assert.Equal(t, Keys{nil}, tree.Get(newMockKey(20)))
+}
+
+func TestGetExactMatchesOnly(t *testing.T) {
+	k1 := newMockKey(0)
+	k2 := newMockKey(5)
+	tree := newBTree(64)
+	tree.Insert(k1, k2)
+
+	assert.Equal(t, Keys{nil}, tree.Get(newMockKey(3)))
 }
 
 func BenchmarkIteration(b *testing.B) {
@@ -278,7 +299,7 @@ func BenchmarkIteration(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		iter := tree.Iterate(searchKey)
+		iter := tree.Iter(searchKey)
 		iter.exhaust()
 	}
 }

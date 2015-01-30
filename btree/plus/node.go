@@ -1,11 +1,5 @@
 package plus
 
-import "log"
-
-func init() {
-	log.Printf(`I HATE THIS`)
-}
-
 func split(tree *btree, parent, child node) node {
 	if !child.needsSplit(tree.nodeSize) {
 		return parent

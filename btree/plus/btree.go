@@ -40,13 +40,18 @@ func (tree *btree) insert(key Key) {
 	}
 }
 
+// Insert will insert the provided keys into the btree.  This is an
+// O(m*log n) operation where m is the number of keys to be inserted
+// and n is the number of items in the tree.
 func (tree *btree) Insert(keys ...Key) {
 	for _, key := range keys {
 		tree.insert(key)
 	}
 }
 
-func (tree *btree) Iterate(key Key) *iterator {
+// Iter returns an iterator that can be used to traverse the b-tree
+// starting from the specified key or its successor.
+func (tree *btree) Iter(key Key) Iterator {
 	if tree.root == nil {
 		return nilIterator()
 	}
@@ -56,10 +61,20 @@ func (tree *btree) Iterate(key Key) *iterator {
 
 func (tree *btree) get(key Key) Key {
 	iter := tree.root.find(key)
-	iter.Next()
-	return iter.Value()
+	if !iter.Next() {
+		return nil
+	}
+
+	if iter.Value().Compare(key) == 0 {
+		return iter.Value()
+	}
+
+	return nil
 }
 
+// Get will retrieve any keys matching the provided keys in the tree.
+// Returns nil in any place of a key that couldn't be found.  Each lookup
+// is an O(log n) operation.
 func (tree *btree) Get(keys ...Key) Keys {
 	results := make(Keys, 0, len(keys))
 	for _, k := range keys {
@@ -67,6 +82,11 @@ func (tree *btree) Get(keys ...Key) Keys {
 	}
 
 	return results
+}
+
+// Len returns the number of items in this tree.
+func (tree *btree) Len() uint64 {
+	return tree.number
 }
 
 func newBTree(nodeSize uint64) *btree {

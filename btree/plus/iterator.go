@@ -1,11 +1,5 @@
 package plus
 
-import "log"
-
-func init() {
-	log.Printf(`test`)
-}
-
 const iteratorExhausted = -2
 
 type iterator struct {

@@ -1,15 +1,11 @@
 package plus
 
 import (
-	"log"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	log.Print(`hate this`)
-}
 
 func constructMockPayloads(num int) keys {
 	keys := make(keys, 0, num)
@@ -25,6 +21,15 @@ func constructMockKeys(num int) keys {
 
 	for i := 0; i < num; i++ {
 		keys = append(keys, newMockKey(i))
+	}
+
+	return keys
+}
+
+func constructRandomMockKeys(num int) keys {
+	keys := make(keys, 0, num)
+	for i := 0; i < num; i++ {
+		keys = append(keys, newMockKey(rand.Int()))
 	}
 
 	return keys
