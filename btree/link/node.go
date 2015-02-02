@@ -28,7 +28,7 @@ func init() {
 func scan(node *node, key Key) (Key, int) {
 	index := node.search(key)
 	if index == len(node.keys) {
-		right := moveRight(node, key)
+		right := moveRight(node, key, false)
 		index = right.search(key)
 		if index == len(right.keys) {
 			index--
@@ -52,7 +52,7 @@ func search(parent *node, key Key) (*node, int) {
 		}
 	}
 
-	parent = moveRight(parent, key)
+	parent = moveRight(parent, key, false)
 	return parent, parent.search(key)
 }
 
@@ -73,7 +73,7 @@ func insert(tree *blink, parent *node, stack nodes, key Key) Key {
 	}
 
 	parent.lock.Lock()
-	parent = moveRight(parent, key)
+	parent = moveRight(parent, key, true)
 
 	result := parent.insert(key)
 	if result != nil { // overwrite
@@ -109,7 +109,7 @@ func split(tree *blink, n *node, stack nodes) {
 		}
 
 		parent.lock.Lock()
-		parent = moveRight(parent, r.key)
+		parent = moveRight(parent, r.key, true)
 		parent.insertNode(r)
 		n.lock.Unlock()
 		n = parent
@@ -118,14 +118,15 @@ func split(tree *blink, n *node, stack nodes) {
 	n.lock.Unlock()
 }
 
-// moveRight will obtain a lock
-func moveRight(node *node, key Key) *node {
+func moveRight(node *node, key Key, getLock bool) *node {
 	for {
 		if node.key == nil || node.key.Compare(key) > -1 || node.right == nil { // this is either the node or the rightmost node
 			return node
 		}
-		node.right.lock.Lock()
-		node.lock.Unlock()
+		if getLock {
+			node.right.lock.Lock()
+			node.lock.Unlock()
+		}
 		node = node.right
 	}
 }

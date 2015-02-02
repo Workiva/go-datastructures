@@ -132,3 +132,28 @@ func TestOverwriteEvenAry(t *testing.T) {
 	assert.Equal(t, Keys{keys[0]}, result)
 	assert.Equal(t, oldLength, tree.Len())
 }
+
+func BenchmarkSimpleAdd(b *testing.B) {
+	numItems := 1000
+	keys := generateRandomKeys(numItems)
+	tree := newTree(16)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Insert(keys[i%numItems])
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	numItems := 1000
+	keys := generateRandomKeys(numItems)
+	tree := newTree(16)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Get(keys[i%numItems])
+	}
+}
