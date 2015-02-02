@@ -39,7 +39,7 @@ func (keys *Keys) insert(key Key) Key {
 	i := keys.search(key)
 	if i == len(*keys) {
 		*keys = append(*keys, key)
-		return key
+		return nil
 	}
 
 	if (*keys)[i].Compare(key) == 0 { //overwrite case
@@ -51,7 +51,7 @@ func (keys *Keys) insert(key Key) Key {
 	*keys = append(*keys, nil)
 	copy((*keys)[i+1:], (*keys)[i:])
 	(*keys)[i] = key
-	return key
+	return nil
 }
 
 func (keys *Keys) insertNode(n *node) {

@@ -104,3 +104,31 @@ func TestMultipleInsertCausesCascadingSplitsEvenAry(t *testing.T) {
 		tree.print(getConsoleLogger())
 	}
 }
+
+func TestOverwriteOddAry(t *testing.T) {
+	keys := generateRandomKeys(15)
+	tree := newTree(3)
+	duplicate := mockKey(uint64(keys[0].(mockKey)))
+
+	result := tree.Insert(keys...)
+	assert.Len(t, result, len(keys))
+	oldLength := tree.Len()
+
+	result = tree.Insert(duplicate)
+	assert.Equal(t, Keys{keys[0]}, result)
+	assert.Equal(t, oldLength, tree.Len())
+}
+
+func TestOverwriteEvenAry(t *testing.T) {
+	keys := generateRandomKeys(15)
+	tree := newTree(4)
+	duplicate := mockKey(uint64(keys[0].(mockKey)))
+
+	result := tree.Insert(keys...)
+	assert.Len(t, result, len(keys))
+	oldLength := tree.Len()
+
+	result = tree.Insert(duplicate)
+	assert.Equal(t, Keys{keys[0]}, result)
+	assert.Equal(t, oldLength, tree.Len())
+}

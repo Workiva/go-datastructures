@@ -28,7 +28,14 @@ func init() {
 func scan(node *node, key Key) (Key, int) {
 	index := node.search(key)
 	if index == len(node.keys) {
-		return node.right, index
+		right := moveRight(node, key)
+		index = right.search(key)
+		if index == len(right.keys) {
+			index--
+			return right.keys[index], index
+		}
+
+		return right.keys[index], index
 	}
 
 	return node.keys[index], index
@@ -69,18 +76,18 @@ func insert(tree *blink, parent *node, stack nodes, key Key) Key {
 	parent = moveRight(parent, key)
 
 	result := parent.insert(key)
-	if result != key { // overwrite
+	if result != nil { // overwrite
 		parent.lock.Unlock()
 		return result
 	}
 
 	if !parent.needsSplit() {
 		parent.lock.Unlock()
-		return key
+		return nil
 	}
 
 	split(tree, parent, stack)
-	return key
+	return nil
 }
 
 func split(tree *blink, n *node, stack nodes) {

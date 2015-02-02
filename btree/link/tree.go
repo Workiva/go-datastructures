@@ -40,7 +40,7 @@ func (blink *blink) insert(key Key) Key {
 	blink.lock.Unlock()
 
 	result := insert(blink, parent, make(nodes, 0, blink.ary), key)
-	if result == key {
+	if result == nil {
 		atomic.AddUint64(&blink.number, 1)
 		return nil
 	}
