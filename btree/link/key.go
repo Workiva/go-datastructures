@@ -16,14 +16,7 @@ limitations under the License.
 
 package link
 
-import (
-	"log"
-	"sort"
-)
-
-func init() {
-	log.Println(`KEY HATES THIS.`)
-}
+import "sort"
 
 func (keys Keys) search(key Key) int {
 	n, ok := key.(*node)

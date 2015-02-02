@@ -21,10 +21,6 @@ import (
 	"sync"
 )
 
-func init() {
-	log.Printf(`NODE HATE THIS.`)
-}
-
 func scan(node *node, key Key) (Key, int) {
 	index := node.search(key)
 	if index == len(node.keys) {

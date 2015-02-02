@@ -26,5 +26,3 @@ type Key interface {
 	// are allowed, but duplicate IDs are not.
 	Compare(Key) int
 }
-
-type BTree interface{}

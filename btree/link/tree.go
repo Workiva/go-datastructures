@@ -14,6 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+This is a b-link tree in progress from the following paper:
+http://www.csd.uoc.gr/~hy460/pdf/p650-lehman.pdf
+
+This is still a work in progress and the CRUD methods on the tree
+need to be parallelized.  Until this is complete, there is no
+constructor method for this package.
+
+Time complexities:
+Space: O(n)
+Search: O(log n)
+Insert: O(log n)
+Delete: O(log n)
+
+Current benchmarks with 16 ary:
+BenchmarkSimpleAdd-8	 	1000000	      1455 ns/op
+BenchmarkGet-8	 			2000000	       704 ns/op
+
+B-link was chosen after examining this paper:
+http://www.vldb.org/journal/VLDBJ2/P361.pdf
+*/
+
 package link
 
 import (
@@ -48,6 +70,9 @@ func (blink *blink) insert(key Key) Key {
 	return result
 }
 
+// Insert will insert the provided keys into the b-tree and return
+// a list of keys overwritten, if any.  Each insert is an O(log n)
+// operation.
 func (blink *blink) Insert(keys ...Key) Keys {
 	overwritten := make(Keys, 0, len(keys))
 	for _, k := range keys {
@@ -57,6 +82,7 @@ func (blink *blink) Insert(keys ...Key) Keys {
 	return overwritten
 }
 
+// Len returns the number of items in this b-link tree.
 func (blink *blink) Len() uint64 {
 	return atomic.LoadUint64(&blink.number)
 }
@@ -74,6 +100,9 @@ func (blink *blink) get(key Key) Key {
 	return nil
 }
 
+// Get will retrieve the keys if they exist in this tree.  If not,
+// a nil is returned in the proper place in the list of keys.  Each
+// lookup is O(log n) time complexity.
 func (blink *blink) Get(keys ...Key) Keys {
 	found := make(Keys, 0, len(keys))
 	for _, k := range keys {
