@@ -44,24 +44,31 @@ import (
 	"sync/atomic"
 )
 
+// numberOfItemsBeforeMultithread defines the number of items that have
+// to be called with a method before we multithread.
+const numberOfItemsBeforeMultithread = 10
+
 type blink struct {
-	root        *node
-	lock        sync.RWMutex
-	number, ary uint64
+	root                     *node
+	lock                     sync.RWMutex
+	number, ary, numRoutines uint64
 }
 
 func (blink *blink) insert(key Key) Key {
 	var parent *node
 	blink.lock.Lock()
 	if blink.root == nil {
-		blink.root = newNode(true)
+		blink.root = newNode(
+			true, make(Keys, 0, blink.ary), make(nodes, 0, blink.ary+1),
+		)
 		blink.root.keys = make(Keys, 0, blink.ary)
 		blink.root.isLeaf = true
 	}
 	parent = blink.root
 	blink.lock.Unlock()
 
-	result := insert(blink, parent, make(nodes, 0, blink.ary), key)
+	stack := make(nodes, 0, blink.ary)
+	result := insert(blink, parent, &stack, key)
 	if result == nil {
 		atomic.AddUint64(&blink.number, 1)
 		return nil
@@ -70,10 +77,38 @@ func (blink *blink) insert(key Key) Key {
 	return result
 }
 
+func (blink *blink) multithreadedInsert(keys Keys) Keys {
+	println(`MULTITHREADED INSERT.`)
+	chunks := chunkKeys(keys, int64(blink.numRoutines))
+	overwritten := make(Keys, len(keys))
+	var offset uint64
+	var wg sync.WaitGroup
+	wg.Add(len(chunks))
+
+	for _, chunk := range chunks {
+		go func(chunk Keys, offset uint64) {
+			defer wg.Done()
+
+			for i := 0; i < len(chunk); i++ {
+				result := blink.insert(chunk[i])
+				overwritten[offset+uint64(i)] = result
+			}
+		}(chunk, offset)
+		offset += uint64(len(chunk))
+	}
+
+	wg.Wait()
+
+	return overwritten
+}
+
 // Insert will insert the provided keys into the b-tree and return
 // a list of keys overwritten, if any.  Each insert is an O(log n)
 // operation.
 func (blink *blink) Insert(keys ...Key) Keys {
+	if len(keys) > numberOfItemsBeforeMultithread {
+		return blink.multithreadedInsert(keys)
+	}
 	overwritten := make(Keys, 0, len(keys))
 	for _, k := range keys {
 		overwritten = append(overwritten, blink.insert(k))
@@ -88,13 +123,17 @@ func (blink *blink) Len() uint64 {
 }
 
 func (blink *blink) get(key Key) Key {
-	n, index := search(blink.root, key)
-	if index == len(n.keys) {
+	var parent *node
+	blink.lock.RLock()
+	parent = blink.root
+	blink.lock.RUnlock()
+	k := search(parent, key)
+	if k == nil {
 		return nil
 	}
 
-	if n.keys[index].Compare(key) == 0 {
-		return n.keys[index]
+	if k.Compare(key) == 0 {
+		return k
 	}
 
 	return nil
@@ -121,6 +160,6 @@ func (blink *blink) print(output *log.Logger) {
 	blink.root.print(output)
 }
 
-func newTree(ary uint64) *blink {
-	return &blink{ary: ary}
+func newTree(ary, numRoutines uint64) *blink {
+	return &blink{ary: ary, numRoutines: numRoutines}
 }
