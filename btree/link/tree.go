@@ -78,7 +78,6 @@ func (blink *blink) insert(key Key) Key {
 }
 
 func (blink *blink) multithreadedInsert(keys Keys) Keys {
-	println(`MULTITHREADED INSERT.`)
 	chunks := chunkKeys(keys, int64(blink.numRoutines))
 	overwritten := make(Keys, len(keys))
 	var offset uint64

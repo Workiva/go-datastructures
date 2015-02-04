@@ -32,7 +32,7 @@ func getConsoleLogger() *log.Logger {
 func generateRandomKeys(num int) Keys {
 	keys := make(Keys, 0, num)
 	for i := 0; i < num; i++ {
-		keys = append(keys, mockKey(uint64(rand.Uint32())))
+		keys = append(keys, mockKey(uint64(rand.Uint32()%uint32(100))))
 	}
 
 	return keys
@@ -163,8 +163,8 @@ func TestMultipleInsertCausesSplitEvenAryMultiThreaded(t *testing.T) {
 }
 
 func TestMultipleInsertCausesCascadingSplitsOddAry(t *testing.T) {
-	keys := generateRandomKeys(16)
-	tree := newTree(3, 1)
+	keys := generateRandomKeys(1600)
+	tree := newTree(9, 8)
 
 	result := tree.Insert(keys...)
 	assert.Len(t, result, len(keys)) // about all we can assert, random may produce duplicates
@@ -177,8 +177,8 @@ func TestMultipleInsertCausesCascadingSplitsOddAry(t *testing.T) {
 }
 
 func TestMultipleInsertCausesCascadingSplitsOddAryReverseOrder(t *testing.T) {
-	keys := generateKeys(16)
-	tree := newTree(3, 1)
+	keys := generateKeys(30000)
+	tree := newTree(17, 8)
 
 	reversed := keys.reverse()
 
@@ -187,15 +187,14 @@ func TestMultipleInsertCausesCascadingSplitsOddAryReverseOrder(t *testing.T) {
 	assert.Len(t, result, len(keys)) // about all we can assert, random may produce duplicates
 
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
-		tree.print(getConsoleLogger())
+		//tree.print(getConsoleLogger())
 	}
 	checkTree(t, tree)
 }
 
-/*
 func TestMultipleInsertCausesCascadingSplitsEvenAry(t *testing.T) {
-	keys := generateRandomKeys(20)
-	tree := newTree(4)
+	keys := generateRandomKeys(200)
+	tree := newTree(12, 8)
 
 	result := tree.Insert(keys...)
 	assert.Len(t, result, len(keys)) // about all we can assert, random may produce duplicates
@@ -206,7 +205,7 @@ func TestMultipleInsertCausesCascadingSplitsEvenAry(t *testing.T) {
 
 func TestOverwriteOddAry(t *testing.T) {
 	keys := generateRandomKeys(15)
-	tree := newTree(3)
+	tree := newTree(3, 8)
 	duplicate := mockKey(uint64(keys[0].(mockKey)))
 
 	result := tree.Insert(keys...)
@@ -220,7 +219,7 @@ func TestOverwriteOddAry(t *testing.T) {
 
 func TestOverwriteEvenAry(t *testing.T) {
 	keys := generateRandomKeys(15)
-	tree := newTree(4)
+	tree := newTree(12, 8)
 	duplicate := mockKey(uint64(keys[0].(mockKey)))
 
 	result := tree.Insert(keys...)
@@ -235,7 +234,7 @@ func TestOverwriteEvenAry(t *testing.T) {
 func BenchmarkSimpleAdd(b *testing.B) {
 	numItems := 1000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(16)
+	tree := newTree(16, 8)
 
 	b.ResetTimer()
 
@@ -247,7 +246,7 @@ func BenchmarkSimpleAdd(b *testing.B) {
 func BenchmarkGet(b *testing.B) {
 	numItems := 1000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(16)
+	tree := newTree(16, 4)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
@@ -255,7 +254,7 @@ func BenchmarkGet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tree.Get(keys[i%numItems])
 	}
-}*/
+}
 
 func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 1000
@@ -264,7 +263,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newTree(16, 4)
+		tree := newTree(64, 1)
 		tree.Insert(keys...)
 	}
 }

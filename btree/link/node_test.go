@@ -30,42 +30,50 @@ func newTestNode(isLeaf bool, ary int) *node {
 	}
 }
 
-func checkTree(t testing.TB, tree *blink) {
+func checkTree(t testing.TB, tree *blink) bool {
 	if tree.root == nil {
-		return
+		return true
 	}
 
-	checkNode(t, tree.root)
+	return checkNode(t, tree.root)
 }
 
-func checkNode(t testing.TB, n *node) {
+func checkNode(t testing.TB, n *node) bool {
 	if len(n.keys) == 0 {
 		assert.Len(t, n.nodes, 0)
-		return
+		return false
 	}
 
 	if n.isLeaf {
 		assert.Len(t, n.nodes, 0)
-		return
+		return false
 	}
 
 	if !assert.Len(t, n.nodes, len(n.keys)+1) {
-		return
+		return false
 	}
 
 	for i := 0; i < len(n.keys); i++ {
 		if !assert.True(t, n.keys[i].Compare(n.nodes[i].key()) >= 0) {
 			t.Logf(`N: %+v %p, n.keys[i]: %+v, n.nodes[i]: %+v`, n, n, n.keys[i], n.nodes[i])
+			return false
 		}
 	}
 
-	assert.True(t, n.nodes[len(n.nodes)-1].key().Compare(n.keys.last()) > 0)
+	if !assert.True(t, n.nodes[len(n.nodes)-1].key().Compare(n.keys.last()) > 0) {
+		t.Logf(`m: %+v, %p, n.nodes[len(n.nodes)-1].key(): %+v, n.keys.last(): %+v`, n, n, n.nodes[len(n.nodes)-1].key(), n.keys.last())
+		return false
+	}
 	for _, child := range n.nodes {
 		if !assert.NotNil(t, child) {
-			continue
+			return false
 		}
-		checkNode(t, child)
+		if !checkNode(t, child) {
+			return false
+		}
 	}
+
+	return true
 }
 
 func TestSplitInternalNodeOddAry(t *testing.T) {
@@ -92,8 +100,6 @@ func TestSplitInternalNodeOddAry(t *testing.T) {
 	assert.Equal(t, l.right, r)
 	assert.False(t, l.isLeaf)
 	assert.False(t, r.isLeaf)
-	checkNode(t, l)
-	checkNode(t, r)
 }
 
 func TestSplitInternalNodeEvenAry(t *testing.T) {
@@ -122,8 +128,6 @@ func TestSplitInternalNodeEvenAry(t *testing.T) {
 	assert.Equal(t, l.right, r)
 	assert.False(t, l.isLeaf)
 	assert.False(t, r.isLeaf)
-	checkNode(t, l)
-	checkNode(t, r)
 }
 
 func TestSplitLeafNodeOddAry(t *testing.T) {
@@ -140,8 +144,6 @@ func TestSplitLeafNodeOddAry(t *testing.T) {
 	assert.True(t, l.isLeaf)
 	assert.True(t, r.isLeaf)
 	assert.Equal(t, r, l.right)
-	checkNode(t, l)
-	checkNode(t, r)
 }
 
 func TestSplitLeafNodeEvenAry(t *testing.T) {
@@ -159,6 +161,4 @@ func TestSplitLeafNodeEvenAry(t *testing.T) {
 	assert.True(t, l.isLeaf)
 	assert.True(t, r.isLeaf)
 	assert.Equal(t, r, l.right)
-	checkNode(t, l)
-	checkNode(t, r)
 }

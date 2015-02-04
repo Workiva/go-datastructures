@@ -53,6 +53,7 @@ func getParent(parent *node, stack *nodes, key Key) *node {
 }
 
 func insert(tree *blink, parent *node, stack *nodes, key Key) Key {
+	//stack.push(parent)
 	parent = getParent(parent, stack, key)
 
 	parent.lock.Lock()
@@ -82,16 +83,21 @@ func split(tree *blink, n *node, stack *nodes) {
 		k, l, r = n.split()
 		parent = stack.pop()
 		if parent == nil {
-			parent = newNode(false, make(Keys, 0, tree.ary), make(nodes, 0, tree.ary+1))
-			parent.maxSeen = r.max()
-			parent.keys.insert(k)
-			parent.nodes.push(l)
-			parent.nodes.push(r)
 			tree.lock.Lock()
-			tree.root = parent
+			if tree.root == nil || tree.root == n {
+				parent = newNode(false, make(Keys, 0, tree.ary), make(nodes, 0, tree.ary+1))
+				parent.maxSeen = r.max()
+				parent.keys.insert(k)
+				parent.nodes.push(l)
+				parent.nodes.push(r)
+				tree.root = parent
+				n.lock.Unlock()
+				tree.lock.Unlock()
+				return
+			}
+
+			parent = tree.root
 			tree.lock.Unlock()
-			n.lock.Unlock()
-			return
 		}
 
 		parent.lock.Lock()
@@ -108,23 +114,26 @@ func split(tree *blink, n *node, stack *nodes) {
 	n.lock.Unlock()
 }
 
-func moveRight(node *node, key Key, getLock bool) *node {
+func moveRight(n *node, key Key, getLock bool) *node {
+	var right *node
 	for {
-		if len(node.keys) == 0 || node.right == nil { // this is either the node or the rightmost node
-			return node
+		if len(n.keys) == 0 || n.right == nil { // this is either the node or the rightmost node
+			return n
 		}
-		if key.Compare(node.max()) < 1 {
-			return node
+		if key.Compare(n.max()) < 1 {
+			return n
 		}
 
 		if getLock {
-			node.right.lock.Lock()
-			node.lock.Unlock()
+			n.right.lock.Lock()
+			right = n.right
+			n.lock.Unlock()
 		} else {
-			node.right.lock.RLock()
-			node.lock.RUnlock()
+			n.right.lock.RLock()
+			right = n.right
+			n.lock.RUnlock()
 		}
-		node = node.right
+		n = right
 	}
 }
 
