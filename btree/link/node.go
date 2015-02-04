@@ -88,6 +88,7 @@ func split(tree *blink, n *node, stack *nodes) {
 		parent = stack.pop()
 		if parent == nil {
 			parent = newNode(false, make(Keys, 0, tree.ary), make(nodes, 0, tree.ary+1))
+			parent.maxSeen = r.max()
 			parent.keys.insert(k)
 			parent.nodes.push(l)
 			parent.nodes.push(r)
@@ -105,12 +106,6 @@ func split(tree *blink, n *node, stack *nodes) {
 		parent.nodes[i] = l
 		parent.nodes.insertAt(r, i+1)
 
-		/*
-			if !parent.isLeaf && len(parent.nodes) != len(parent.keys)+1 {
-				log.Printf(`I: %+v`, i)
-				log.Printf(`FUCK, PARENT: %+v, L: %+v, R: %+v`, parent, l, r)
-			}*/
-
 		n.lock.Unlock()
 		n = parent
 	}
@@ -123,7 +118,7 @@ func moveRight(node *node, key Key, getLock bool) *node {
 		if len(node.keys) == 0 || node.right == nil { // this is either the node or the rightmost node
 			return node
 		}
-		if max != nil && key.Compare(max) < 1 {
+		if key.Compare(node.max()) < 1 {
 			return node
 		}
 
@@ -178,11 +173,12 @@ func (ns *nodes) splitAt(i int) (nodes, nodes) {
 }
 
 type node struct {
-	keys   Keys
-	nodes  nodes
-	right  *node
-	lock   sync.RWMutex
-	isLeaf bool
+	keys    Keys
+	nodes   nodes
+	right   *node
+	lock    sync.RWMutex
+	isLeaf  bool
+	maxSeen Key
 }
 
 func (n *node) key() Key {
@@ -207,6 +203,14 @@ func (n *node) insertNode(other *node) {
 
 func (n *node) needsSplit() bool {
 	return n.keys.needsSplit()
+}
+
+func (n *node) max() Key {
+	if n.isLeaf {
+		return n.keys.last()
+	}
+
+	return n.maxSeen
 }
 
 func (n *node) splitLeaf() (Key, *node, *node) {
@@ -241,7 +245,9 @@ func (n *node) splitInternal() (Key, *node, *node) {
 	}
 
 	nn := newNode(false, rightKeys, rightNodes)
+	nn.maxSeen = n.max()
 
+	n.maxSeen = key
 	n.keys = n.keys[:i]
 	n.nodes = n.nodes[:i+1]
 	n.right = nn
@@ -263,9 +269,11 @@ func (n *node) search(key Key) int {
 
 func (n *node) searchNode(key Key) *node {
 	i := n.search(key)
+
 	if i < len(n.keys) && n.keys[i].Compare(key) == 0 {
 		i++
 	}
+
 	return n.nodes[i]
 }
 
