@@ -117,14 +117,10 @@ func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 	result := tree.Insert(k1, k2, k3, k4)
 	assert.Equal(t, Keys{nil, nil, nil, nil}, result)
 	assert.Equal(t, uint64(4), tree.Len())
-	if !assert.Equal(t, Keys{k3}, tree.Get(k3)) {
+
+	if !assert.Equal(t, Keys{k1, k2, k3, k4}, tree.Get(k1, k2, k3, k4)) {
 		tree.print(getConsoleLogger())
 	}
-
-	/*
-		if !assert.Equal(t, Keys{k1, k2, k3, k4}, tree.Get(k1, k2, k3, k4)) {
-			tree.print(getConsoleLogger())
-		}*/
 	checkTree(t, tree)
 }
 
@@ -168,10 +164,11 @@ func TestMultipleInsertCausesSplitEvenAryMultiThreaded(t *testing.T) {
 
 func TestMultipleInsertCausesCascadingSplitsOddAry(t *testing.T) {
 	keys := generateRandomKeys(16)
-	tree := newTree(3, 8)
+	tree := newTree(3, 1)
 
 	result := tree.Insert(keys...)
 	assert.Len(t, result, len(keys)) // about all we can assert, random may produce duplicates
+	checkTree(t, tree)
 
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
 		tree.print(getConsoleLogger())
@@ -186,17 +183,13 @@ func TestMultipleInsertCausesCascadingSplitsOddAryReverseOrder(t *testing.T) {
 	reversed := keys.reverse()
 
 	result := tree.Insert(reversed...)
+
 	assert.Len(t, result, len(keys)) // about all we can assert, random may produce duplicates
 
-	println(`SHIT STARTS HERE`)
-	if !assert.Equal(t, mockKey(3), tree.Get(mockKey(3))) {
+	if !assert.Equal(t, keys, tree.Get(keys...)) {
 		tree.print(getConsoleLogger())
 	}
-	/*
-		if !assert.Equal(t, keys, tree.Get(keys...)) {
-			tree.print(getConsoleLogger())
-		}*/
-	//checkTree(t, tree)
+	checkTree(t, tree)
 }
 
 /*

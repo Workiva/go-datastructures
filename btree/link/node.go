@@ -24,12 +24,9 @@ import (
 func search(parent *node, key Key) Key {
 	parent = getParent(parent, nil, key)
 	parent.lock.RLock()
-	println(`FOUND`)
-	log.Printf(`BEFORE MOVE: %+v`, parent)
 	parent = moveRight(parent, key, false)
 	defer parent.lock.RUnlock()
 
-	log.Printf(`PARENT: %+v`, parent)
 	i := parent.search(key)
 	if i == len(parent.keys) {
 		return nil
@@ -42,10 +39,8 @@ func getParent(parent *node, stack *nodes, key Key) *node {
 	var n *node
 	for parent != nil && !parent.isLeaf {
 		parent.lock.RLock()
-		log.Printf(`PARENT: %+v, %p`, parent, parent)
 		parent = moveRight(parent, key, false) // if this happens on the root this should always just return
 		n = parent.searchNode(key)
-
 		if stack != nil {
 			stack.push(parent)
 		}
@@ -182,7 +177,7 @@ type node struct {
 }
 
 func (n *node) key() Key {
-	return n.keys.first()
+	return n.keys.last()
 }
 
 func (n *node) insert(key Key) Key {
@@ -216,7 +211,7 @@ func (n *node) max() Key {
 func (n *node) splitLeaf() (Key, *node, *node) {
 	i := (len(n.keys) / 2)
 	key := n.keys[i]
-	_, rightKeys := n.keys.splitAt(i - 1)
+	_, rightKeys := n.keys.splitAt(i)
 	nn := &node{
 		keys:   rightKeys,
 		right:  n.right,
@@ -269,10 +264,6 @@ func (n *node) search(key Key) int {
 
 func (n *node) searchNode(key Key) *node {
 	i := n.search(key)
-
-	if i < len(n.keys) && n.keys[i].Compare(key) == 0 {
-		i++
-	}
 
 	return n.nodes[i]
 }
