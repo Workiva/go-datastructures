@@ -53,7 +53,6 @@ func getParent(parent *node, stack *nodes, key Key) *node {
 }
 
 func insert(tree *blink, parent *node, stack *nodes, key Key) Key {
-	//stack.push(parent)
 	parent = getParent(parent, stack, key)
 
 	parent.lock.Lock()
@@ -138,6 +137,14 @@ func moveRight(n *node, key Key, getLock bool) *node {
 }
 
 type nodes []*node
+
+func (ns *nodes) reset() {
+	for i := range *ns {
+		(*ns)[i] = nil
+	}
+
+	*ns = (*ns)[:0]
+}
 
 func (ns *nodes) push(n *node) {
 	*ns = append(*ns, n)

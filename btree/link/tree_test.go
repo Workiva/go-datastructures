@@ -257,7 +257,7 @@ func BenchmarkGet(b *testing.B) {
 }
 
 func BenchmarkBulkAdd(b *testing.B) {
-	numItems := 1000
+	numItems := b.N
 	keys := generateRandomKeys(numItems)
 
 	b.ResetTimer()

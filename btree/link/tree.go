@@ -54,7 +54,7 @@ type blink struct {
 	number, ary, numRoutines uint64
 }
 
-func (blink *blink) insert(key Key) Key {
+func (blink *blink) insert(key Key, stack *nodes) Key {
 	var parent *node
 	blink.lock.Lock()
 	if blink.root == nil {
@@ -67,8 +67,7 @@ func (blink *blink) insert(key Key) Key {
 	parent = blink.root
 	blink.lock.Unlock()
 
-	stack := make(nodes, 0, blink.ary)
-	result := insert(blink, parent, &stack, key)
+	result := insert(blink, parent, stack, key)
 	if result == nil {
 		atomic.AddUint64(&blink.number, 1)
 		return nil
@@ -87,9 +86,11 @@ func (blink *blink) multithreadedInsert(keys Keys) Keys {
 	for _, chunk := range chunks {
 		go func(chunk Keys, offset uint64) {
 			defer wg.Done()
+			stack := make(nodes, 0, blink.ary)
 
 			for i := 0; i < len(chunk); i++ {
-				result := blink.insert(chunk[i])
+				result := blink.insert(chunk[i], &stack)
+				stack.reset()
 				overwritten[offset+uint64(i)] = result
 			}
 		}(chunk, offset)
@@ -109,8 +110,10 @@ func (blink *blink) Insert(keys ...Key) Keys {
 		return blink.multithreadedInsert(keys)
 	}
 	overwritten := make(Keys, 0, len(keys))
+	stack := make(nodes, 0, blink.ary)
 	for _, k := range keys {
-		overwritten = append(overwritten, blink.insert(k))
+		overwritten = append(overwritten, blink.insert(k, &stack))
+		stack.reset()
 	}
 
 	return overwritten
