@@ -59,7 +59,7 @@ func (ia *insertAction) addResult(index uint64, result Key) {
 	if i >= uint64(len(ia.keys)) {
 		return
 	}
-	ia.keys[i] = result
+	ia.keys[index] = result
 	if i == uint64(len(ia.keys))-1 {
 		ia.complete()
 	}

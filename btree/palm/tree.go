@@ -272,6 +272,15 @@ func (ptree *ptree) Len() uint64 {
 	return atomic.LoadUint64(&ptree.number)
 }
 
+func (ptree *ptree) print(output *log.Logger) {
+	println(`PRINTING TREE`)
+	if ptree.root == nil {
+		return
+	}
+
+	ptree.root.print(output)
+}
+
 func newTree(ary uint64) *ptree {
 	return &ptree{
 		root:    newNode(true, make(Keys, 0, ary), make(nodes, 0, ary+1)),
