@@ -1,6 +1,13 @@
 package palm
 
-import "sync/atomic"
+import (
+	"log"
+	"sync/atomic"
+)
+
+func init() {
+	log.Println(`LOG HATES THIS.`)
+}
 
 type actionBundles []*actionBundle
 
@@ -23,10 +30,12 @@ type action interface {
 type insertAction struct {
 	keys        Keys
 	count, done uint64
+	completer   chan Keys
 }
 
 func (ia *insertAction) complete() {
-	// TODO: add completion
+	ia.completer <- ia.keys
+	close(ia.completer)
 }
 
 func (ia *insertAction) operation() operation {
@@ -44,18 +53,42 @@ func (ia *insertAction) getKey() (Key, uint64) {
 }
 
 func (ia *insertAction) addResult(index uint64, result Key) {
+	println(`ADDING RESULT`)
 	i := atomic.AddUint64(&ia.done, 1)
 	i--
-	if i == uint64(len(ia.keys)) {
-		ia.complete()
-		return
-	} else if i > uint64(len(ia.keys)) {
+	if i >= uint64(len(ia.keys)) {
 		return
 	}
-
 	ia.keys[i] = result
+	if i == uint64(len(ia.keys))-1 {
+		ia.complete()
+	}
 }
 
 func (ia *insertAction) len() uint64 {
 	return uint64(len(ia.keys))
+}
+
+func newInsertAction(keys Keys) *insertAction {
+	return &insertAction{
+		keys:      keys,
+		completer: make(chan Keys, 1),
+	}
+}
+
+type getAction struct {
+	*insertAction
+}
+
+func (ga *getAction) operation() operation {
+	return get
+}
+
+func newGetAction(keys Keys) *getAction {
+	return &getAction{
+		&insertAction{
+			keys:      keys,
+			completer: make(chan Keys, 1),
+		},
+	}
 }

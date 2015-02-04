@@ -1,11 +1,16 @@
 package palm
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 
 	"github.com/Workiva/go-datastructures/queue"
 )
+
+func init() {
+	log.Printf(`I HATE THIS.`)
+}
 
 type operation int
 
@@ -32,17 +37,19 @@ type ptree struct {
 	root                             *node
 	ary, number, threads, bufferSize uint64
 	pending                          *pending
-	lock                             sync.RWMutex
-	read, write                      sync.Mutex
+	lock, read, write                sync.Mutex
 }
 
 func (ptree *ptree) runOperations() {
+	log.Printf(`RUNNING OPERATIONS`)
 	ptree.lock.Lock()
 	toPerform := ptree.pending
 	ptree.pending = &pending{}
 	ptree.lock.Unlock()
 
-	q := queue.New(int64(ptree.number))
+	log.Printf(`toPerform: %+v`, toPerform)
+
+	q := queue.New(int64(toPerform.number))
 	var key Key
 	var i uint64
 	for _, ab := range toPerform.bundles {
@@ -75,6 +82,9 @@ func (ptree *ptree) runOperations() {
 			ptree.write.Unlock()
 		}
 	})
+
+	ptree.runReads(readOperations)
+	ptree.runAdds(writeOperations)
 }
 
 func (ptree *ptree) runReads(readOperations bundleMap) {
@@ -124,9 +134,6 @@ func (ptree *ptree) recursiveSplit(n, parent *node, nodes *nodes, keys *Keys) {
 
 func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool) {
 	if len(layer) == 0 {
-		if setRoot {
-			panic(`ROOT HASN'T BEEN SET`)
-		}
 		return
 	}
 
@@ -216,6 +223,9 @@ func (ptree *ptree) runAdds(addOperations bundleMap) {
 		for _, ab := range abs {
 			oldKey := n.keys.insert(ab.key)
 			ab.action.addResult(ab.index, oldKey)
+			if oldKey == nil {
+				atomic.AddUint64(&ptree.number, 1)
+			}
 		}
 
 		if n.needsSplit(ptree.ary) {
@@ -231,6 +241,41 @@ func (ptree *ptree) runAdds(addOperations bundleMap) {
 	})
 
 	setRoot := needRoot > 0
+	log.Printf(`NEXT LAYER: %+v`, nextLayer)
 
 	ptree.recursiveAdd(nextLayer, setRoot)
+}
+
+func (ptree *ptree) Insert(keys ...Key) Keys {
+	ia := newInsertAction(keys)
+	ptree.lock.Lock()
+	ptree.pending.bundles = append(ptree.pending.bundles, ia)
+	ptree.pending.number += uint64(len(keys))
+	ptree.lock.Unlock()
+
+	go ptree.runOperations()
+	return <-ia.completer
+}
+
+func (ptree *ptree) Get(keys ...Key) Keys {
+	ga := newGetAction(keys)
+	ptree.lock.Lock()
+	ptree.pending.bundles = append(ptree.pending.bundles, ga)
+	ptree.pending.number += uint64(len(keys))
+	ptree.lock.Unlock()
+
+	go ptree.runOperations()
+	return <-ga.completer
+}
+
+func (ptree *ptree) Len() uint64 {
+	return atomic.LoadUint64(&ptree.number)
+}
+
+func newTree(ary uint64) *ptree {
+	return &ptree{
+		root:    newNode(true, make(Keys, 0, ary), make(nodes, 0, ary+1)),
+		ary:     ary,
+		pending: &pending{},
+	}
 }
