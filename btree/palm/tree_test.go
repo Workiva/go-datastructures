@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -71,17 +72,21 @@ func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 }
 
 func BenchmarkBulkAdd(b *testing.B) {
-	numItems := 1000
-	keys := generateRandomKeys(numItems)
+	numItems := 10000
+	keys := generateKeys(numItems)
+	keySet := make([]Keys, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		cp := make(Keys, len(keys))
+		copy(cp, keys)
+		keySet = append(keySet, cp)
+	}
+
+	runtime.GC()
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		cp := make(Keys, len(keys))
-		copy(cp, keys)
-		b.StartTimer()
-		tree := newTree(128)
-		tree.Insert(cp...)
+		tree := newTree(2056)
+		tree.Insert(keySet[i]...)
 	}
 }

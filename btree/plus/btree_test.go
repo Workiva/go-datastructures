@@ -333,6 +333,18 @@ func BenchmarkInsert(b *testing.B) {
 	}
 }
 
+func BenchmarkBulkAdd(b *testing.B) {
+	numItems := 10000
+	keys := constructRandomMockKeys(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree := newBTree(128)
+		tree.Insert(keys...)
+	}
+}
+
 func BenchmarkGet(b *testing.B) {
 	numItems := b.N
 	ary := uint64(16)
