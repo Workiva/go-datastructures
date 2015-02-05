@@ -117,26 +117,34 @@ func (ptree *ptree) runOperations() {
 
 	var wg sync.WaitGroup
 	var offset int
+	var inserts []*node
 	wg.Add(1) // for the gets
 
-	inserts := make([]*node, len(toPerform.writes))
-	chunks := chunkKeys(toPerform.writes, 8)
-	wg.Add(len(chunks)) // for the inserts
-	go ptree.runReads(toPerform.reads, &wg)
+	if len(toPerform.writes) > 0 {
+		inserts = make([]*node, len(toPerform.writes))
+		chunks := chunkKeys(toPerform.writes, 8)
+		wg.Add(len(chunks)) // for the inserts
+		go ptree.runReads(toPerform.reads, &wg)
 
-	for _, chunk := range chunks {
-		go func(offset int, chunk Keys) {
-			for i, k := range chunk {
-				n := getParent(ptree.root, k)
-				inserts[offset+i] = n
-			}
+		for _, chunk := range chunks {
+			go func(offset int, chunk Keys) {
+				for i, k := range chunk {
+					n := getParent(ptree.root, k)
+					inserts[offset+i] = n
+				}
 
-			wg.Done()
-		}(offset, chunk)
-		offset += len(chunk)
+				wg.Done()
+			}(offset, chunk)
+			offset += len(chunk)
+		}
+	} else {
+		go ptree.runReads(toPerform.reads, &wg)
 	}
 
 	wg.Wait()
+	if len(toPerform.writes) == 0 {
+		return
+	}
 	writeOperations := make(map[*node]Keys)
 	for i, n := range inserts {
 		writeOperations[n] = append(writeOperations[n], toPerform.writes[i])

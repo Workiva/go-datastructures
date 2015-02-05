@@ -22,6 +22,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -96,6 +97,7 @@ func generateKeys(num int) Keys {
 
 func TestSimpleInsert(t *testing.T) {
 	tree := newTree(16)
+	defer tree.Dispose()
 	m1 := mockKey(1)
 
 	tree.Insert(m1)
@@ -106,6 +108,7 @@ func TestSimpleInsert(t *testing.T) {
 
 func TestMultipleAdd(t *testing.T) {
 	tree := newTree(16)
+	defer tree.Dispose()
 	m1 := mockKey(1)
 	m2 := mockKey(10)
 
@@ -119,6 +122,7 @@ func TestMultipleAdd(t *testing.T) {
 
 func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 	tree := newTree(3)
+	defer tree.Dispose()
 	keys := generateKeys(100)
 	reversed := keys.reverse()
 
@@ -131,6 +135,7 @@ func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 
 func TestMultipleInsertCausesSplitOddAry(t *testing.T) {
 	tree := newTree(3)
+	defer tree.Dispose()
 	keys := generateKeys(1000)
 
 	tree.Insert(keys...)
@@ -142,6 +147,7 @@ func TestMultipleInsertCausesSplitOddAry(t *testing.T) {
 
 func TestMultipleInsertCausesSplitOddAryRandomOrder(t *testing.T) {
 	tree := newTree(3)
+	defer tree.Dispose()
 	keys := generateRandomKeys(100)
 
 	tree.Insert(keys...)
@@ -153,6 +159,7 @@ func TestMultipleInsertCausesSplitOddAryRandomOrder(t *testing.T) {
 
 func TestMultipleBulkInsertOddAry(t *testing.T) {
 	tree := newTree(3)
+	defer tree.Dispose()
 	keys1 := generateRandomKeys(100)
 	keys2 := generateRandomKeys(100)
 
@@ -171,6 +178,7 @@ func TestMultipleBulkInsertOddAry(t *testing.T) {
 
 func TestMultipleBulkInsertEvenAry(t *testing.T) {
 	tree := newTree(4)
+	defer tree.Dispose()
 	keys1 := generateRandomKeys(100)
 	keys2 := generateRandomKeys(100)
 
@@ -189,6 +197,7 @@ func TestMultipleBulkInsertEvenAry(t *testing.T) {
 
 func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 	tree := newTree(4)
+	defer tree.Dispose()
 	keys := generateKeys(1000)
 	reversed := keys.reverse()
 
@@ -201,6 +210,7 @@ func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 
 func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 	tree := newTree(4)
+	defer tree.Dispose()
 	keys := generateKeys(1000)
 
 	tree.Insert(keys...)
@@ -212,6 +222,7 @@ func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 
 func TestMultipleInsertCausesSplitEvenAryRandomOrder(t *testing.T) {
 	tree := newTree(4)
+	defer tree.Dispose()
 	keys := generateRandomKeys(1000)
 
 	tree.Insert(keys...)
@@ -223,6 +234,7 @@ func TestMultipleInsertCausesSplitEvenAryRandomOrder(t *testing.T) {
 
 func TestInsertOverwrite(t *testing.T) {
 	tree := newTree(4)
+	defer tree.Dispose()
 	keys := generateKeys(10)
 	duplicate := mockKey(0)
 	tree.Insert(keys...)
@@ -240,6 +252,7 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 	}
 
 	tree := newTree(16)
+	defer tree.Dispose()
 	var wg sync.WaitGroup
 	wg.Add(numLoops)
 	for i := 0; i < numLoops; i++ {
@@ -299,7 +312,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 }
 
 func BenchmarkBulkAddToExisting(b *testing.B) {
-	numItems := 10000
+	numItems := 100000
 	keySet := make([]Keys, 0, b.N)
 	for i := 0; i < b.N; i++ {
 		keySet = append(keySet, generateRandomKeys(numItems))
@@ -315,10 +328,11 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 }
 
 func BenchmarkGet(b *testing.B) {
-	numItems := 1000
+	numItems := 100000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(16)
+	tree := newTree(1024)
 	tree.Insert(keys...)
+	time.Sleep(2 * time.Second)
 
 	b.ResetTimer()
 
