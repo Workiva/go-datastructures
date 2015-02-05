@@ -53,11 +53,13 @@ func (ptree *ptree) listen() {
 }
 
 func (ptree *ptree) runOperations() {
+	println(`RUNNING OPERATIONS`)
 	ptree.lock.Lock()
 	toPerform := ptree.pending
 	ptree.pending = &pending{}
 	ptree.lock.Unlock()
 
+	log.Printf(`TO PERFORM: %+v`, toPerform)
 	if toPerform.number == 0 {
 		return
 	}
@@ -216,15 +218,10 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 			}
 		}
 
-		//log.Printf(`N BEFORE SPLIT: %+v`, n)
 		if n.needsSplit(ptree.ary) {
 			keys := make(Keys, 0, len(n.keys))
 			nodes := make(nodes, 0, len(n.nodes))
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
-			//log.Printf(`AFTER SPLIT: %+v, NODES: %+v, KEYS: %+v`, n, nodes, keys)
-			//for _, nd := range nodes {
-			//	log.Printf(`NODE: %+v`, nd)
-			//}
 			ptree.write.Lock()
 			nextLayer[parent] = append(
 				nextLayer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},

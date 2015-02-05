@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,8 +76,8 @@ func TestMultipleInsertCausesSplitOddAry(t *testing.T) {
 
 func TestMultipleBulkInsertOddAry(t *testing.T) {
 	tree := newTree(3)
-	keys1 := generateRandomKeys(100)
-	keys2 := generateRandomKeys(100)
+	keys1 := generateRandomKeys(10)
+	keys2 := generateRandomKeys(10)
 
 	tree.Insert(keys1...)
 	tree.Insert(keys2...)
@@ -126,6 +127,69 @@ func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
 		tree.print(getConsoleLogger())
 	}
+}
+
+func TestInsertOverwrite(t *testing.T) {
+	tree := newTree(4)
+	keys := generateKeys(10)
+	duplicate := mockKey(0)
+	tree.Insert(keys...)
+
+	tree.Insert(duplicate)
+	assert.Equal(t, Keys{duplicate}, tree.Get(duplicate))
+}
+
+func TestSimultaneousReadsAndWrites(t *testing.T) {
+	numLoops := 3
+	keys := make([]Keys, 0, numLoops)
+	for i := 0; i < numLoops; i++ {
+		keys = append(keys, generateRandomKeys(1000))
+	}
+
+	tree := newTree(16)
+	var wg sync.WaitGroup
+	wg.Add(numLoops)
+	for i := 0; i < numLoops; i++ {
+		go func(i int) {
+			tree.Insert(keys[i]...)
+			tree.Get(keys[i]...)
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i := 0; i < numLoops; i++ {
+		println(`IN GET LOOP`)
+		assert.Equal(t, keys[i], tree.Get(keys[i]...))
+	}
+}
+
+func BenchmarkReadAndWrites(b *testing.B) {
+	numLoops := 3
+	numItems := 1000
+	keys := make([]Keys, 0, numLoops)
+	for i := 0; i < numLoops; i++ {
+		keys = append(keys, generateRandomKeys(numItems))
+	}
+
+	tree := newTree(16)
+	var wg sync.WaitGroup
+	wg.Add(numLoops)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < numLoops; j++ {
+			go func(j int) {
+				tree.Insert(keys[j]...)
+				tree.Get(keys[j]...)
+				wg.Done()
+			}(j)
+		}
+
+		wg.Wait()
+	}
+
 }
 
 func BenchmarkBulkAdd(b *testing.B) {

@@ -78,10 +78,28 @@ func newInsertAction(keys Keys) *insertAction {
 
 type getAction struct {
 	*insertAction
+	result Keys
+}
+
+func (ga *getAction) complete() {
+	ga.completer <- ga.result
+	close(ga.completer)
 }
 
 func (ga *getAction) operation() operation {
 	return get
+}
+
+func (ga *getAction) addResult(index uint64, result Key) {
+	i := atomic.AddUint64(&ga.done, 1)
+	i--
+	if i >= uint64(len(ga.keys)) {
+		return
+	}
+	ga.result[index] = result
+	if i == uint64(len(ga.keys))-1 {
+		ga.complete()
+	}
 }
 
 func newGetAction(keys Keys) *getAction {
@@ -90,5 +108,6 @@ func newGetAction(keys Keys) *getAction {
 			keys:      keys,
 			completer: make(chan Keys),
 		},
+		make(Keys, len(keys)),
 	}
 }
