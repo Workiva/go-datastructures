@@ -115,6 +115,10 @@ func (n *node) searchNode(key Key) *node {
 	return n.nodes[i]
 }
 
+func (n *node) key() Key {
+	return n.keys[len(n.keys)-1]
+}
+
 func (n *node) print(output *log.Logger) {
 	output.Printf(`NODE: %+v, %p`, n, n)
 	if !n.isLeaf {
