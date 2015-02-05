@@ -20,7 +20,9 @@ import (
 	"log"
 	"sync"
 	"sync/atomic"
+	"time"
 
+	"github.com/Workiva/go-datastructures/futures"
 	"github.com/Workiva/go-datastructures/queue"
 )
 
@@ -39,8 +41,11 @@ type recursiveBuild struct {
 }
 
 type pending struct {
-	bundles actions
-	number  uint64
+	reads    actions
+	writes   Keys
+	number   uint64
+	signal   *futures.Future
+	signaler chan interface{}
 }
 
 type bundleMap map[*node]actionBundles
@@ -51,6 +56,15 @@ type ptree struct {
 	pending     *pending
 	lock, write sync.Mutex
 	waiter      *queue.Queue
+}
+
+func (ptree *ptree) initPending() {
+	signaler := make(chan interface{})
+	future := futures.New(signaler, 30*time.Minute)
+	ptree.pending = &pending{
+		signal:   future,
+		signaler: signaler,
+	}
 }
 
 func (ptree *ptree) listen() {
@@ -64,22 +78,10 @@ func (ptree *ptree) listen() {
 	}
 }
 
-func (ptree *ptree) runOperations() {
-	ptree.lock.Lock()
-	toPerform := ptree.pending
-	ptree.pending = &pending{}
-	ptree.lock.Unlock()
-
-	if toPerform.number == 0 {
-		return
-	}
-
+func (ptree *ptree) runReads(reads actions, wg *sync.WaitGroup) {
 	var key Key
 	var i uint64
-
-	writeOperations := make(map[*node]Keys, toPerform.number/2)
-
-	for _, action := range toPerform.bundles {
+	for _, action := range reads {
 		for {
 			key, i = action.getKey()
 			if key == nil {
@@ -99,18 +101,52 @@ func (ptree *ptree) runOperations() {
 				} else {
 					ab.action.addResult(i, nil)
 				}
-			case add, remove:
-				writeOperations[n] = append(writeOperations[n], key)
 			}
 		}
 	}
 
-	ptree.runAdds(writeOperations)
-	for _, action := range toPerform.bundles {
-		if action.operation() == add || action.operation() == remove {
-			action.complete()
-		}
+	wg.Done()
+}
+
+func (ptree *ptree) runOperations() {
+	ptree.lock.Lock()
+	toPerform := ptree.pending
+	ptree.initPending()
+	ptree.lock.Unlock()
+
+	if toPerform.number == 0 {
+		return
 	}
+
+	var wg sync.WaitGroup
+	var offset int
+	wg.Add(1) // for the gets
+
+	inserts := make([]*node, len(toPerform.writes))
+	chunks := chunkKeys(toPerform.writes, 8)
+	wg.Add(len(chunks)) // for the inserts
+	go ptree.runReads(toPerform.reads, &wg)
+
+	for _, chunk := range chunks {
+		go func(offset int, chunk Keys) {
+			for i, k := range chunk {
+				n := getParent(ptree.root, k)
+				inserts[offset+i] = n
+			}
+
+			wg.Done()
+		}(offset, chunk)
+		offset += len(chunk)
+	}
+
+	wg.Wait()
+	writeOperations := make(map[*node]Keys)
+	for i, n := range inserts {
+		writeOperations[n] = append(writeOperations[n], toPerform.writes[i])
+	}
+
+	ptree.runAdds(writeOperations)
+	toPerform.signaler <- true
 }
 
 func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *nodes, keys *Keys) {
@@ -249,21 +285,22 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 
 // Insert will add the provided keys to the tree.
 func (ptree *ptree) Insert(keys ...Key) {
-	ia := newInsertAction(keys)
+	var signaler *futures.Future
 	ptree.lock.Lock()
-	ptree.pending.bundles = append(ptree.pending.bundles, ia)
+	ptree.pending.writes = append(ptree.pending.writes, keys...)
 	ptree.pending.number += uint64(len(keys))
+	signaler = ptree.pending.signal
 	ptree.lock.Unlock()
 
 	ptree.waiter.Put(true)
-	<-ia.completer
+	signaler.GetResult()
 }
 
 // Get will retrieve a list of keys from the provided keys.
 func (ptree *ptree) Get(keys ...Key) Keys {
 	ga := newGetAction(keys)
 	ptree.lock.Lock()
-	ptree.pending.bundles = append(ptree.pending.bundles, ga)
+	ptree.pending.reads = append(ptree.pending.reads, ga)
 	ptree.pending.number += uint64(len(keys))
 	ptree.lock.Unlock()
 
@@ -298,6 +335,7 @@ func newTree(ary uint64) *ptree {
 		pending: &pending{},
 		waiter:  queue.New(10),
 	}
+	ptree.initPending()
 	go ptree.listen()
 	return ptree
 }
