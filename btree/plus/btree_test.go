@@ -335,12 +335,12 @@ func BenchmarkInsert(b *testing.B) {
 
 func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
-	keys := constructRandomMockKeys(numItems)
+	keys := constructMockKeys(numItems)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newBTree(128)
+		tree := newBTree(1024)
 		tree.Insert(keys...)
 	}
 }
@@ -357,5 +357,21 @@ func BenchmarkGet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		tree.Get(keys[i%numItems])
+	}
+}
+
+func BenchmarkBulkAddToExisting(b *testing.B) {
+	numItems := 10000
+	keySet := make([]keys, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		keySet = append(keySet, constructRandomMockKeys(numItems))
+	}
+
+	tree := newBTree(1024)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Insert(keySet[i]...)
 	}
 }

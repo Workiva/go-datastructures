@@ -38,6 +38,18 @@ type ptree struct {
 	ary, number, threads, bufferSize uint64
 	pending                          *pending
 	lock, read, write                sync.Mutex
+	waiter                           *queue.Queue
+}
+
+func (ptree *ptree) listen() {
+	for {
+		_, err := ptree.waiter.Get(10)
+		if err != nil {
+			return
+		}
+
+		ptree.runOperations()
+	}
 }
 
 func (ptree *ptree) runOperations() {
@@ -46,73 +58,47 @@ func (ptree *ptree) runOperations() {
 	ptree.pending = &pending{}
 	ptree.lock.Unlock()
 
-	q := queue.New(int64(toPerform.number))
+	if toPerform.number == 0 {
+		return
+	}
+
 	var key Key
 	var i uint64
-	for _, ab := range toPerform.bundles {
+
+	writeOperations := make(map[*node]Keys, toPerform.number/2)
+
+	for _, action := range toPerform.bundles {
 		for {
-			key, i = ab.getKey()
+			key, i = action.getKey()
 			if key == nil {
 				break
 			}
 
-			q.Put(&actionBundle{key: key, index: i, action: ab})
+			n := getParent(ptree.root, key)
+			ab := &actionBundle{key: key, index: i, action: action, node: n}
+			switch ab.action.operation() {
+			case get:
+				if n == nil {
+					ab.action.addResult(i, nil)
+				}
+				index := n.keys.search(key)
+				if index < len(n.keys) && n.keys[index].Compare(key) == 0 {
+					ab.action.addResult(i, n.keys[index])
+				} else {
+					ab.action.addResult(i, nil)
+				}
+			case add, remove:
+				writeOperations[n] = append(writeOperations[n], key)
+			}
 		}
 	}
 
-	readOperations := make(bundleMap, q.Len())
-	writeOperations := make(bundleMap, q.Len())
-
-	queue.ExecuteInParallel(q, func(ifc interface{}) {
-		ab := ifc.(*actionBundle)
-
-		node := getParent(ptree.root, ab.key)
-		ab.node = node
-		switch ab.action.operation() {
-		case get:
-			ptree.read.Lock()
-			readOperations[node] = append(readOperations[node], ab)
-			ptree.read.Unlock()
-		case add, remove:
-			ptree.write.Lock()
-			writeOperations[node] = append(writeOperations[node], ab)
-			ptree.write.Unlock()
-		}
-	})
-
-	ptree.runReads(readOperations)
 	ptree.runAdds(writeOperations)
-}
-
-func (ptree *ptree) runReads(readOperations bundleMap) {
-	q := queue.New(int64(len(readOperations)))
-
-	for _, abs := range readOperations {
-		for _, ab := range abs {
-			q.Put(ab)
+	for _, action := range toPerform.bundles {
+		if action.operation() == add || action.operation() == remove {
+			action.complete()
 		}
 	}
-
-	queue.ExecuteInParallel(q, func(ifc interface{}) {
-		ab := ifc.(*actionBundle)
-		if ab.node == nil {
-			ab.action.addResult(ab.index, nil)
-			return
-		}
-
-		result := ab.node.search(ab.key)
-		if result == len(ab.node.keys) {
-			ab.action.addResult(ab.index, nil)
-			return
-		}
-
-		if ab.node.keys[result].Compare(ab.key) == 0 {
-			ab.action.addResult(ab.index, ab.node.keys[result])
-			return
-		}
-
-		ab.action.addResult(ab.index, nil)
-	})
 }
 
 func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *nodes, keys *Keys) {
@@ -199,33 +185,32 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	ptree.recursiveAdd(layer, setRoot)
 }
 
-func (ptree *ptree) runAdds(addOperations bundleMap) {
+func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 	q := queue.New(int64(len(addOperations)))
 
-	for _, abs := range addOperations {
-		q.Put(abs)
+	for n := range addOperations {
+		q.Put(n)
 	}
 
 	nextLayer := make(map[*node][]*recursiveBuild)
 	dummyRoot := &node{} // constructed in case we need it
 	var needRoot uint64
 	queue.ExecuteInParallel(q, func(ifc interface{}) {
-		abs := ifc.(actionBundles)
+		n := ifc.(*node)
+		keys := addOperations[n]
 
-		if len(abs) == 0 {
+		if len(keys) == 0 {
 			return
 		}
 
-		n := abs[0].node
 		parent := n.parent
 		if parent == nil {
 			parent = dummyRoot
 			atomic.AddUint64(&needRoot, 1)
 		}
 
-		for _, ab := range abs {
-			oldKey := n.keys.insert(ab.key)
-			ab.action.addResult(ab.index, oldKey)
+		for _, key := range keys {
+			oldKey := n.keys.insert(key)
 			if oldKey == nil {
 				atomic.AddUint64(&ptree.number, 1)
 			}
@@ -237,6 +222,9 @@ func (ptree *ptree) runAdds(addOperations bundleMap) {
 			nodes := make(nodes, 0, len(n.nodes))
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
 			//log.Printf(`AFTER SPLIT: %+v, NODES: %+v, KEYS: %+v`, n, nodes, keys)
+			//for _, nd := range nodes {
+			//	log.Printf(`NODE: %+v`, nd)
+			//}
 			ptree.write.Lock()
 			nextLayer[parent] = append(
 				nextLayer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
@@ -257,7 +245,7 @@ func (ptree *ptree) Insert(keys ...Key) Keys {
 	ptree.pending.number += uint64(len(keys))
 	ptree.lock.Unlock()
 
-	go ptree.runOperations()
+	ptree.waiter.Put(true)
 	result := <-ia.completer
 	return result
 }
@@ -269,7 +257,7 @@ func (ptree *ptree) Get(keys ...Key) Keys {
 	ptree.pending.number += uint64(len(keys))
 	ptree.lock.Unlock()
 
-	go ptree.runOperations()
+	ptree.waiter.Put(true)
 	return <-ga.completer
 }
 
@@ -287,9 +275,12 @@ func (ptree *ptree) print(output *log.Logger) {
 }
 
 func newTree(ary uint64) *ptree {
-	return &ptree{
+	ptree := &ptree{
 		root:    newNode(true, make(Keys, 0, ary), make(nodes, 0, ary+1)),
 		ary:     ary,
 		pending: &pending{},
+		waiter:  queue.New(10),
 	}
+	go ptree.listen()
+	return ptree
 }

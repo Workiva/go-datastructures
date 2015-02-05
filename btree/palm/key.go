@@ -4,7 +4,7 @@ import "sort"
 
 func (keys Keys) search(key Key) int {
 	return sort.Search(len(keys), func(i int) bool {
-		return keys[i].Compare(key) >= 0
+		return keys[i].Compare(key) > -1
 	})
 }
 

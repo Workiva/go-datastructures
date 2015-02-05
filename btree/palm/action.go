@@ -25,6 +25,7 @@ type action interface {
 	getKey() (Key, uint64) // returns nil if operation complete
 	addResult(index uint64, result Key)
 	len() uint64
+	complete()
 }
 
 type insertAction struct {
