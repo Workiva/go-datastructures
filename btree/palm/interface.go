@@ -47,3 +47,17 @@ type Key interface {
 	// are allowed, but duplicate IDs are not.
 	Compare(Key) int
 }
+
+// BTree is the interface returned from this package's constructor.
+type BTree interface {
+	// Insert will insert the provided keys into the tree.
+	Insert(...Key)
+	// Get will return a key matching the associated provided
+	// key if it exists.
+	Get(...Key) Keys
+	// Len returns the number of items in the tree.
+	Len() uint64
+	// Dispose will clean up any resources used by this tree.  This
+	// must be called to prevent a memory leak.
+	Dispose()
+}

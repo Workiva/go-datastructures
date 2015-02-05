@@ -276,6 +276,12 @@ func (ptree *ptree) Len() uint64 {
 	return atomic.LoadUint64(&ptree.number)
 }
 
+// Dispose will clean up any resources used by this tree.  This
+// must be called to prevent a memory leak.
+func (ptree *ptree) Dispose() {
+	ptree.waiter.Dispose()
+}
+
 func (ptree *ptree) print(output *log.Logger) {
 	println(`PRINTING TREE`)
 	if ptree.root == nil {
@@ -294,4 +300,11 @@ func newTree(ary uint64) *ptree {
 	}
 	go ptree.listen()
 	return ptree
+}
+
+// New will allocate, initialize, and return a new B-Tree based
+// on PALM principles.  This type of tree is suited for in-memory
+// indices in a multi-threaded environment.
+func New(ary uint64) BTree {
+	return newTree(ary)
 }
