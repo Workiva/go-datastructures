@@ -2,14 +2,34 @@ package palm
 
 import (
 	"log"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func getConsoleLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
+}
+
+func generateRandomKeys(num int) Keys {
+	keys := make(Keys, 0, num)
+	for i := 0; i < num; i++ {
+		m := rand.Int()
+		keys = append(keys, mockKey(m))
+	}
+	return keys
+}
+
+func generateKeys(num int) Keys {
+	keys := make(Keys, 0, num)
+	for i := 0; i < num; i++ {
+		keys = append(keys, mockKey(i))
+	}
+
+	return keys
 }
 
 func TestSimpleInsert(t *testing.T) {
@@ -33,4 +53,35 @@ func TestMultipleAdd(t *testing.T) {
 		tree.print(getConsoleLogger())
 	}
 	assert.Equal(t, uint64(2), tree.Len())
+}
+
+func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
+	tree := newTree(8)
+	keys := generateRandomKeys(16)
+	reversed := keys.reverse()
+
+	result := tree.Insert(reversed...)
+	assert.Len(t, result, len(keys))
+	time.Sleep(100 * time.Millisecond)
+	//if !assert.Equal(t, keys, tree.Get(keys...)) {
+	//	tree.print(getConsoleLogger())
+	//}
+	time.Sleep(10 * time.Millisecond)
+	//tree.print(getConsoleLogger())
+}
+
+func BenchmarkBulkAdd(b *testing.B) {
+	numItems := 1000
+	keys := generateRandomKeys(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		cp := make(Keys, len(keys))
+		copy(cp, keys)
+		b.StartTimer()
+		tree := newTree(128)
+		tree.Insert(cp...)
+	}
 }

@@ -142,7 +142,7 @@ func (n *node) splitLeaf() (Key, *node, *node) {
 		keys:   rightKeys,
 		isLeaf: true,
 	}
-	n.right = n
+	n.right = nn
 	return key, n, nn
 }
 

@@ -53,7 +53,6 @@ func (ia *insertAction) getKey() (Key, uint64) {
 }
 
 func (ia *insertAction) addResult(index uint64, result Key) {
-	println(`ADDING RESULT`)
 	i := atomic.AddUint64(&ia.done, 1)
 	i--
 	if i >= uint64(len(ia.keys)) {
@@ -72,7 +71,7 @@ func (ia *insertAction) len() uint64 {
 func newInsertAction(keys Keys) *insertAction {
 	return &insertAction{
 		keys:      keys,
-		completer: make(chan Keys, 1),
+		completer: make(chan Keys),
 	}
 }
 
@@ -88,7 +87,7 @@ func newGetAction(keys Keys) *getAction {
 	return &getAction{
 		&insertAction{
 			keys:      keys,
-			completer: make(chan Keys, 1),
+			completer: make(chan Keys),
 		},
 	}
 }
