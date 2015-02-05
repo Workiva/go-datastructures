@@ -21,52 +21,39 @@ import (
 	"sync"
 )
 
-func scan(node *node, key Key) (Key, int) {
-	index := node.search(key)
-	if index == len(node.keys) {
-		right := moveRight(node, key, false)
-		index = right.search(key)
-		if index == len(right.keys) {
-			index--
-			return right.keys[index], index
-		}
-
-		return right.keys[index], index
-	}
-
-	return node.keys[index], index
-}
-
-func search(parent *node, key Key) (*node, int) {
-	var found Key
-	var ok bool
-	for parent != nil && !parent.isLeaf {
-		found, _ = scan(parent, key)
-		parent, ok = found.(*node)
-		if !ok {
-			break
-		}
-	}
-
+func search(parent *node, key Key) Key {
+	parent = getParent(parent, nil, key)
+	parent.lock.RLock()
 	parent = moveRight(parent, key, false)
-	return parent, parent.search(key)
+	defer parent.lock.RUnlock()
+
+	i := parent.search(key)
+	if i == len(parent.keys) {
+		return nil
+	}
+
+	return parent.keys[i]
 }
 
-func insert(tree *blink, parent *node, stack nodes, key Key) Key {
-	var found Key
-	var index int
-	var ok bool
+func getParent(parent *node, stack *nodes, key Key) *node {
+	var n *node
 	for parent != nil && !parent.isLeaf {
-		found, index = scan(parent, key)
-		if index < len(parent.keys) {
+		parent.lock.RLock()
+		parent = moveRight(parent, key, false) // if this happens on the root this should always just return
+		n = parent.searchNode(key)
+		if stack != nil {
 			stack.push(parent)
 		}
 
-		parent, ok = found.(*node)
-		if !ok {
-			break
-		}
+		parent.lock.RUnlock()
+		parent = n
 	}
+
+	return parent
+}
+
+func insert(tree *blink, parent *node, stack *nodes, key Key) Key {
+	parent = getParent(parent, stack, key)
 
 	parent.lock.Lock()
 	parent = moveRight(parent, key, true)
@@ -83,30 +70,42 @@ func insert(tree *blink, parent *node, stack nodes, key Key) Key {
 	}
 
 	split(tree, parent, stack)
+
 	return nil
 }
 
-func split(tree *blink, n *node, stack nodes) {
+func split(tree *blink, n *node, stack *nodes) {
 	var l, r *node
+	var k Key
 	var parent *node
 	for n.needsSplit() {
-		l, r = n.split()
+		k, l, r = n.split()
 		parent = stack.pop()
 		if parent == nil {
-			parent = newNode(false)
-			parent.key = r.key
-			parent.insertNode(l)
-			parent.insertNode(r)
 			tree.lock.Lock()
-			tree.root = parent
+			if tree.root == nil || tree.root == n {
+				parent = newNode(false, make(Keys, 0, tree.ary), make(nodes, 0, tree.ary+1))
+				parent.maxSeen = r.max()
+				parent.keys.insert(k)
+				parent.nodes.push(l)
+				parent.nodes.push(r)
+				tree.root = parent
+				n.lock.Unlock()
+				tree.lock.Unlock()
+				return
+			}
+
+			parent = tree.root
 			tree.lock.Unlock()
-			n.lock.Unlock()
-			return
 		}
 
 		parent.lock.Lock()
-		parent = moveRight(parent, r.key, true)
-		parent.insertNode(r)
+		parent = moveRight(parent, r.key(), true)
+		i := parent.search(k)
+		parent.keys.insertAt(k, i)
+		parent.nodes[i] = l
+		parent.nodes.insertAt(r, i+1)
+
 		n.lock.Unlock()
 		n = parent
 	}
@@ -114,20 +113,38 @@ func split(tree *blink, n *node, stack nodes) {
 	n.lock.Unlock()
 }
 
-func moveRight(node *node, key Key, getLock bool) *node {
+func moveRight(n *node, key Key, getLock bool) *node {
+	var right *node
 	for {
-		if node.key == nil || node.key.Compare(key) > -1 || node.right == nil { // this is either the node or the rightmost node
-			return node
+		if len(n.keys) == 0 || n.right == nil { // this is either the node or the rightmost node
+			return n
 		}
+		if key.Compare(n.max()) < 1 {
+			return n
+		}
+
 		if getLock {
-			node.right.lock.Lock()
-			node.lock.Unlock()
+			n.right.lock.Lock()
+			right = n.right
+			n.lock.Unlock()
+		} else {
+			n.right.lock.RLock()
+			right = n.right
+			n.lock.RUnlock()
 		}
-		node = node.right
+		n = right
 	}
 }
 
 type nodes []*node
+
+func (ns *nodes) reset() {
+	for i := range *ns {
+		(*ns)[i] = nil
+	}
+
+	*ns = (*ns)[:0]
+}
 
 func (ns *nodes) push(n *node) {
 	*ns = append(*ns, n)
@@ -144,64 +161,146 @@ func (ns *nodes) pop() *node {
 	return n
 }
 
-type node struct {
-	keys   Keys
-	key    Key
-	right  *node
-	lock   sync.RWMutex
-	isLeaf bool
+func (ns *nodes) insertAt(n *node, i int) {
+	if i == len(*ns) {
+		*ns = append(*ns, n)
+		return
+	}
+
+	*ns = append(*ns, nil)
+	copy((*ns)[i+1:], (*ns)[i:])
+	(*ns)[i] = n
 }
 
-func (n *node) insertNode(other *node) {
-	n.keys.insertNode(other)
+func (ns *nodes) splitAt(i int) (nodes, nodes) {
+	length := len(*ns) - i
+	right := make(nodes, length, cap(*ns))
+	copy(right, (*ns)[i+1:])
+	for j := i + 1; j < len(*ns); j++ {
+		(*ns)[j] = nil
+	}
+	*ns = (*ns)[:i+1]
+	return *ns, right
+}
+
+type node struct {
+	keys    Keys
+	nodes   nodes
+	right   *node
+	lock    sync.RWMutex
+	isLeaf  bool
+	maxSeen Key
+}
+
+func (n *node) key() Key {
+	return n.keys.last()
 }
 
 func (n *node) insert(key Key) Key {
-	result := n.keys.insert(key)
-	if n.key == nil || key.Compare(n.key) > 0 {
-		n.key = key
+	if !n.isLeaf {
+		panic(`Can't only insert key in an internal node.`)
 	}
 
-	return result
+	overwritten := n.keys.insert(key)
+	return overwritten
+}
+
+func (n *node) insertNode(other *node) {
+	key := other.key()
+	i := n.keys.search(key)
+	n.keys.insertAt(key, i)
+	n.nodes.insertAt(other, i)
 }
 
 func (n *node) needsSplit() bool {
 	return n.keys.needsSplit()
 }
 
-func (n *node) split() (*node, *node) {
-	key, _, right := n.keys.split()
+func (n *node) max() Key {
+	if n.isLeaf {
+		return n.keys.last()
+	}
+
+	return n.maxSeen
+}
+
+func (n *node) splitLeaf() (Key, *node, *node) {
+	i := (len(n.keys) / 2)
+	key := n.keys[i]
+	_, rightKeys := n.keys.splitAt(i)
 	nn := &node{
-		keys:   right,
-		key:    right.last(),
+		keys:   rightKeys,
 		right:  n.right,
-		isLeaf: n.isLeaf,
+		isLeaf: true,
 	}
 	n.right = nn
-	n.key = key
-	return n, nn
+	return key, n, nn
+}
+
+func (n *node) splitInternal() (Key, *node, *node) {
+	i := (len(n.keys) / 2)
+	key := n.keys[i]
+
+	rightKeys := make(Keys, len(n.keys)-1-i, cap(n.keys))
+	rightNodes := make(nodes, len(rightKeys)+1, cap(n.nodes))
+
+	copy(rightKeys, n.keys[i+1:])
+	copy(rightNodes, n.nodes[i+1:])
+
+	// for garbage collection
+	for j := i + 1; j < len(n.nodes); j++ {
+		if j != len(n.keys) {
+			n.keys[j] = nil
+		}
+		n.nodes[j] = nil
+	}
+
+	nn := newNode(false, rightKeys, rightNodes)
+	nn.maxSeen = n.max()
+
+	n.maxSeen = key
+	n.keys = n.keys[:i]
+	n.nodes = n.nodes[:i+1]
+	n.right = nn
+
+	return key, n, nn
+}
+
+func (n *node) split() (Key, *node, *node) {
+	if n.isLeaf {
+		return n.splitLeaf()
+	}
+
+	return n.splitInternal()
 }
 
 func (n *node) search(key Key) int {
 	return n.keys.search(key)
 }
 
-func (n *node) Compare(key Key) int {
-	return n.key.Compare(key)
+func (n *node) searchNode(key Key) *node {
+	i := n.search(key)
+
+	return n.nodes[i]
 }
 
 func (n *node) print(output *log.Logger) {
 	output.Printf(`NODE: %+v, %p`, n, n)
-	for _, k := range n.keys {
-		result, ok := k.(*node)
-		if ok {
-			result.print(output)
-		} else {
-			output.Printf(`CHILD: %+v, %p`, k, k)
+	if !n.isLeaf {
+		for _, n := range n.nodes {
+			if n == nil {
+				output.Println(`NIL NODE`)
+				continue
+			}
+			n.print(output)
 		}
 	}
 }
 
-func newNode(isLeaf bool) *node {
-	return &node{isLeaf: isLeaf}
+func newNode(isLeaf bool, keys Keys, ns nodes) *node {
+	return &node{
+		isLeaf: isLeaf,
+		keys:   keys,
+		nodes:  ns,
+	}
 }

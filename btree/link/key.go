@@ -19,10 +19,6 @@ package link
 import "sort"
 
 func (keys Keys) search(key Key) int {
-	n, ok := key.(*node)
-	if ok {
-		key = n.key
-	}
 	return sort.Search(len(keys), func(i int) bool {
 		return keys[i].Compare(key) >= 0
 	})
@@ -30,6 +26,10 @@ func (keys Keys) search(key Key) int {
 
 func (keys *Keys) insert(key Key) Key {
 	i := keys.search(key)
+	return keys.insertAt(key, i)
+}
+
+func (keys *Keys) insertAt(key Key, i int) Key {
 	if i == len(*keys) {
 		*keys = append(*keys, key)
 		return nil
@@ -47,22 +47,15 @@ func (keys *Keys) insert(key Key) Key {
 	return nil
 }
 
-func (keys *Keys) insertNode(n *node) {
-	i := keys.search(n.key)
-	if i == len(*keys) {
-		*keys = append(*keys, n)
-		return
-	}
-
-	*keys = append(*keys, nil)
-	copy((*keys)[i+1:], (*keys)[i:])
-	(*keys)[i] = n
-}
-
 func (keys *Keys) split() (Key, Keys, Keys) {
-	i := len(*keys) / 2
+	i := (len(*keys) / 2) - 1
 	middle := (*keys)[i]
 
+	left, right := keys.splitAt(i)
+	return middle, left, right
+}
+
+func (keys *Keys) splitAt(i int) (Keys, Keys) {
 	right := make(Keys, len(*keys)-i-1, cap(*keys))
 	copy(right, (*keys)[i+1:])
 	for j := i + 1; j < len(*keys); j++ {
@@ -70,18 +63,34 @@ func (keys *Keys) split() (Key, Keys, Keys) {
 	}
 	*keys = (*keys)[:i+1]
 
-	return middle, *keys, right
+	return *keys, right
 }
 
 func (keys Keys) last() Key {
-	l := keys[len(keys)-1]
-	n, ok := l.(*node)
-	if !ok {
-		return l
-	}
-	return n.keys.last()
+	return keys[len(keys)-1]
+}
+
+func (keys Keys) first() Key {
+	return keys[0]
 }
 
 func (keys Keys) needsSplit() bool {
 	return cap(keys) == len(keys)
+}
+
+func (keys Keys) reverse() Keys {
+	reversed := make(Keys, len(keys))
+	for i := len(keys) - 1; i >= 0; i-- {
+		reversed[len(keys)-1-i] = keys[i]
+	}
+
+	return reversed
+}
+
+func chunkKeys(keys Keys, numParts int64) []Keys {
+	parts := make([]Keys, numParts)
+	for i := int64(0); i < numParts; i++ {
+		parts[i] = keys[i*int64(len(keys))/numParts : (i+1)*int64(len(keys))/numParts]
+	}
+	return parts
 }
