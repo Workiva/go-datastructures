@@ -1,17 +1,22 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package palm
 
 import "log"
-
-func search(parent *node, key Key) Key {
-	parent = getParent(parent, key)
-
-	i := parent.search(key)
-	if i == len(parent.keys) {
-		return nil
-	}
-
-	return parent.keys[i]
-}
 
 func getParent(parent *node, key Key) *node {
 	var n *node
@@ -23,69 +28,10 @@ func getParent(parent *node, key Key) *node {
 	return parent
 }
 
-/*
-func split(tree *blink, n *node, stack *nodes) {
-	var l, r *node
-	var k Key
-	var parent *node
-	for n.needsSplit() {
-		k, l, r = n.split()
-		parent = stack.pop()
-		if parent == nil {
-			tree.lock.Lock()
-			if tree.root == nil || tree.root == n {
-				parent = newNode(false, make(Keys, 0, tree.ary), make(nodes, 0, tree.ary+1))
-				parent.maxSeen = r.max()
-				parent.keys.insert(k)
-				parent.nodes.push(l)
-				parent.nodes.push(r)
-				tree.root = parent
-				n.lock.Unlock()
-				tree.lock.Unlock()
-				return
-			}
-
-			parent = tree.root
-			tree.lock.Unlock()
-		}
-
-		parent.lock.Lock()
-		parent = moveRight(parent, r.key(), true)
-		i := parent.search(k)
-		parent.keys.insertAt(k, i)
-		parent.nodes[i] = l
-		parent.nodes.insertAt(r, i+1)
-
-		n.lock.Unlock()
-		n = parent
-	}
-
-	n.lock.Unlock()
-}*/
-
 type nodes []*node
-
-func (ns *nodes) reset() {
-	for i := range *ns {
-		(*ns)[i] = nil
-	}
-
-	*ns = (*ns)[:0]
-}
 
 func (ns *nodes) push(n *node) {
 	*ns = append(*ns, n)
-}
-
-func (ns *nodes) pop() *node {
-	if len(*ns) == 0 {
-		return nil
-	}
-
-	n := (*ns)[len(*ns)-1]
-	(*ns)[len(*ns)-1] = nil
-	*ns = (*ns)[:len(*ns)-1]
-	return n
 }
 
 func (ns *nodes) insertAt(n *node, i int) {
@@ -99,35 +45,11 @@ func (ns *nodes) insertAt(n *node, i int) {
 	(*ns)[i] = n
 }
 
-func (ns *nodes) splitAt(i int) (nodes, nodes) {
-	length := len(*ns) - i
-	right := make(nodes, length, cap(*ns))
-	copy(right, (*ns)[i+1:])
-	for j := i + 1; j < len(*ns); j++ {
-		(*ns)[j] = nil
-	}
-	*ns = (*ns)[:i+1]
-	return *ns, right
-}
-
 type node struct {
 	keys          Keys
 	nodes         nodes
 	isLeaf        bool
 	parent, right *node
-}
-
-func (n *node) key() Key {
-	return n.keys.last()
-}
-
-func (n *node) insert(key Key) Key {
-	if !n.isLeaf {
-		panic(`Can't only insert key in an internal node.`)
-	}
-
-	overwritten := n.keys.insert(key)
-	return overwritten
 }
 
 func (n *node) needsSplit(ary uint64) bool {
@@ -165,6 +87,9 @@ func (n *node) splitInternal() (Key, *node, *node) {
 	}
 
 	nn := newNode(false, rightKeys, rightNodes)
+	for _, nd := range rightNodes {
+		nd.parent = nn
+	}
 
 	n.keys = n.keys[:i]
 	n.nodes = n.nodes[:i+1]

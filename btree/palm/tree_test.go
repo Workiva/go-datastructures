@@ -1,3 +1,19 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package palm
 
 import (
@@ -76,8 +92,8 @@ func TestMultipleInsertCausesSplitOddAry(t *testing.T) {
 
 func TestMultipleBulkInsertOddAry(t *testing.T) {
 	tree := newTree(3)
-	keys1 := generateRandomKeys(10)
-	keys2 := generateRandomKeys(10)
+	keys1 := generateRandomKeys(100)
+	keys2 := generateRandomKeys(100)
 
 	tree.Insert(keys1...)
 	tree.Insert(keys2...)
@@ -160,35 +176,29 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 	wg.Wait()
 
 	for i := 0; i < numLoops; i++ {
-		println(`IN GET LOOP`)
 		assert.Equal(t, keys[i], tree.Get(keys[i]...))
 	}
 }
 
 func BenchmarkReadAndWrites(b *testing.B) {
-	numLoops := 3
 	numItems := 1000
-	keys := make([]Keys, 0, numLoops)
-	for i := 0; i < numLoops; i++ {
+	keys := make([]Keys, 0, b.N)
+	for i := 0; i < b.N; i++ {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
 	tree := newTree(16)
 	var wg sync.WaitGroup
-	wg.Add(numLoops)
+	wg.Add(b.N)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < numLoops; j++ {
-			go func(j int) {
-				tree.Insert(keys[j]...)
-				tree.Get(keys[j]...)
-				wg.Done()
-			}(j)
-		}
-
-		wg.Wait()
+		tree.Insert(keys[i]...)
+		tree.Get(keys[i]...)
+		wg.Done()
 	}
+
+	wg.Wait()
 
 }
 

@@ -1,3 +1,19 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package palm
 
 import "sort"
@@ -31,14 +47,6 @@ func (keys *Keys) insertAt(key Key, i int) Key {
 	return nil
 }
 
-func (keys *Keys) split() (Key, Keys, Keys) {
-	i := (len(*keys) / 2) - 1
-	middle := (*keys)[i]
-
-	left, right := keys.splitAt(i)
-	return middle, left, right
-}
-
 func (keys *Keys) splitAt(i int) (Keys, Keys) {
 	right := make(Keys, len(*keys)-i-1, cap(*keys))
 	copy(right, (*keys)[i+1:])
@@ -48,18 +56,6 @@ func (keys *Keys) splitAt(i int) (Keys, Keys) {
 	*keys = (*keys)[:i+1]
 
 	return *keys, right
-}
-
-func (keys Keys) last() Key {
-	return keys[len(keys)-1]
-}
-
-func (keys Keys) first() Key {
-	return keys[0]
-}
-
-func (keys Keys) needsSplit() bool {
-	return cap(keys) == len(keys)
 }
 
 func (keys Keys) reverse() Keys {

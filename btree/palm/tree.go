@@ -1,3 +1,19 @@
+/*
+Copyright 2014 Workiva, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package palm
 
 import (
@@ -7,10 +23,6 @@ import (
 
 	"github.com/Workiva/go-datastructures/queue"
 )
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
 
 type operation int
 
@@ -34,11 +46,11 @@ type pending struct {
 type bundleMap map[*node]actionBundles
 
 type ptree struct {
-	root                             *node
-	ary, number, threads, bufferSize uint64
-	pending                          *pending
-	lock, read, write                sync.Mutex
-	waiter                           *queue.Queue
+	root        *node
+	ary, number uint64
+	pending     *pending
+	lock, write sync.Mutex
+	waiter      *queue.Queue
 }
 
 func (ptree *ptree) listen() {
@@ -53,13 +65,11 @@ func (ptree *ptree) listen() {
 }
 
 func (ptree *ptree) runOperations() {
-	println(`RUNNING OPERATIONS`)
 	ptree.lock.Lock()
 	toPerform := ptree.pending
 	ptree.pending = &pending{}
 	ptree.lock.Unlock()
 
-	log.Printf(`TO PERFORM: %+v`, toPerform)
 	if toPerform.number == 0 {
 		return
 	}
@@ -108,12 +118,10 @@ func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *nodes, keys *Ke
 		return
 	}
 
-	//log.Printf(`N: %+v, parent: %+v, left: %+v, nodes: %+v, keys: %+v`, n, parent, left, nodes, keys)
 	key, l, r := n.split()
 	if left != nil {
 		left.right = l
 	}
-	//log.Printf(`KEY: %+v, L: %+v: R: %+v`, key, l, r)
 	l.parent = parent
 	r.parent = parent
 	*keys = append(*keys, key)
@@ -158,7 +166,6 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 
 		for _, rb := range rbs {
 			for i, k := range rb.keys {
-				//log.Printf(`LOOP N: %+v`, n)
 				if len(n.keys) == 0 {
 					n.keys.insert(k)
 					n.nodes.push(rb.nodes[i*2])
@@ -240,7 +247,8 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 	ptree.recursiveAdd(nextLayer, setRoot)
 }
 
-func (ptree *ptree) Insert(keys ...Key) Keys {
+// Insert will add the provided keys to the tree.
+func (ptree *ptree) Insert(keys ...Key) {
 	ia := newInsertAction(keys)
 	ptree.lock.Lock()
 	ptree.pending.bundles = append(ptree.pending.bundles, ia)
@@ -248,10 +256,10 @@ func (ptree *ptree) Insert(keys ...Key) Keys {
 	ptree.lock.Unlock()
 
 	ptree.waiter.Put(true)
-	result := <-ia.completer
-	return result
+	<-ia.completer
 }
 
+// Get will retrieve a list of keys from the provided keys.
 func (ptree *ptree) Get(keys ...Key) Keys {
 	ga := newGetAction(keys)
 	ptree.lock.Lock()
@@ -263,6 +271,7 @@ func (ptree *ptree) Get(keys ...Key) Keys {
 	return <-ga.completer
 }
 
+// Len returns the number of items in the tree.
 func (ptree *ptree) Len() uint64 {
 	return atomic.LoadUint64(&ptree.number)
 }
