@@ -153,6 +153,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		parent := n.parent
 		if parent == nil {
 			parent = dummyRoot
+			setRoot = true
 		}
 
 		for _, rb := range rbs {
@@ -188,6 +189,10 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 }
 
 func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
+	if len(addOperations) == 0 {
+		return
+	}
+
 	q := queue.New(int64(len(addOperations)))
 
 	for n := range addOperations {
