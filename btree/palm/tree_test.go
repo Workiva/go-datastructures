@@ -313,3 +313,29 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 		tree.Insert(keySet[i]...)
 	}
 }
+
+func BenchmarkGet(b *testing.B) {
+	numItems := 1000
+	keys := generateRandomKeys(numItems)
+	tree := newTree(16)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Get(keys[i%numItems])
+	}
+}
+
+func BenchmarkBulkGet(b *testing.B) {
+	numItems := 1000
+	keys := generateRandomKeys(numItems)
+	tree := newTree(16)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Get(keys...)
+	}
+}

@@ -48,8 +48,6 @@ type pending struct {
 	signaler chan interface{}
 }
 
-type bundleMap map[*node]actionBundles
-
 type ptree struct {
 	root        *node
 	ary, number uint64
@@ -89,17 +87,16 @@ func (ptree *ptree) runReads(reads actions, wg *sync.WaitGroup) {
 			}
 
 			n := getParent(ptree.root, key)
-			ab := &actionBundle{key: key, index: i, action: action, node: n}
-			switch ab.action.operation() {
+			switch action.operation() {
 			case get:
 				if n == nil {
-					ab.action.addResult(i, nil)
+					action.addResult(i, nil)
 				}
 				index := n.keys.search(key)
 				if index < len(n.keys) && n.keys[index].Compare(key) == 0 {
-					ab.action.addResult(i, n.keys[index])
+					action.addResult(i, n.keys[index])
 				} else {
-					ab.action.addResult(i, nil)
+					action.addResult(i, nil)
 				}
 			}
 		}
