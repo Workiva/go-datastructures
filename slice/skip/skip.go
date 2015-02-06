@@ -26,20 +26,27 @@ Search: O(log n)
 Delete: O(log n)
 Space: O(n)
 
+Recently added is the capability to address, insert, and replace an
+entry by position.  This capability is acheived by saving the width
+of the "gap" between two nodes.  Searching for an item by position is
+very similar to searching by value in that the same basic algorithm is
+used but we are searching for width instead of value.  Because this avoids
+the overhead associated with Golang interfaces, operations by position
+are about twice as fast as operations by value.  Time complexities listed
+below.
+
+SearchByPosition: O(log n)
+InsertByPosition: O(log n)
+
 More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
 */
 
 package skip
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
-
-func init() {
-	log.Printf(`SKIP HATE THIS`)
-}
 
 const p = .5 // the p level defines the probability that a node
 // with a value at level i also has a value at i+1.  This number
@@ -212,6 +219,9 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	return entries
 }
 
+// GetWithPosition will retrieve the value with the provided key and
+// return the position of that value within the list.  Returns nil, 0
+// if an associated value could not be found.
 func (sl *SkipList) GetWithPosition(key uint64) (Entry, uint64) {
 	n, pos := sl.search(key, nil, nil)
 	if n == nil {
@@ -221,6 +231,7 @@ func (sl *SkipList) GetWithPosition(key uint64) (Entry, uint64) {
 	return n.entry, pos - 1
 }
 
+// ByPosition returns the entry at the given position.
 func (sl *SkipList) ByPosition(position uint64) Entry {
 	n, _ := sl.searchByPosition(position+1, nil, nil)
 	if n == nil {
@@ -259,8 +270,28 @@ func (sl *SkipList) insertAtPosition(position uint64, entry Entry) {
 	insertNode(sl, n, entry, pos, sl.cache, sl.posCache, true)
 }
 
+// InsertAtPosition will insert the provided entry and the provided position.
+// If position is greater than the length of the skiplist, the entry
+// is appended.  This method bypasses order checks and checks for
+// duplicates so use with caution.
 func (sl *SkipList) InsertAtPosition(position uint64, entry Entry) {
 	sl.insertAtPosition(position, entry)
+}
+
+func (sl *SkipList) replaceAtPosition(position uint64, entry Entry) {
+	n, _ := sl.searchByPosition(position+1, nil, nil)
+	if n == nil {
+		return
+	}
+
+	n.entry = entry
+}
+
+// Replace at position will replace the entry at the provided position
+// with the provided entry.  If the provided position does not exist,
+// this operation is a no-op.
+func (sl *SkipList) ReplaceAtPosition(position uint64, entry Entry) {
+	sl.replaceAtPosition(position, entry)
 }
 
 func (sl *SkipList) delete(key uint64) Entry {

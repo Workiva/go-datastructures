@@ -17,16 +17,11 @@ limitations under the License.
 package skip
 
 import (
-	"log"
 	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	log.Printf(`SKIP TEST HATE THIS.`)
-}
 
 func generateMockEntries(num int) Entries {
 	entries := make(Entries, 0, num)
@@ -85,6 +80,18 @@ func TestGetWithPosition(t *testing.T) {
 	e, pos = sl.GetWithPosition(m2.Key())
 	assert.Equal(t, m2, e)
 	assert.Equal(t, uint64(1), pos)
+}
+
+func TestReplaceAtPosition(t *testing.T) {
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(6)
+	sl := New(uint8(0))
+
+	sl.Insert(m1, m2)
+	m3 := newMockEntry(9)
+	sl.ReplaceAtPosition(0, m3)
+	assert.Equal(t, m3, sl.ByPosition(0))
+	assert.Equal(t, m2, sl.ByPosition(1))
 }
 
 func TestInsertRandomGetByPosition(t *testing.T) {
