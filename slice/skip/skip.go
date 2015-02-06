@@ -225,6 +225,7 @@ func (sl *SkipList) Insert(entries ...Entry) Entries {
 
 func (sl *SkipList) delete(key uint64) Entry {
 	sl.cache.reset()
+	sl.posCache.reset()
 	n, _ := sl.search(key, sl.cache, sl.posCache)
 
 	if n == nil || n.entry.Key() != key {
@@ -235,13 +236,18 @@ func (sl *SkipList) delete(key uint64) Entry {
 
 	for i := uint8(0); i <= sl.level; i++ {
 		if sl.cache[i].forward[i] != n {
-			break
+			if sl.cache[i].forward[i] != nil {
+				sl.cache[i].widths[i]--
+			}
+			continue
 		}
 
+		sl.cache[i].widths[i] += n.widths[i] - 1
 		sl.cache[i].forward[i] = n.forward[i]
 	}
 
 	for sl.level > 0 && sl.head.forward[sl.level] == nil {
+		sl.head.widths[sl.level] = 0
 		sl.level = sl.level - 1
 	}
 

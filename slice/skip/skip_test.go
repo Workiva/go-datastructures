@@ -57,6 +57,37 @@ func TestGetManyByPosition(t *testing.T) {
 	}
 }
 
+func TestGetPositionAfterDelete(t *testing.T) {
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(6)
+	sl := New(uint8(0))
+	sl.Insert(m1, m2)
+
+	sl.Delete(5)
+	assert.Equal(t, m2, sl.ByPosition(0))
+	assert.Nil(t, sl.ByPosition(1))
+
+	sl.Delete(6)
+	assert.Nil(t, sl.ByPosition(0))
+	assert.Nil(t, sl.ByPosition(1))
+}
+
+func TestGetPositionBulkDelete(t *testing.T) {
+	es := generateMockEntries(20)
+	e1 := es[:10]
+	e2 := es[10:]
+	sl := New(uint64(0))
+	sl.Insert(e1...)
+	sl.Insert(e2...)
+
+	for _, e := range e1 {
+		sl.Delete(e.Key())
+	}
+	for i, e := range e2 {
+		assert.Equal(t, e, sl.ByPosition(uint64(i)))
+	}
+}
+
 func TestSimpleInsert(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
@@ -103,7 +134,7 @@ func TestInsertOutOfOrder(t *testing.T) {
 	assert.Equal(t, Entries{m1, m2}, sl.Get(6, 5))
 }
 
-func TestDelete(t *testing.T) {
+func TestSimpleDelete(t *testing.T) {
 	m1 := newMockEntry(5)
 	sl := New(uint8(0))
 	sl.Insert(m1)
@@ -208,5 +239,18 @@ func BenchmarkPrepend(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		sl.Insert(newMockEntry(uint64(i)))
+	}
+}
+
+func BenchmarkByPosition(b *testing.B) {
+	numItems := b.N
+	sl := New(uint64(0))
+	entries := generateMockEntries(numItems)
+	sl.Insert(entries...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.ByPosition(uint64(i % numItems))
 	}
 }
