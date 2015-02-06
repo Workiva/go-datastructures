@@ -18,6 +18,7 @@ package skip
 
 import (
 	"log"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,6 +32,15 @@ func generateMockEntries(num int) Entries {
 	entries := make(Entries, 0, num)
 	for i := uint64(0); i < uint64(num); i++ {
 		entries = append(entries, newMockEntry(i))
+	}
+
+	return entries
+}
+
+func generateRandomMockEntries(num int) Entries {
+	entries := make(Entries, 0, num)
+	for i := 0; i < num; i++ {
+		entries = append(entries, newMockEntry(uint64(rand.Int())))
 	}
 
 	return entries
@@ -60,6 +70,32 @@ func TestGetByPosition(t *testing.T) {
 	assert.Equal(t, m1, sl.ByPosition(0))
 	assert.Equal(t, m2, sl.ByPosition(1))
 	assert.Nil(t, sl.ByPosition(2))
+}
+
+func TestGetWithPosition(t *testing.T) {
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(6)
+	sl := New(uint8(0))
+	sl.Insert(m1, m2)
+
+	e, pos := sl.GetWithPosition(m1.Key())
+	assert.Equal(t, m1, e)
+	assert.Equal(t, uint64(0), pos)
+
+	e, pos = sl.GetWithPosition(m2.Key())
+	assert.Equal(t, m2, e)
+	assert.Equal(t, uint64(1), pos)
+}
+
+func TestInsertRandomGetByPosition(t *testing.T) {
+	entries := generateRandomMockEntries(100)
+	sl := New(uint64(0))
+	sl.Insert(entries...)
+
+	for _, e := range entries {
+		_, pos := sl.GetWithPosition(e.Key())
+		assert.Equal(t, e, sl.ByPosition(pos))
+	}
 }
 
 func TestGetManyByPosition(t *testing.T) {

@@ -78,7 +78,6 @@ func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, pos
 	if nodeLevel > sl.level {
 		for i := sl.level; i < nodeLevel; i++ {
 			cache[i] = sl.head
-			//sl.head.widths[i] = pos
 		}
 		sl.level = nodeLevel
 	}
@@ -211,6 +210,15 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	}
 
 	return entries
+}
+
+func (sl *SkipList) GetWithPosition(key uint64) (Entry, uint64) {
+	n, pos := sl.search(key, nil, nil)
+	if n == nil {
+		return nil, 0
+	}
+
+	return n.entry, pos - 1
 }
 
 func (sl *SkipList) ByPosition(position uint64) Entry {
