@@ -36,6 +36,21 @@ func generateMockEntries(num int) Entries {
 	return entries
 }
 
+func TestInsertByPosition(t *testing.T) {
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(6)
+	m3 := newMockEntry(2)
+	sl := New(uint8(0))
+	sl.InsertAtPosition(2, m1)
+	sl.InsertAtPosition(0, m2)
+	sl.InsertAtPosition(0, m3)
+
+	assert.Equal(t, m3, sl.ByPosition(0))
+	assert.Equal(t, m2, sl.ByPosition(1))
+	assert.Equal(t, m1, sl.ByPosition(2))
+	assert.Nil(t, sl.ByPosition(3))
+}
+
 func TestGetByPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
@@ -48,7 +63,7 @@ func TestGetByPosition(t *testing.T) {
 }
 
 func TestGetManyByPosition(t *testing.T) {
-	entries := generateMockEntries(100)
+	entries := generateMockEntries(10)
 	sl := New(uint64(0))
 	sl.Insert(entries...)
 

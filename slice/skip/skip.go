@@ -66,6 +66,49 @@ func generateLevel(maxLevel uint8) uint8 {
 	return level
 }
 
+func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, posCache widths, allowDuplicate bool) Entry {
+	if !allowDuplicate && n != nil && n.key() == entry.Key() { // a simple update in this case
+		oldEntry := n.entry
+		n.entry = entry
+		return oldEntry
+	}
+	sl.num++
+
+	nodeLevel := generateLevel(sl.maxLevel)
+	if nodeLevel > sl.level {
+		for i := sl.level; i < nodeLevel; i++ {
+			cache[i] = sl.head
+			//sl.head.widths[i] = pos
+		}
+		sl.level = nodeLevel
+	}
+
+	nn := newNode(entry, nodeLevel)
+	for i := uint8(0); i < nodeLevel; i++ {
+		nn.forward[i] = cache[i].forward[i]
+		cache[i].forward[i] = nn
+		formerWidth := cache[i].widths[i]
+		if formerWidth == 0 {
+			nn.widths[i] = 0
+		} else {
+			nn.widths[i] = posCache[i] + formerWidth + 1 - pos
+		}
+
+		if cache[i].forward[i] != nil {
+			cache[i].widths[i] = pos - posCache[i]
+		}
+
+	}
+
+	for i := nodeLevel; i < sl.level; i++ {
+		if cache[i].forward[i] == nil {
+			continue
+		}
+		cache[i].widths[i]++
+	}
+	return nil
+}
+
 // Skip list is a datastructure that probabalistically determines
 // relationships between nodes.  This results in a structure
 // that performs similarly to a BST but is much easier to build
@@ -183,32 +226,7 @@ func (sl *SkipList) insert(entry Entry) Entry {
 	sl.cache.reset()
 	sl.posCache.reset()
 	n, pos := sl.search(entry.Key(), sl.cache, sl.posCache)
-	if n != nil && n.key() == entry.Key() { // a simple update in this case
-		oldEntry := n.entry
-		n.entry = entry
-		return oldEntry
-	}
-	sl.num++
-
-	nodeLevel := generateLevel(sl.maxLevel)
-	if nodeLevel > sl.level {
-		for i := sl.level; i < nodeLevel; i++ {
-			sl.cache[i] = sl.head
-			sl.head.widths[i] = sl.num
-		}
-		sl.level = nodeLevel
-	}
-
-	nn := newNode(entry, nodeLevel)
-	for i := uint8(0); i < nodeLevel; i++ {
-		nn.forward[i] = sl.cache[i].forward[i]
-		sl.cache[i].forward[i] = nn
-		formerWidth := sl.cache[i].widths[i]
-		nn.widths[i] = formerWidth - sl.cache[i].widths[i]
-		sl.cache[i].widths[i] = pos - sl.posCache[i]
-	}
-
-	return nil
+	return insertNode(sl, n, entry, pos, sl.cache, sl.posCache, false)
 }
 
 // Insert will insert the provided entries into the list.  Returned
@@ -221,6 +239,20 @@ func (sl *SkipList) Insert(entries ...Entry) Entries {
 	}
 
 	return overwritten
+}
+
+func (sl *SkipList) insertAtPosition(position uint64, entry Entry) {
+	if position > sl.num {
+		position = sl.num
+	}
+	sl.cache.reset()
+	sl.posCache.reset()
+	n, pos := sl.searchByPosition(position, sl.cache, sl.posCache)
+	insertNode(sl, n, entry, pos, sl.cache, sl.posCache, true)
+}
+
+func (sl *SkipList) InsertAtPosition(position uint64, entry Entry) {
+	sl.insertAtPosition(position, entry)
 }
 
 func (sl *SkipList) delete(key uint64) Entry {
