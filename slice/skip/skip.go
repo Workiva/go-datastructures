@@ -32,9 +32,14 @@ More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
 package skip
 
 import (
+	"log"
 	"math/rand"
 	"time"
 )
+
+func init() {
+	log.Printf(`SKIP HATE THIS`)
+}
 
 const p = .5 // the p level defines the probability that a node
 // with a value at level i also has a value at i+1.  This number
@@ -71,7 +76,8 @@ type SkipList struct {
 	num             uint64
 	// a list of nodes that can be reused, should reduce
 	// the number of allocations in the insert/delete case.
-	cache nodes
+	cache    nodes
+	posCache widths
 }
 
 // init will initialize this skiplist.  The parameter is expected
@@ -89,28 +95,60 @@ func (sl *SkipList) init(ifc interface{}) {
 		sl.maxLevel = 64
 	}
 	sl.cache = make(nodes, sl.maxLevel)
+	sl.posCache = make(widths, sl.maxLevel)
 	sl.head = newNode(nil, sl.maxLevel)
 }
 
-func (sl *SkipList) search(key uint64, update []*node) *node {
+func (sl *SkipList) search(key uint64, update nodes, widths widths) (*node, uint64) {
 	if sl.num == 0 { // nothing in the list
-		return nil
+		return nil, 1
 	}
 
+	var pos uint64 = 0
 	var offset uint8
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
 		for n.forward[offset] != nil && n.forward[offset].entry.Key() < key {
+			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
 
 		if update != nil {
 			update[offset] = n
+			widths[offset] = pos
 		}
 	}
 
-	return n.forward[0]
+	return n.forward[0], pos + 1
+}
+
+func (sl *SkipList) searchByPosition(position uint64, update nodes, widths widths) (*node, uint64) {
+	if sl.num == 0 { // nothing in the list
+		return nil, 1
+	}
+
+	if position > sl.num {
+		return nil, 1
+	}
+
+	var pos uint64 = 0
+	var offset uint8
+	n := sl.head
+	for i := uint8(0); i <= sl.level; i++ {
+		offset = sl.level - i
+		for n.widths[offset] != 0 && pos+n.widths[offset] <= position {
+			pos += n.widths[offset]
+			n = n.forward[offset]
+		}
+
+		if update != nil {
+			update[offset] = n
+			widths[offset] = pos
+		}
+	}
+
+	return n, pos + 1
 }
 
 // Get will retrieve values associated with the keys provided.  If an
@@ -121,7 +159,7 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 
 	var n *node
 	for _, key := range keys {
-		n = sl.search(key, nil)
+		n, _ = sl.search(key, nil, nil)
 		if n != nil && n.entry.Key() == key {
 			entries = append(entries, n.entry)
 		} else {
@@ -132,9 +170,19 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	return entries
 }
 
+func (sl *SkipList) ByPosition(position uint64) Entry {
+	n, _ := sl.searchByPosition(position+1, nil, nil)
+	if n == nil {
+		return nil
+	}
+
+	return n.entry
+}
+
 func (sl *SkipList) insert(entry Entry) Entry {
 	sl.cache.reset()
-	n := sl.search(entry.Key(), sl.cache)
+	sl.posCache.reset()
+	n, pos := sl.search(entry.Key(), sl.cache, sl.posCache)
 	if n != nil && n.key() == entry.Key() { // a simple update in this case
 		oldEntry := n.entry
 		n.entry = entry
@@ -144,8 +192,9 @@ func (sl *SkipList) insert(entry Entry) Entry {
 
 	nodeLevel := generateLevel(sl.maxLevel)
 	if nodeLevel > sl.level {
-		for i := sl.level; i <= nodeLevel; i++ {
+		for i := sl.level; i < nodeLevel; i++ {
 			sl.cache[i] = sl.head
+			sl.head.widths[i] = sl.num
 		}
 		sl.level = nodeLevel
 	}
@@ -154,6 +203,9 @@ func (sl *SkipList) insert(entry Entry) Entry {
 	for i := uint8(0); i < nodeLevel; i++ {
 		nn.forward[i] = sl.cache[i].forward[i]
 		sl.cache[i].forward[i] = nn
+		formerWidth := sl.cache[i].widths[i]
+		nn.widths[i] = formerWidth - sl.cache[i].widths[i]
+		sl.cache[i].widths[i] = pos - sl.posCache[i]
 	}
 
 	return nil
@@ -173,7 +225,7 @@ func (sl *SkipList) Insert(entries ...Entry) Entries {
 
 func (sl *SkipList) delete(key uint64) Entry {
 	sl.cache.reset()
-	n := sl.search(key, sl.cache)
+	n, _ := sl.search(key, sl.cache, sl.posCache)
 
 	if n == nil || n.entry.Key() != key {
 		return nil
@@ -215,7 +267,7 @@ func (sl *SkipList) Len() uint64 {
 }
 
 func (sl *SkipList) iter(key uint64) *iterator {
-	n := sl.search(key, nil)
+	n, _ := sl.search(key, nil, nil)
 	if n == nil {
 		return nilIterator()
 	}

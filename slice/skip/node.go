@@ -16,6 +16,16 @@ limitations under the License.
 
 package skip
 
+type widths []uint64
+
+func (widths widths) reset() widths {
+	for i := range widths {
+		widths[i] = 0
+	}
+
+	return widths
+}
+
 type nodes []*node
 
 // reset will mark every index in this list of nodes as nil.
@@ -31,6 +41,10 @@ type node struct {
 	// forward denotes the forward pointing pointers in this
 	// node.
 	forward nodes
+	// widths keeps track of the distance between this pointer
+	// and the forward pointers so we can access skip list
+	// values by position in logarithmic time.
+	widths widths
 	// entry is the associated value with this node.
 	entry Entry
 }
@@ -48,5 +62,6 @@ func newNode(entry Entry, maxLevels uint8) *node {
 	return &node{
 		entry:   entry,
 		forward: make(nodes, maxLevels),
+		widths:  make(widths, maxLevels),
 	}
 }

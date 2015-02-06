@@ -290,7 +290,6 @@ func BenchmarkReadAndWrites(b *testing.B) {
 	}
 
 	wg.Wait()
-
 }
 
 func BenchmarkBulkAdd(b *testing.B) {
