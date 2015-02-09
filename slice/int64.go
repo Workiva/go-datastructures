@@ -20,7 +20,6 @@ sort/IntSlice implementation.
 
 Also added is an Insert method.
 */
-
 package slice
 
 import "sort"

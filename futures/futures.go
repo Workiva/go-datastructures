@@ -21,7 +21,6 @@ if multiple listeners are listening to the same channel.  The future will
 also cache the result so any future interest will be immediately returned
 to the consumer.
 */
-
 package futures
 
 import (

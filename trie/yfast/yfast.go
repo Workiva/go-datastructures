@@ -34,7 +34,6 @@ size.
 This particular implementation also uses fixed bucket sizes as this should
 aid in multithreading these functions for performance optimization.
 */
-
 package yfast
 
 import "github.com/Workiva/go-datastructures/trie/xfast"

@@ -40,7 +40,6 @@ InsertByPosition: O(log n)
 
 More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
 */
-
 package skip
 
 import (

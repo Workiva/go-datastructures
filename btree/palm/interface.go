@@ -32,7 +32,6 @@ package.
 BenchmarkBulkAddToExisting-8	200	   8690207 ns/op
 BenchmarkBulkAddToExisting-8    100   16778514 ns/op
 */
-
 package palm
 
 // Keys is a typed list of Key interfaces.
