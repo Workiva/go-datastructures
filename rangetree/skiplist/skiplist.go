@@ -30,7 +30,6 @@ Search: O(log N1 + log N2 + ...log Nn) = O(log N1*N2*...Nn)
 Insert: O(log N1 + log N2 + ...log Nn) = O(log N1*N2*...Nn)
 Delete: O(log N1 + log N2 + ...log Nn) = O(log N1*N2*...Nn)
 */
-
 package skiplist
 
 import (

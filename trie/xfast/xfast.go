@@ -42,7 +42,6 @@ While x-tries have relatively slow insert, deletions, and consume a large
 amount of space, they form the top half of a y-fast trie which can
 insert and delete in O(log log M) time and consumes O(n) space.
 */
-
 package xfast
 
 import "fmt"

@@ -28,7 +28,6 @@ Get: O(log n)
 The immutable version of the AVL tree is obviously going to be slower than
 the mutable version but should offer higher read availability.
 */
-
 package avl
 
 import "math"
