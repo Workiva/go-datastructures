@@ -181,13 +181,15 @@ func (sl *SkipList) search(e Entry, update nodes, widths widths) (*node, uint64)
 
 	var pos uint64 = 0
 	var offset uint8
+	var alreadyChecked *node
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.forward[offset] != nil && n.forward[offset].Compare(e) < 0 {
+		for n.forward[offset] != alreadyChecked && n.forward[offset] != nil && n.forward[offset].Compare(e) < 0 {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
+		alreadyChecked = n
 
 		if update != nil {
 			update[offset] = n
@@ -215,14 +217,16 @@ func (sl *SkipList) searchByPosition(position uint64, update nodes, widths width
 
 	var pos uint64 = 0
 	var offset uint8
+	var alreadyChecked *node
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.widths[offset] != 0 && pos+n.widths[offset] <= position {
+		for n.forward[offset] != alreadyChecked && n.widths[offset] != 0 && pos+n.widths[offset] <= position {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
 
+		alreadyChecked = n
 		if update != nil {
 			update[offset] = n
 			widths[offset] = pos
