@@ -26,6 +26,18 @@ Search: O(log n)
 Delete: O(log n)
 Space: O(n)
 
+Recently added is the capability to address, insert, and replace an
+entry by position.  This capability is acheived by saving the width
+of the "gap" between two nodes.  Searching for an item by position is
+very similar to searching by value in that the same basic algorithm is
+used but we are searching for width instead of value.  Because this avoids
+the overhead associated with Golang interfaces, operations by position
+are about twice as fast as operations by value.  Time complexities listed
+below.
+
+SearchByPosition: O(log n)
+InsertByPosition: O(log n)
+
 More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
 */
 
@@ -61,6 +73,48 @@ func generateLevel(maxLevel uint8) uint8 {
 	return level
 }
 
+func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, posCache widths, allowDuplicate bool) Entry {
+	if !allowDuplicate && n != nil && n.key() == entry.Key() { // a simple update in this case
+		oldEntry := n.entry
+		n.entry = entry
+		return oldEntry
+	}
+	sl.num++
+
+	nodeLevel := generateLevel(sl.maxLevel)
+	if nodeLevel > sl.level {
+		for i := sl.level; i < nodeLevel; i++ {
+			cache[i] = sl.head
+		}
+		sl.level = nodeLevel
+	}
+
+	nn := newNode(entry, nodeLevel)
+	for i := uint8(0); i < nodeLevel; i++ {
+		nn.forward[i] = cache[i].forward[i]
+		cache[i].forward[i] = nn
+		formerWidth := cache[i].widths[i]
+		if formerWidth == 0 {
+			nn.widths[i] = 0
+		} else {
+			nn.widths[i] = posCache[i] + formerWidth + 1 - pos
+		}
+
+		if cache[i].forward[i] != nil {
+			cache[i].widths[i] = pos - posCache[i]
+		}
+
+	}
+
+	for i := nodeLevel; i < sl.level; i++ {
+		if cache[i].forward[i] == nil {
+			continue
+		}
+		cache[i].widths[i]++
+	}
+	return nil
+}
+
 // Skip list is a datastructure that probabalistically determines
 // relationships between nodes.  This results in a structure
 // that performs similarly to a BST but is much easier to build
@@ -71,7 +125,8 @@ type SkipList struct {
 	num             uint64
 	// a list of nodes that can be reused, should reduce
 	// the number of allocations in the insert/delete case.
-	cache nodes
+	cache    nodes
+	posCache widths
 }
 
 // init will initialize this skiplist.  The parameter is expected
@@ -89,28 +144,60 @@ func (sl *SkipList) init(ifc interface{}) {
 		sl.maxLevel = 64
 	}
 	sl.cache = make(nodes, sl.maxLevel)
+	sl.posCache = make(widths, sl.maxLevel)
 	sl.head = newNode(nil, sl.maxLevel)
 }
 
-func (sl *SkipList) search(key uint64, update []*node) *node {
+func (sl *SkipList) search(key uint64, update nodes, widths widths) (*node, uint64) {
 	if sl.num == 0 { // nothing in the list
-		return nil
+		return nil, 1
 	}
 
+	var pos uint64 = 0
 	var offset uint8
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
 		for n.forward[offset] != nil && n.forward[offset].entry.Key() < key {
+			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
 
 		if update != nil {
 			update[offset] = n
+			widths[offset] = pos
 		}
 	}
 
-	return n.forward[0]
+	return n.forward[0], pos + 1
+}
+
+func (sl *SkipList) searchByPosition(position uint64, update nodes, widths widths) (*node, uint64) {
+	if sl.num == 0 { // nothing in the list
+		return nil, 1
+	}
+
+	if position > sl.num {
+		return nil, 1
+	}
+
+	var pos uint64 = 0
+	var offset uint8
+	n := sl.head
+	for i := uint8(0); i <= sl.level; i++ {
+		offset = sl.level - i
+		for n.widths[offset] != 0 && pos+n.widths[offset] <= position {
+			pos += n.widths[offset]
+			n = n.forward[offset]
+		}
+
+		if update != nil {
+			update[offset] = n
+			widths[offset] = pos
+		}
+	}
+
+	return n, pos + 1
 }
 
 // Get will retrieve values associated with the keys provided.  If an
@@ -121,7 +208,7 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 
 	var n *node
 	for _, key := range keys {
-		n = sl.search(key, nil)
+		n, _ = sl.search(key, nil, nil)
 		if n != nil && n.entry.Key() == key {
 			entries = append(entries, n.entry)
 		} else {
@@ -132,31 +219,33 @@ func (sl *SkipList) Get(keys ...uint64) Entries {
 	return entries
 }
 
+// GetWithPosition will retrieve the value with the provided key and
+// return the position of that value within the list.  Returns nil, 0
+// if an associated value could not be found.
+func (sl *SkipList) GetWithPosition(key uint64) (Entry, uint64) {
+	n, pos := sl.search(key, nil, nil)
+	if n == nil {
+		return nil, 0
+	}
+
+	return n.entry, pos - 1
+}
+
+// ByPosition returns the entry at the given position.
+func (sl *SkipList) ByPosition(position uint64) Entry {
+	n, _ := sl.searchByPosition(position+1, nil, nil)
+	if n == nil {
+		return nil
+	}
+
+	return n.entry
+}
+
 func (sl *SkipList) insert(entry Entry) Entry {
 	sl.cache.reset()
-	n := sl.search(entry.Key(), sl.cache)
-	if n != nil && n.key() == entry.Key() { // a simple update in this case
-		oldEntry := n.entry
-		n.entry = entry
-		return oldEntry
-	}
-	sl.num++
-
-	nodeLevel := generateLevel(sl.maxLevel)
-	if nodeLevel > sl.level {
-		for i := sl.level; i <= nodeLevel; i++ {
-			sl.cache[i] = sl.head
-		}
-		sl.level = nodeLevel
-	}
-
-	nn := newNode(entry, nodeLevel)
-	for i := uint8(0); i < nodeLevel; i++ {
-		nn.forward[i] = sl.cache[i].forward[i]
-		sl.cache[i].forward[i] = nn
-	}
-
-	return nil
+	sl.posCache.reset()
+	n, pos := sl.search(entry.Key(), sl.cache, sl.posCache)
+	return insertNode(sl, n, entry, pos, sl.cache, sl.posCache, false)
 }
 
 // Insert will insert the provided entries into the list.  Returned
@@ -171,9 +260,44 @@ func (sl *SkipList) Insert(entries ...Entry) Entries {
 	return overwritten
 }
 
+func (sl *SkipList) insertAtPosition(position uint64, entry Entry) {
+	if position > sl.num {
+		position = sl.num
+	}
+	sl.cache.reset()
+	sl.posCache.reset()
+	n, pos := sl.searchByPosition(position, sl.cache, sl.posCache)
+	insertNode(sl, n, entry, pos, sl.cache, sl.posCache, true)
+}
+
+// InsertAtPosition will insert the provided entry and the provided position.
+// If position is greater than the length of the skiplist, the entry
+// is appended.  This method bypasses order checks and checks for
+// duplicates so use with caution.
+func (sl *SkipList) InsertAtPosition(position uint64, entry Entry) {
+	sl.insertAtPosition(position, entry)
+}
+
+func (sl *SkipList) replaceAtPosition(position uint64, entry Entry) {
+	n, _ := sl.searchByPosition(position+1, nil, nil)
+	if n == nil {
+		return
+	}
+
+	n.entry = entry
+}
+
+// Replace at position will replace the entry at the provided position
+// with the provided entry.  If the provided position does not exist,
+// this operation is a no-op.
+func (sl *SkipList) ReplaceAtPosition(position uint64, entry Entry) {
+	sl.replaceAtPosition(position, entry)
+}
+
 func (sl *SkipList) delete(key uint64) Entry {
 	sl.cache.reset()
-	n := sl.search(key, sl.cache)
+	sl.posCache.reset()
+	n, _ := sl.search(key, sl.cache, sl.posCache)
 
 	if n == nil || n.entry.Key() != key {
 		return nil
@@ -183,13 +307,18 @@ func (sl *SkipList) delete(key uint64) Entry {
 
 	for i := uint8(0); i <= sl.level; i++ {
 		if sl.cache[i].forward[i] != n {
-			break
+			if sl.cache[i].forward[i] != nil {
+				sl.cache[i].widths[i]--
+			}
+			continue
 		}
 
+		sl.cache[i].widths[i] += n.widths[i] - 1
 		sl.cache[i].forward[i] = n.forward[i]
 	}
 
 	for sl.level > 0 && sl.head.forward[sl.level] == nil {
+		sl.head.widths[sl.level] = 0
 		sl.level = sl.level - 1
 	}
 
@@ -215,7 +344,7 @@ func (sl *SkipList) Len() uint64 {
 }
 
 func (sl *SkipList) iter(key uint64) *iterator {
-	n := sl.search(key, nil)
+	n, _ := sl.search(key, nil, nil)
 	if n == nil {
 		return nilIterator()
 	}
