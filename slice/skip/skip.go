@@ -394,6 +394,12 @@ func (sl *SkipList) Iter(key uint64) Iterator {
 	return sl.iter(key)
 }
 
+// SplitAt will split the current skiplist into two lists.  The first
+// skiplist returned is the "left" list and the second is the "right."
+// The index defines the last item in the left list.  If index is greater
+// then the length of this list, only the left skiplist is returned
+// and the right will be nil.  This is a mutable operation and modifies
+// the content of this list.
 func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {
 	index++ // 0-index offset
 	if index >= sl.num {
