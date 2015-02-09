@@ -114,6 +114,32 @@ func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, pos
 	return nil
 }
 
+func splitAt(sl *SkipList, index uint64) (*SkipList, *SkipList) {
+	right := &SkipList{}
+	right.maxLevel = sl.maxLevel
+	right.cache = make(nodes, sl.maxLevel)
+	right.posCache = make(widths, sl.maxLevel)
+	right.head = newNode(nil, sl.maxLevel)
+	sl.searchByPosition(index, sl.cache, sl.posCache) // populate the cache that needs updating
+
+	for i := uint8(0); i <= sl.level; i++ {
+		right.head.forward[i] = sl.cache[i].forward[i]
+		if sl.cache[i].widths[i] != 0 {
+			right.head.widths[i] = sl.cache[i].widths[i] - (index - sl.posCache[i])
+		}
+		sl.cache[i].widths[i] = 0
+		sl.cache[i].forward[i] = nil
+	}
+
+	right.num = sl.num - index
+	sl.num = sl.num - right.num
+
+	sl.resetMaxLevel()
+	right.resetMaxLevel()
+
+	return sl, right
+}
+
 // Skip list is a datastructure that probabalistically determines
 // relationships between nodes.  This results in a structure
 // that performs similarly to a BST but is much easier to build
@@ -169,6 +195,12 @@ func (sl *SkipList) search(key uint64, update nodes, widths widths) (*node, uint
 	}
 
 	return n.forward[0], pos + 1
+}
+
+func (sl *SkipList) resetMaxLevel() {
+	for sl.head.forward[sl.level] == nil && sl.level > 1 {
+		sl.level--
+	}
 }
 
 func (sl *SkipList) searchByPosition(position uint64, update nodes, widths widths) (*node, uint64) {
@@ -359,6 +391,20 @@ func (sl *SkipList) iter(key uint64) *iterator {
 // the key provided.
 func (sl *SkipList) Iter(key uint64) Iterator {
 	return sl.iter(key)
+}
+
+// SplitAt will split the current skiplist into two lists.  The first
+// skiplist returned is the "left" list and the second is the "right."
+// The index defines the last item in the left list.  If index is greater
+// then the length of this list, only the left skiplist is returned
+// and the right will be nil.  This is a mutable operation and modifies
+// the content of this list.
+func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {
+	index++ // 0-index offset
+	if index >= sl.num {
+		return sl, nil
+	}
+	return splitAt(sl, index)
 }
 
 // New will allocate, initialize, and return a new skiplist.

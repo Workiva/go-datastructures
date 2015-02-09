@@ -67,6 +67,81 @@ func TestGetByPosition(t *testing.T) {
 	assert.Nil(t, sl.ByPosition(2))
 }
 
+func TestSplitAt(t *testing.T) {
+	m1 := newMockEntry(3)
+	m2 := newMockEntry(5)
+	m3 := newMockEntry(7)
+	sl := New(uint8(0))
+	sl.Insert(m1, m2, m3)
+
+	left, right := sl.SplitAt(1)
+	assert.Equal(t, uint64(2), left.Len())
+	assert.Equal(t, uint64(1), right.Len())
+	assert.Equal(t, Entries{m1, m2, nil}, left.Get(m1.Key(), m2.Key(), m3.Key()))
+	assert.Equal(t, Entries{nil, nil, m3}, right.Get(m1.Key(), m2.Key(), m3.Key()))
+	assert.Equal(t, m1, left.ByPosition(0))
+	assert.Equal(t, m2, left.ByPosition(1))
+	assert.Equal(t, m3, right.ByPosition(0))
+	assert.Equal(t, nil, left.ByPosition(2))
+	assert.Equal(t, nil, right.ByPosition(1))
+}
+
+func TestSplitLargeSkipList(t *testing.T) {
+	entries := generateMockEntries(100)
+	leftEntries := entries[:50]
+	rightEntries := entries[50:]
+	sl := New(uint64(0))
+	sl.Insert(entries...)
+
+	left, right := sl.SplitAt(49)
+	assert.Equal(t, uint64(50), left.Len())
+	for _, le := range leftEntries {
+		result, index := left.GetWithPosition(le.Key())
+		assert.Equal(t, le, result)
+		assert.Equal(t, le, left.ByPosition(index))
+	}
+
+	assert.Equal(t, uint64(50), right.Len())
+	for _, re := range rightEntries {
+		result, index := right.GetWithPosition(re.Key())
+		assert.Equal(t, re, result)
+		assert.Equal(t, re, right.ByPosition(index))
+	}
+}
+
+func TestSplitLargeSkipListOddNumber(t *testing.T) {
+	entries := generateMockEntries(99)
+	leftEntries := entries[:50]
+	rightEntries := entries[50:]
+	sl := New(uint64(0))
+	sl.Insert(entries...)
+
+	left, right := sl.SplitAt(49)
+	assert.Equal(t, uint64(50), left.Len())
+	for _, le := range leftEntries {
+		result, index := left.GetWithPosition(le.Key())
+		assert.Equal(t, le, result)
+		assert.Equal(t, le, left.ByPosition(index))
+	}
+
+	assert.Equal(t, uint64(49), right.Len())
+	for _, re := range rightEntries {
+		result, index := right.GetWithPosition(re.Key())
+		assert.Equal(t, re, result)
+		assert.Equal(t, re, right.ByPosition(index))
+	}
+}
+
+func TestSplitAtSkipListLength(t *testing.T) {
+	entries := generateMockEntries(5)
+	sl := New(uint64(0))
+	sl.Insert(entries...)
+
+	left, right := sl.SplitAt(4)
+	assert.Equal(t, sl, left)
+	assert.Nil(t, right)
+}
+
 func TestGetWithPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
