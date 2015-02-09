@@ -108,7 +108,14 @@ func (ks *keys) search(key Key) uint64 {
 }
 
 func (ks *keys) insert(key Key) Key {
-	old := ks.list.Insert(key.(skip.Entry))[0]
+	log.Printf(`KEY IN INSERT: %+v`, key)
+	for iter := ks.list.IterAtPosition(0); iter.Next(); {
+		log.Printf(`ALREADY IN INSERT: %+v`, iter.Value())
+	}
+	old := ks.list.Insert(key)[0]
+	for iter := ks.list.IterAtPosition(0); iter.Next(); {
+		log.Printf(`AFTER INSERT: %+v`, iter.Value())
+	}
 	if old == nil {
 		return nil
 	}
@@ -164,6 +171,7 @@ func (n *node) splitInternal() (Key, *node, *node) {
 
 	nn := newNode(false, rightKeys, rightNodes)
 	for iter := rightNodes.list.IterAtPosition(0); iter.Next(); {
+		log.Printf(`iter: %+v, value: %+v`, iter, iter.Value())
 		nd := iter.Value().(*node)
 		nd.parent = nn
 	}
@@ -195,6 +203,10 @@ func (n *node) key() Key {
 
 func (n *node) print(output *log.Logger) {
 	output.Printf(`NODE: %+v, %p`, n, n)
+	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
+		k := iter.Value().(Key)
+		output.Printf(`KEY: %+v`, k)
+	}
 	if !n.isLeaf {
 		for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
 			n := iter.Value().(*node)

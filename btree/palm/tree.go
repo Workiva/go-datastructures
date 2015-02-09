@@ -278,6 +278,11 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 			}
 		}
 
+		log.Printf(`N: %+v, KEYS: %+v`, n, keys)
+		for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
+			log.Printf(`KEY: %+v`, iter.Value())
+		}
+
 		if n.needsSplit(ptree.ary) {
 			keys := make(Keys, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())

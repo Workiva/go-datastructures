@@ -109,6 +109,27 @@ func TestSplitLargeSkipList(t *testing.T) {
 	}
 }
 
+func TestAppend(t *testing.T) {
+	m1 := newMockEntry(21)
+	m2 := newMockEntry(37)
+	m3 := newMockEntry(48)
+	sl := New(uint64(0))
+	sl.Insert(m1)
+	sl.Insert(m2)
+	sl.Insert(m3)
+
+	expected := Entries{m1, m2, m3}
+	results := Entries{}
+
+	for iter := sl.IterAtPosition(0); iter.Next(); {
+		t.Logf(`ITER: %+v`, iter.Value())
+		results = append(results, iter.Value())
+	}
+
+	assert.Equal(t, expected, results)
+	t.Fail()
+}
+
 func TestSplitLargeSkipListOddNumber(t *testing.T) {
 	entries := generateMockEntries(99)
 	leftEntries := entries[:50]

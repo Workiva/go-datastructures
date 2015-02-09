@@ -58,6 +58,7 @@ these operation dramatically.
 package skip
 
 import (
+	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -76,7 +77,6 @@ const p = .5 // the p level defines the probability that a node
 // and only executed once ensuring all random numbers come from the same
 // randomly seeded generator.
 var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
-var rnLock sync.Mutex // we need to protect the generator as it is not threadsafe
 
 // rnLock protects the RNG as the generator is not threadsafe.
 var rnLock sync.Mutex
@@ -140,6 +140,7 @@ func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, pos
 func splitAt(sl *SkipList, index uint64) (*SkipList, *SkipList) {
 	right := &SkipList{}
 	right.maxLevel = sl.maxLevel
+	right.level = sl.level
 	right.cache = make(nodes, sl.maxLevel)
 	right.posCache = make(widths, sl.maxLevel)
 	right.head = newNode(nil, sl.maxLevel)
@@ -221,7 +222,11 @@ func (sl *SkipList) search(e Entry, update nodes, widths widths) (*node, uint64)
 }
 
 func (sl *SkipList) resetMaxLevel() {
-	for sl.head.forward[sl.level] == nil && sl.level > 1 {
+	if sl.level < 1 {
+		sl.level = 1
+		return
+	}
+	for sl.head.forward[sl.level-1] == nil && sl.level > 1 {
 		sl.level--
 	}
 }
@@ -297,6 +302,11 @@ func (sl *SkipList) ByPosition(position uint64) Entry {
 
 func (sl *SkipList) insert(entry Entry) Entry {
 	n, pos := sl.search(entry, sl.cache, sl.posCache)
+	if sl.head.forward[0] != nil && sl.head.forward[0].forward[0] != nil {
+		log.Printf(`sl.cache: %+v, sl.posCache: %+v`, sl.cache, sl.posCache)
+		log.Printf(`LEVEL: %+v, ENTRY: %+v, n: %+v, pos: %+v, HEAD: %+v, FORWARD: %+v, ANOTHER: %+v`, sl.level, entry, n, pos, sl.head, sl.head.forward[0], sl.head.forward[0].forward[0])
+	}
+
 	return insertNode(sl, n, entry, pos, sl.cache, sl.posCache, false)
 }
 
@@ -393,7 +403,7 @@ func (sl *SkipList) Len() uint64 {
 
 func (sl *SkipList) iterAtPosition(pos uint64) *iterator {
 	n, _ := sl.searchByPosition(pos, nil, nil)
-	if n == nil {
+	if n == nil || n.entry == nil {
 		return nilIterator()
 	}
 

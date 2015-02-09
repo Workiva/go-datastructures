@@ -85,7 +85,7 @@ func generateRandomKeys(num int) Keys {
 	keys := make(Keys, 0, num)
 	for i := 0; i < num; i++ {
 		m := rand.Int()
-		keys = append(keys, mockKey(m))
+		keys = append(keys, mockKey(m%50))
 	}
 	return keys
 }
@@ -161,26 +161,35 @@ func TestMultipleInsertCausesSplitOddAryRandomOrder(t *testing.T) {
 	checkTree(t, tree)
 }
 
-/*
 func TestMultipleBulkInsertOddAry(t *testing.T) {
 	tree := newTree(3)
 	defer tree.Dispose()
-	keys1 := generateRandomKeys(100)
-	keys2 := generateRandomKeys(100)
+	keys1 := generateRandomKeys(6)
+	keys2 := generateRandomKeys(2)
 
+	log.Printf(`KEYS1: %+v`, keys1)
+	log.Printf(`KEYS2: %+v`, keys2)
 	tree.Insert(keys1...)
+	time.Sleep(20 * time.Millisecond)
+	//tree.print(getConsoleLogger())
+	//tree.root.print(getConsoleLogger())
+	println(`SHIT STARTS HERE.`)
 	tree.Insert(keys2...)
+	time.Sleep(20 * time.Millisecond)
+	//tree.print(getConsoleLogger())
 
 	if !assert.Equal(t, keys1, tree.Get(keys1...)) {
-		tree.print(getConsoleLogger())
+		//tree.print(getConsoleLogger())
 	}
 
-	if !assert.Equal(t, keys2, tree.Get(keys2...)) {
-		tree.print(getConsoleLogger())
-	}
+	/*
+		if !assert.Equal(t, keys2, tree.Get(keys2...)) {
+			tree.print(getConsoleLogger())
+		}*/
 	checkTree(t, tree)
 }
 
+/*
 func TestMultipleBulkInsertEvenAry(t *testing.T) {
 	tree := newTree(4)
 	defer tree.Dispose()
