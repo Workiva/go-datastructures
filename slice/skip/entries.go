@@ -22,21 +22,21 @@ import "sort"
 // where that key would be inserted in this list.  This could
 // be equal to the length of the list which means no suitable entry
 // point was found.
-func (entries Entries) search(key uint64) int {
+func (entries Entries) search(e Entry) int {
 	return sort.Search(len(entries), func(i int) bool {
-		return entries[i].Key() >= key
+		return entries[i].Compare(e) > -1
 	})
 }
 
 // insert will insert the provided entry into this list.
 func (entries *Entries) insert(entry Entry) Entry {
-	i := entries.search(entry.Key())
+	i := entries.search(entry)
 	if i >= len(*entries) {
 		*entries = append(*entries, entry)
 		return nil
 	}
 
-	if (*entries)[i].Key() == entry.Key() {
+	if (*entries)[i].Compare(entry) == 0 {
 		oldEntry := (*entries)[i]
 		(*entries)[i] = entry
 		return oldEntry
@@ -49,13 +49,13 @@ func (entries *Entries) insert(entry Entry) Entry {
 }
 
 // delete will delete the provided key from this list.
-func (entries *Entries) delete(key uint64) Entry {
-	i := entries.search(key)
+func (entries *Entries) delete(e Entry) Entry {
+	i := entries.search(e)
 	if i >= len(*entries) {
 		return nil
 	}
 
-	if (*entries)[i].Key() != key {
+	if (*entries)[i].Compare(e) != 0 {
 		return nil
 	}
 
@@ -68,13 +68,13 @@ func (entries *Entries) delete(key uint64) Entry {
 
 // get will return the entry associated with the provided key.
 // If no such Entry exists, this returns nil.
-func (entries Entries) get(key uint64) Entry {
-	i := entries.search(key)
+func (entries Entries) get(e Entry) Entry {
+	i := entries.search(e)
 	if i >= len(entries) {
 		return nil
 	}
 
-	if entries[i].Key() == key {
+	if entries[i].Compare(e) == 0 {
 		return entries[i]
 	}
 

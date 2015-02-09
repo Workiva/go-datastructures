@@ -18,16 +18,23 @@ package skip
 
 import "github.com/stretchr/testify/mock"
 
-type mockEntry struct {
-	key uint64
+type mockEntry uint64
+
+func (me mockEntry) Compare(other Entry) int {
+	otherU := other.(mockEntry)
+	if me == otherU {
+		return 0
+	}
+
+	if me > otherU {
+		return 1
+	}
+
+	return -1
 }
 
-func (me *mockEntry) Key() uint64 {
-	return me.key
-}
-
-func newMockEntry(key uint64) *mockEntry {
-	return &mockEntry{key}
+func newMockEntry(key uint64) mockEntry {
+	return mockEntry(key)
 }
 
 type mockIterator struct {

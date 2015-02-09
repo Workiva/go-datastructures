@@ -74,7 +74,7 @@ func generateLevel(maxLevel uint8) uint8 {
 }
 
 func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, posCache widths, allowDuplicate bool) Entry {
-	if !allowDuplicate && n != nil && n.key() == entry.Key() { // a simple update in this case
+	if !allowDuplicate && n != nil && n.Compare(entry) == 0 { // a simple update in this case
 		oldEntry := n.entry
 		n.entry = entry
 		return oldEntry
@@ -174,7 +174,7 @@ func (sl *SkipList) init(ifc interface{}) {
 	sl.head = newNode(nil, sl.maxLevel)
 }
 
-func (sl *SkipList) search(key uint64, update nodes, widths widths) (*node, uint64) {
+func (sl *SkipList) search(e Entry, update nodes, widths widths) (*node, uint64) {
 	if sl.num == 0 { // nothing in the list
 		return nil, 1
 	}
@@ -184,7 +184,7 @@ func (sl *SkipList) search(key uint64, update nodes, widths widths) (*node, uint
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.forward[offset] != nil && n.forward[offset].entry.Key() < key {
+		for n.forward[offset] != nil && n.forward[offset].Compare(e) < 0 {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
@@ -235,27 +235,27 @@ func (sl *SkipList) searchByPosition(position uint64, update nodes, widths width
 // Get will retrieve values associated with the keys provided.  If an
 // associated value could not be found, a nil is returned in its place.
 // This is an O(log n) operation.
-func (sl *SkipList) Get(keys ...uint64) Entries {
-	entries := make(Entries, 0, len(keys))
+func (sl *SkipList) Get(entries ...Entry) Entries {
+	result := make(Entries, 0, len(entries))
 
 	var n *node
-	for _, key := range keys {
-		n, _ = sl.search(key, nil, nil)
-		if n != nil && n.entry.Key() == key {
-			entries = append(entries, n.entry)
+	for _, e := range entries {
+		n, _ = sl.search(e, nil, nil)
+		if n != nil && n.Compare(e) == 0 {
+			result = append(result, n.entry)
 		} else {
-			entries = append(entries, nil)
+			result = append(result, nil)
 		}
 	}
 
-	return entries
+	return result
 }
 
 // GetWithPosition will retrieve the value with the provided key and
 // return the position of that value within the list.  Returns nil, 0
 // if an associated value could not be found.
-func (sl *SkipList) GetWithPosition(key uint64) (Entry, uint64) {
-	n, pos := sl.search(key, nil, nil)
+func (sl *SkipList) GetWithPosition(e Entry) (Entry, uint64) {
+	n, pos := sl.search(e, nil, nil)
 	if n == nil {
 		return nil, 0
 	}
@@ -274,9 +274,7 @@ func (sl *SkipList) ByPosition(position uint64) Entry {
 }
 
 func (sl *SkipList) insert(entry Entry) Entry {
-	sl.cache.reset()
-	sl.posCache.reset()
-	n, pos := sl.search(entry.Key(), sl.cache, sl.posCache)
+	n, pos := sl.search(entry, sl.cache, sl.posCache)
 	return insertNode(sl, n, entry, pos, sl.cache, sl.posCache, false)
 }
 
@@ -296,8 +294,6 @@ func (sl *SkipList) insertAtPosition(position uint64, entry Entry) {
 	if position > sl.num {
 		position = sl.num
 	}
-	sl.cache.reset()
-	sl.posCache.reset()
 	n, pos := sl.searchByPosition(position, sl.cache, sl.posCache)
 	insertNode(sl, n, entry, pos, sl.cache, sl.posCache, true)
 }
@@ -326,12 +322,10 @@ func (sl *SkipList) ReplaceAtPosition(position uint64, entry Entry) {
 	sl.replaceAtPosition(position, entry)
 }
 
-func (sl *SkipList) delete(key uint64) Entry {
-	sl.cache.reset()
-	sl.posCache.reset()
-	n, _ := sl.search(key, sl.cache, sl.posCache)
+func (sl *SkipList) delete(e Entry) Entry {
+	n, _ := sl.search(e, sl.cache, sl.posCache)
 
-	if n == nil || n.entry.Key() != key {
+	if n == nil || n.Compare(e) != 0 {
 		return nil
 	}
 
@@ -360,11 +354,11 @@ func (sl *SkipList) delete(key uint64) Entry {
 // Delete will remove the provided keys from the skiplist and return
 // a list of in-order entries that were deleted.  This is a no-op if
 // an associated key could not be found.  This is an O(log n) operation.
-func (sl *SkipList) Delete(keys ...uint64) Entries {
-	deleted := make(Entries, 0, len(keys))
+func (sl *SkipList) Delete(entries ...Entry) Entries {
+	deleted := make(Entries, 0, len(entries))
 
-	for _, key := range keys {
-		deleted = append(deleted, sl.delete(key))
+	for _, e := range entries {
+		deleted = append(deleted, sl.delete(e))
 	}
 
 	return deleted
@@ -375,8 +369,8 @@ func (sl *SkipList) Len() uint64 {
 	return sl.num
 }
 
-func (sl *SkipList) iter(key uint64) *iterator {
-	n, _ := sl.search(key, nil, nil)
+func (sl *SkipList) iter(e Entry) *iterator {
+	n, _ := sl.search(e, nil, nil)
 	if n == nil {
 		return nilIterator()
 	}
@@ -390,8 +384,8 @@ func (sl *SkipList) iter(key uint64) *iterator {
 // Iter will return an iterator that can be used to iterate
 // over all the values with a key equal to or greater than
 // the key provided.
-func (sl *SkipList) Iter(key uint64) Iterator {
-	return sl.iter(key)
+func (sl *SkipList) Iter(e Entry) Iterator {
+	return sl.iter(e)
 }
 
 func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {

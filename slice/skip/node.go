@@ -18,24 +18,7 @@ package skip
 
 type widths []uint64
 
-func (widths widths) reset() widths {
-	for i := range widths {
-		widths[i] = 0
-	}
-
-	return widths
-}
-
 type nodes []*node
-
-// reset will mark every index in this list of nodes as nil.
-func (ns nodes) reset() nodes {
-	for i := range ns {
-		ns[i] = nil
-	}
-
-	return ns
-}
 
 type node struct {
 	// forward denotes the forward pointing pointers in this
@@ -49,10 +32,8 @@ type node struct {
 	entry Entry
 }
 
-// key is a helper method to return the key of the entry associated
-// with this node.
-func (n *node) key() uint64 {
-	return n.entry.Key()
+func (n *node) Compare(e Entry) int {
+	return n.entry.Compare(e)
 }
 
 // newNode will allocate and return a new node with the entry
