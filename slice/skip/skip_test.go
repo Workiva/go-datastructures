@@ -163,6 +163,24 @@ func TestSplitAtSkipListLength(t *testing.T) {
 	assert.Nil(t, right)
 }
 
+func TestInsertMiddle(t *testing.T) {
+	before := Entries{newMockEntry(37), newMockEntry(48)}
+	after := Entries{newMockEntry(34), newMockEntry(24), newMockEntry(23)}
+	sl := New(uint64(0))
+	sl.Insert(before...)
+
+	for _, me := range after {
+		n, index := sl.GetWithPosition(me)
+		if n == nil {
+			index = sl.Len()
+		}
+
+		sl.InsertAtPosition(index, n)
+	}
+
+	sl.PP()
+}
+
 func TestGetWithPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)

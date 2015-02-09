@@ -148,7 +148,7 @@ func splitAt(sl *SkipList, index uint64) (*SkipList, *SkipList) {
 
 	for i := uint8(0); i <= sl.level; i++ {
 		right.head.forward[i] = sl.cache[i].forward[i]
-		if sl.cache[i].widths[i] != 0 {
+		if sl.cache[i].forward[i] != nil {
 			right.head.widths[i] = sl.cache[i].widths[i] - (index - sl.posCache[i])
 		}
 		sl.cache[i].widths[i] = 0
@@ -302,11 +302,6 @@ func (sl *SkipList) ByPosition(position uint64) Entry {
 
 func (sl *SkipList) insert(entry Entry) Entry {
 	n, pos := sl.search(entry, sl.cache, sl.posCache)
-	if sl.head.forward[0] != nil && sl.head.forward[0].forward[0] != nil {
-		log.Printf(`sl.cache: %+v, sl.posCache: %+v`, sl.cache, sl.posCache)
-		log.Printf(`LEVEL: %+v, ENTRY: %+v, n: %+v, pos: %+v, HEAD: %+v, FORWARD: %+v, ANOTHER: %+v`, sl.level, entry, n, pos, sl.head, sl.head.forward[0], sl.head.forward[0].forward[0])
-	}
-
 	return insertNode(sl, n, entry, pos, sl.cache, sl.posCache, false)
 }
 
@@ -347,6 +342,15 @@ func (sl *SkipList) replaceAtPosition(position uint64, entry Entry) {
 	n.entry = entry
 }
 
+func (sl *SkipList) PP() {
+	log.Printf(`SL.LEN: %+v, LEVEL %+v`, sl.Len(), sl.level)
+	n := sl.head
+	for n != nil {
+		log.Printf(`N: %+v`, n)
+		n = n.forward[0]
+	}
+}
+
 // Replace at position will replace the entry at the provided position
 // with the provided entry.  If the provided position does not exist,
 // this operation is a no-op.
@@ -375,9 +379,9 @@ func (sl *SkipList) delete(e Entry) Entry {
 		sl.cache[i].forward[i] = n.forward[i]
 	}
 
-	for sl.level > 0 && sl.head.forward[sl.level] == nil {
+	for sl.level > 1 && sl.head.forward[sl.level-1] == nil {
 		sl.head.widths[sl.level] = 0
-		sl.level = sl.level - 1
+		sl.level--
 	}
 
 	return n.entry

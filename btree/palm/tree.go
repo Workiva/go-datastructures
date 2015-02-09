@@ -218,8 +218,8 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 					continue
 				}
 
+				n.keys.insert(k)
 				index := n.search(k)
-				n.keys.insertAt(index, k)
 				n.nodes.replaceAt(index, rb.nodes[i*2])
 				n.nodes.insertAt(index+1, rb.nodes[i*2+1])
 			}
@@ -276,11 +276,6 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 			if oldKey == nil {
 				atomic.AddUint64(&ptree.number, 1)
 			}
-		}
-
-		log.Printf(`N: %+v, KEYS: %+v`, n, keys)
-		for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
-			log.Printf(`KEY: %+v`, iter.Value())
 		}
 
 		if n.needsSplit(ptree.ary) {
