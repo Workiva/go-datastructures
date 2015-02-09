@@ -60,6 +60,7 @@ package skip
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -76,12 +77,15 @@ const p = .5 // the p level defines the probability that a node
 // and only executed once ensuring all random numbers come from the same
 // randomly seeded generator.
 var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
+var rnLock sync.Mutex // we need to protect the generator as it is not threadsafe
 
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
-	var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
+	rnLock.Lock()
+	defer rnLock.Unlock()
 	for level = uint8(1); level < maxLevel-1; level++ {
 		if generator.ExpFloat64() >= p {
+
 			return level
 		}
 	}
