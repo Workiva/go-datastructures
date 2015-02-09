@@ -59,6 +59,7 @@ package skip
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -76,8 +77,13 @@ const p = .5 // the p level defines the probability that a node
 // randomly seeded generator.
 var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+// rnLock protects the RNG as the generator is not threadsafe.
+var rnLock sync.Mutex
+
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
+	rnLock.Lock()
+	defer rnLock.Unlock()
 	for level = uint8(1); level < maxLevel-1; level++ {
 		if generator.Float64() >= p {
 			return level
