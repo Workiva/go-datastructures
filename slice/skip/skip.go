@@ -39,6 +39,21 @@ SearchByPosition: O(log n)
 InsertByPosition: O(log n)
 
 More information here: http://cglab.ca/~morin/teaching/5408/refs/p90b.pdf
+
+Benchmarks:
+BenchmarkInsert-8	 		 2000000	       930 ns/op
+BenchmarkGet-8	 			 2000000	       989 ns/op
+BenchmarkDelete-8	 		 3000000	       600 ns/op
+BenchmarkPrepend-8	 		 1000000	      1468 ns/op
+BenchmarkByPosition-8		10000000	       202 ns/op
+BenchmarkInsertAtPosition-8	 3000000	       485 ns/op
+
+CPU profiling has shown that the most expensive thing we do here
+is call Compare.  A potential optimization for gets only is to
+do a binary search in the forward/width lists instead of visiting
+every value.  We could also use generics if Golang had them and
+let the consumer specify primitive types, which would speed up
+these operation dramatically.
 */
 
 package skip
@@ -181,15 +196,13 @@ func (sl *SkipList) search(e Entry, update nodes, widths widths) (*node, uint64)
 
 	var pos uint64 = 0
 	var offset uint8
-	var alreadyChecked *node
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.forward[offset] != alreadyChecked && n.forward[offset] != nil && n.forward[offset].Compare(e) < 0 {
+		for n.forward[offset] != nil && n.forward[offset].Compare(e) < 0 {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
-		alreadyChecked = n
 
 		if update != nil {
 			update[offset] = n
@@ -217,16 +230,14 @@ func (sl *SkipList) searchByPosition(position uint64, update nodes, widths width
 
 	var pos uint64 = 0
 	var offset uint8
-	var alreadyChecked *node
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.forward[offset] != alreadyChecked && n.widths[offset] != 0 && pos+n.widths[offset] <= position {
+		for n.widths[offset] != 0 && pos+n.widths[offset] <= position {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
 
-		alreadyChecked = n
 		if update != nil {
 			update[offset] = n
 			widths[offset] = pos
