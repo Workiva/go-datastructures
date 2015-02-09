@@ -138,6 +138,7 @@ func insertNode(sl *SkipList, n *node, entry Entry, pos uint64, cache nodes, pos
 func splitAt(sl *SkipList, index uint64) (*SkipList, *SkipList) {
 	right := &SkipList{}
 	right.maxLevel = sl.maxLevel
+	right.level = sl.level
 	right.cache = make(nodes, sl.maxLevel)
 	right.posCache = make(widths, sl.maxLevel)
 	right.head = newNode(nil, sl.maxLevel)
@@ -219,7 +220,12 @@ func (sl *SkipList) search(e Entry, update nodes, widths widths) (*node, uint64)
 }
 
 func (sl *SkipList) resetMaxLevel() {
-	for sl.head.forward[sl.level] == nil && sl.level > 1 {
+	if sl.level < 1 {
+		sl.level = 1
+		return
+	}
+
+	for sl.head.forward[sl.level-1] == nil && sl.level > 1 {
 		sl.level--
 	}
 }
