@@ -32,8 +32,9 @@ package.
 BenchmarkBulkAddToExisting-8	200	   8690207 ns/op
 BenchmarkBulkAddToExisting-8    100   16778514 ns/op
 */
-
 package palm
+
+import "github.com/Workiva/go-datastructures/slice/skip"
 
 // Keys is a typed list of Key interfaces.
 type Keys []Key
@@ -45,7 +46,7 @@ type Key interface {
 	// to the provided key.  -1 will indicate less than, 0 will indicate
 	// equality, and 1 will indicate greater than.  Duplicate keys
 	// are allowed, but duplicate IDs are not.
-	Compare(Key) int
+	Compare(skip.Entry) int
 }
 
 // BTree is the interface returned from this package's constructor.

@@ -16,7 +16,11 @@ limitations under the License.
 
 package palm
 
-import "log"
+import (
+	"log"
+
+	"github.com/Workiva/go-datastructures/slice/skip"
+)
 
 func getParent(parent *node, key Key) *node {
 	var n *node
@@ -28,40 +32,122 @@ func getParent(parent *node, key Key) *node {
 	return parent
 }
 
-type nodes []*node
-
-func (ns *nodes) push(n *node) {
-	*ns = append(*ns, n)
+type nodes struct {
+	list *skip.SkipList
 }
 
-func (ns *nodes) insertAt(n *node, i int) {
-	if i == len(*ns) {
-		*ns = append(*ns, n)
-		return
+func (ns *nodes) push(n *node) {
+	ns.list.InsertAtPosition(ns.list.Len(), n)
+}
+
+func (ns *nodes) splitAt(i uint64) (*nodes, *nodes) {
+	_, right := ns.list.SplitAt(i)
+	return ns, &nodes{list: right}
+}
+
+func (ns *nodes) byPosition(pos uint64) *node {
+	n, ok := ns.list.ByPosition(pos).(*node)
+	if !ok {
+		return nil
 	}
 
-	*ns = append(*ns, nil)
-	copy((*ns)[i+1:], (*ns)[i:])
-	(*ns)[i] = n
+	return n
+}
+
+func (ns *nodes) insertAt(i uint64, n *node) {
+	ns.list.InsertAtPosition(i, n)
+}
+
+func (ns *nodes) replaceAt(i uint64, n *node) {
+	ns.list.ReplaceAtPosition(i, n)
+}
+
+func (ns *nodes) len() uint64 {
+	return ns.list.Len()
+}
+
+func newNodes() *nodes {
+	return &nodes{
+		list: skip.New(uint64(0)),
+	}
+}
+
+type keys struct {
+	list *skip.SkipList
+}
+
+func (ks *keys) splitAt(i uint64) (*keys, *keys) {
+	_, right := ks.list.SplitAt(i)
+	return ks, &keys{list: right}
+}
+
+func (ks *keys) len() uint64 {
+	return ks.list.Len()
+}
+
+func (ks *keys) byPosition(i uint64) Key {
+	k, ok := ks.list.ByPosition(i).(Key)
+	if !ok {
+		return nil
+	}
+
+	return k
+}
+
+func (ks *keys) delete(k Key) {
+	ks.list.Delete(k.(skip.Entry))
+}
+
+func (ks *keys) search(key Key) uint64 {
+	n, i := ks.list.GetWithPosition(key.(skip.Entry))
+	if n == nil {
+		return ks.list.Len()
+	}
+
+	return i
+}
+
+func (ks *keys) insert(key Key) Key {
+	old := ks.list.Insert(key.(skip.Entry))[0]
+	if old == nil {
+		return nil
+	}
+
+	return old.(Key)
+}
+
+func (ks *keys) last() Key {
+	return ks.list.ByPosition(ks.list.Len() - 1).(Key)
+}
+
+func (ks *keys) insertAt(i uint64, k Key) {
+	ks.list.InsertAtPosition(i, k.(skip.Entry))
+}
+
+func newKeys() *keys {
+	return &keys{
+		list: skip.New(uint64(0)),
+	}
 }
 
 type node struct {
-	keys          Keys
-	nodes         nodes
+	keys          *keys
+	nodes         *nodes
 	isLeaf        bool
 	parent, right *node
 }
 
 func (n *node) needsSplit(ary uint64) bool {
-	return uint64(len(n.keys)) >= ary
+	return n.keys.len() >= ary
 }
 
 func (n *node) splitLeaf() (Key, *node, *node) {
-	i := (len(n.keys) / 2)
-	key := n.keys[i]
+	i := n.keys.len() / 2
+	key := n.keys.byPosition(i)
 	_, rightKeys := n.keys.splitAt(i)
 	nn := &node{
 		keys:   rightKeys,
+		nodes:  newNodes(),
 		isLeaf: true,
 	}
 	n.right = nn
@@ -69,30 +155,18 @@ func (n *node) splitLeaf() (Key, *node, *node) {
 }
 
 func (n *node) splitInternal() (Key, *node, *node) {
-	i := (len(n.keys) / 2)
-	key := n.keys[i]
+	i := n.keys.len() / 2
+	key := n.keys.byPosition(i)
+	n.keys.delete(key)
 
-	rightKeys := make(Keys, len(n.keys)-1-i, cap(n.keys))
-	rightNodes := make(nodes, len(rightKeys)+1, cap(n.nodes))
-
-	copy(rightKeys, n.keys[i+1:])
-	copy(rightNodes, n.nodes[i+1:])
-
-	// for garbage collection
-	for j := i + 1; j < len(n.nodes); j++ {
-		if j != len(n.keys) {
-			n.keys[j] = nil
-		}
-		n.nodes[j] = nil
-	}
+	_, rightKeys := n.keys.splitAt(i - 1)
+	_, rightNodes := n.nodes.splitAt(i)
 
 	nn := newNode(false, rightKeys, rightNodes)
-	for _, nd := range rightNodes {
+	for iter := rightNodes.list.IterAtPosition(0); iter.Next(); {
+		nd := iter.Value().(*node)
 		nd.parent = nn
 	}
-
-	n.keys = n.keys[:i]
-	n.nodes = n.nodes[:i+1]
 
 	return key, n, nn
 }
@@ -105,34 +179,40 @@ func (n *node) split() (Key, *node, *node) {
 	return n.splitInternal()
 }
 
-func (n *node) search(key Key) int {
+func (n *node) search(key Key) uint64 {
 	return n.keys.search(key)
 }
 
 func (n *node) searchNode(key Key) *node {
 	i := n.search(key)
 
-	return n.nodes[i]
+	return n.nodes.byPosition(uint64(i))
 }
 
 func (n *node) key() Key {
-	return n.keys[len(n.keys)-1]
+	return n.keys.last()
 }
 
 func (n *node) print(output *log.Logger) {
 	output.Printf(`NODE: %+v, %p`, n, n)
 	if !n.isLeaf {
-		for _, n := range n.nodes {
+		for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
+			n := iter.Value().(*node)
 			if n == nil {
 				output.Println(`NIL NODE`)
 				continue
 			}
+
 			n.print(output)
 		}
 	}
 }
 
-func newNode(isLeaf bool, keys Keys, ns nodes) *node {
+func (n *node) Compare(e skip.Entry) int {
+	return 0
+}
+
+func newNode(isLeaf bool, keys *keys, ns *nodes) *node {
 	return &node{
 		isLeaf: isLeaf,
 		keys:   keys,

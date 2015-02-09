@@ -79,8 +79,9 @@ var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
+	var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
 	for level = uint8(1); level < maxLevel-1; level++ {
-		if generator.Float64() >= p {
+		if generator.ExpFloat64() >= p {
 			return level
 		}
 	}
@@ -233,7 +234,7 @@ func (sl *SkipList) searchByPosition(position uint64, update nodes, widths width
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.widths[offset] != 0 && pos+n.widths[offset] <= position {
+		for n.forward[offset] != nil && pos+n.widths[offset] <= position {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
@@ -382,6 +383,22 @@ func (sl *SkipList) Delete(entries ...Entry) Entries {
 // Len returns the number of items in this skiplist.
 func (sl *SkipList) Len() uint64 {
 	return sl.num
+}
+
+func (sl *SkipList) iterAtPosition(pos uint64) *iterator {
+	n, _ := sl.searchByPosition(pos, nil, nil)
+	if n == nil {
+		return nilIterator()
+	}
+
+	return &iterator{
+		first: true,
+		n:     n,
+	}
+}
+
+func (sl *SkipList) IterAtPosition(pos uint64) Iterator {
+	return sl.iterAtPosition(pos + 1)
 }
 
 func (sl *SkipList) iter(e Entry) *iterator {
