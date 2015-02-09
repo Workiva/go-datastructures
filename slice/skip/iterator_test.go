@@ -55,31 +55,3 @@ func TestIterate(t *testing.T) {
 	assert.False(t, iter.Next())
 	assert.Nil(t, iter.Value())
 }
-
-func TestStarIterate(t *testing.T) {
-	e1 := newMockEntry(1)
-	e2 := newMockEntry(3)
-	e3 := newMockEntry(4)
-
-	i1 := &starIterator{
-		entries: Entries{e1},
-		index:   -1,
-	}
-
-	i2 := new(mockIterator)
-	i2.On(`Next`).Return(true).Once()
-	i2.On(`Next`).Return(false).Once()
-	i2.On(`Value`).Return(&entryBundle{entries: Entries{e2, e3}}).Once()
-	i2.On(`Value`).Return(nil).Once()
-
-	i1.iter = i2
-
-	assert.True(t, i1.Next())
-	assert.Equal(t, e1, i1.Value())
-	assert.True(t, i1.Next())
-	assert.Equal(t, e2, i1.Value())
-	assert.True(t, i1.Next())
-	assert.Equal(t, e3, i1.Value())
-	assert.False(t, i1.Next())
-	assert.Nil(t, i1.Value())
-}

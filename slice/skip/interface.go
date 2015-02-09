@@ -19,8 +19,10 @@ package skip
 // Entry defines items that can be inserted into the skip list.
 // This will also be the type returned from a query.
 type Entry interface {
-	// Key defines this entry's place in the skip list.
-	Key() uint64
+	// Compare this entry to the provided entry.  Return a positive
+	// number if this entry is greater than, 0 if equal, negative
+	// number if less than.
+	Compare(Entry) int
 }
 
 // Entries is a typed list of interface Entry.

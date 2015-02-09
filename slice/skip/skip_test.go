@@ -77,8 +77,8 @@ func TestSplitAt(t *testing.T) {
 	left, right := sl.SplitAt(1)
 	assert.Equal(t, uint64(2), left.Len())
 	assert.Equal(t, uint64(1), right.Len())
-	assert.Equal(t, Entries{m1, m2, nil}, left.Get(m1.Key(), m2.Key(), m3.Key()))
-	assert.Equal(t, Entries{nil, nil, m3}, right.Get(m1.Key(), m2.Key(), m3.Key()))
+	assert.Equal(t, Entries{m1, m2, nil}, left.Get(m1, m2, m3))
+	assert.Equal(t, Entries{nil, nil, m3}, right.Get(m1, m2, m3))
 	assert.Equal(t, m1, left.ByPosition(0))
 	assert.Equal(t, m2, left.ByPosition(1))
 	assert.Equal(t, m3, right.ByPosition(0))
@@ -96,14 +96,14 @@ func TestSplitLargeSkipList(t *testing.T) {
 	left, right := sl.SplitAt(49)
 	assert.Equal(t, uint64(50), left.Len())
 	for _, le := range leftEntries {
-		result, index := left.GetWithPosition(le.Key())
+		result, index := left.GetWithPosition(le)
 		assert.Equal(t, le, result)
 		assert.Equal(t, le, left.ByPosition(index))
 	}
 
 	assert.Equal(t, uint64(50), right.Len())
 	for _, re := range rightEntries {
-		result, index := right.GetWithPosition(re.Key())
+		result, index := right.GetWithPosition(re)
 		assert.Equal(t, re, result)
 		assert.Equal(t, re, right.ByPosition(index))
 	}
@@ -119,14 +119,14 @@ func TestSplitLargeSkipListOddNumber(t *testing.T) {
 	left, right := sl.SplitAt(49)
 	assert.Equal(t, uint64(50), left.Len())
 	for _, le := range leftEntries {
-		result, index := left.GetWithPosition(le.Key())
+		result, index := left.GetWithPosition(le)
 		assert.Equal(t, le, result)
 		assert.Equal(t, le, left.ByPosition(index))
 	}
 
 	assert.Equal(t, uint64(49), right.Len())
 	for _, re := range rightEntries {
-		result, index := right.GetWithPosition(re.Key())
+		result, index := right.GetWithPosition(re)
 		assert.Equal(t, re, result)
 		assert.Equal(t, re, right.ByPosition(index))
 	}
@@ -148,11 +148,11 @@ func TestGetWithPosition(t *testing.T) {
 	sl := New(uint8(0))
 	sl.Insert(m1, m2)
 
-	e, pos := sl.GetWithPosition(m1.Key())
+	e, pos := sl.GetWithPosition(m1)
 	assert.Equal(t, m1, e)
 	assert.Equal(t, uint64(0), pos)
 
-	e, pos = sl.GetWithPosition(m2.Key())
+	e, pos = sl.GetWithPosition(m2)
 	assert.Equal(t, m2, e)
 	assert.Equal(t, uint64(1), pos)
 }
@@ -175,7 +175,7 @@ func TestInsertRandomGetByPosition(t *testing.T) {
 	sl.Insert(entries...)
 
 	for _, e := range entries {
-		_, pos := sl.GetWithPosition(e.Key())
+		_, pos := sl.GetWithPosition(e)
 		assert.Equal(t, e, sl.ByPosition(pos))
 	}
 }
@@ -196,11 +196,11 @@ func TestGetPositionAfterDelete(t *testing.T) {
 	sl := New(uint8(0))
 	sl.Insert(m1, m2)
 
-	sl.Delete(5)
+	sl.Delete(m1)
 	assert.Equal(t, m2, sl.ByPosition(0))
 	assert.Nil(t, sl.ByPosition(1))
 
-	sl.Delete(6)
+	sl.Delete(m2)
 	assert.Nil(t, sl.ByPosition(0))
 	assert.Nil(t, sl.ByPosition(1))
 }
@@ -214,7 +214,7 @@ func TestGetPositionBulkDelete(t *testing.T) {
 	sl.Insert(e2...)
 
 	for _, e := range e1 {
-		sl.Delete(e.Key())
+		sl.Delete(e)
 	}
 	for i, e := range e2 {
 		assert.Equal(t, e, sl.ByPosition(uint64(i)))
@@ -228,14 +228,14 @@ func TestSimpleInsert(t *testing.T) {
 	sl := New(uint8(0))
 
 	overwritten := sl.Insert(m1)
-	assert.Equal(t, Entries{m1}, sl.Get(5))
+	assert.Equal(t, Entries{m1}, sl.Get(m1))
 	assert.Equal(t, uint64(1), sl.Len())
 	assert.Equal(t, Entries{nil}, overwritten)
-	assert.Equal(t, Entries{nil}, sl.Get(1))
+	assert.Equal(t, Entries{nil}, sl.Get(mockEntry(1)))
 
 	overwritten = sl.Insert(m2)
-	assert.Equal(t, Entries{m2}, sl.Get(6))
-	assert.Equal(t, Entries{nil}, sl.Get(7))
+	assert.Equal(t, Entries{m2}, sl.Get(m2))
+	assert.Equal(t, Entries{nil}, sl.Get(mockEntry(7)))
 	assert.Equal(t, uint64(2), sl.Len())
 	assert.Equal(t, Entries{nil}, overwritten)
 }
@@ -264,7 +264,7 @@ func TestInsertOutOfOrder(t *testing.T) {
 	overwritten := sl.Insert(m1, m2)
 	assert.Equal(t, Entries{nil, nil}, overwritten)
 
-	assert.Equal(t, Entries{m1, m2}, sl.Get(6, 5))
+	assert.Equal(t, Entries{m1, m2}, sl.Get(m1, m2))
 }
 
 func TestSimpleDelete(t *testing.T) {
@@ -272,12 +272,12 @@ func TestSimpleDelete(t *testing.T) {
 	sl := New(uint8(0))
 	sl.Insert(m1)
 
-	deleted := sl.Delete(m1.Key())
+	deleted := sl.Delete(m1)
 	assert.Equal(t, Entries{m1}, deleted)
 	assert.Equal(t, uint64(0), sl.Len())
-	assert.Equal(t, Entries{nil}, sl.Get(5))
+	assert.Equal(t, Entries{nil}, sl.Get(m1))
 
-	deleted = sl.Delete(5)
+	deleted = sl.Delete(m1)
 	assert.Equal(t, Entries{nil}, deleted)
 }
 
@@ -287,10 +287,10 @@ func TestDeleteAll(t *testing.T) {
 	sl := New(uint8(0))
 	sl.Insert(m1, m2)
 
-	deleted := sl.Delete(m1.Key(), m2.Key())
+	deleted := sl.Delete(m1, m2)
 	assert.Equal(t, Entries{m1, m2}, deleted)
 	assert.Equal(t, uint64(0), sl.Len())
-	assert.Equal(t, Entries{nil, nil}, sl.Get(m1.Key(), m2.Key()))
+	assert.Equal(t, Entries{nil, nil}, sl.Get(m1, m2))
 }
 
 func TestIter(t *testing.T) {
@@ -300,19 +300,19 @@ func TestIter(t *testing.T) {
 
 	sl.Insert(m1, m2)
 
-	iter := sl.Iter(0)
+	iter := sl.Iter(mockEntry(0))
 	assert.Equal(t, Entries{m1, m2}, iter.exhaust())
 
-	iter = sl.Iter(5)
+	iter = sl.Iter(mockEntry(5))
 	assert.Equal(t, Entries{m1, m2}, iter.exhaust())
 
-	iter = sl.Iter(6)
+	iter = sl.Iter(mockEntry(6))
 	assert.Equal(t, Entries{m2}, iter.exhaust())
 
-	iter = sl.Iter(10)
+	iter = sl.Iter(mockEntry(10))
 	assert.Equal(t, Entries{m2}, iter.exhaust())
 
-	iter = sl.Iter(11)
+	iter = sl.Iter(mockEntry(11))
 	assert.Equal(t, Entries{}, iter.exhaust())
 }
 
@@ -339,7 +339,7 @@ func BenchmarkGet(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		sl.Get(entries[i%numItems].Key())
+		sl.Get(entries[i%numItems])
 	}
 }
 
@@ -353,7 +353,7 @@ func BenchmarkDelete(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		sl.Delete(entries[i].Key())
+		sl.Delete(entries[i])
 	}
 }
 
@@ -385,5 +385,17 @@ func BenchmarkByPosition(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		sl.ByPosition(uint64(i % numItems))
+	}
+}
+
+func BenchmarkInsertAtPosition(b *testing.B) {
+	numItems := b.N
+	sl := New(uint64(0))
+	entries := generateRandomMockEntries(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		sl.InsertAtPosition(0, entries[i%numItems])
 	}
 }

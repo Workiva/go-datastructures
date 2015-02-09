@@ -52,11 +52,11 @@ func TestEntriesDelete(t *testing.T) {
 
 	entries := Entries{e1, e2}
 
-	result := entries.delete(10)
+	result := entries.delete(e2)
 	assert.Equal(t, Entries{e1}, entries)
 	assert.Equal(t, e2, result)
 
-	result = entries.delete(5)
+	result = entries.delete(e1)
 	assert.Equal(t, Entries{}, entries)
 	assert.Equal(t, e1, result)
 }
