@@ -55,7 +55,6 @@ every value.  We could also use generics if Golang had them and
 let the consumer specify primitive types, which would speed up
 these operation dramatically.
 */
-
 package skip
 
 import (
@@ -78,6 +77,9 @@ const p = .5 // the p level defines the probability that a node
 // randomly seeded generator.
 var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
 var rnLock sync.Mutex // we need to protect the generator as it is not threadsafe
+
+// rnLock protects the RNG as the generator is not threadsafe.
+var rnLock sync.Mutex
 
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
@@ -424,6 +426,12 @@ func (sl *SkipList) Iter(e Entry) Iterator {
 	return sl.iter(e)
 }
 
+// SplitAt will split the current skiplist into two lists.  The first
+// skiplist returned is the "left" list and the second is the "right."
+// The index defines the last item in the left list.  If index is greater
+// then the length of this list, only the left skiplist is returned
+// and the right will be nil.  This is a mutable operation and modifies
+// the content of this list.
 func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {
 	index++ // 0-index offset
 	if index >= sl.num {

@@ -31,7 +31,6 @@ BenchmarkIteration-8	   	10000	   		 	109347 ns/op
 BenchmarkInsert-8	 		3000000	       		608 ns/op
 BenchmarkGet-8	 			3000000	       		627 ns/op
 */
-
 package plus
 
 func keySearch(keys keys, key Key) int {
