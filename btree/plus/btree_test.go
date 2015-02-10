@@ -361,7 +361,7 @@ func BenchmarkGet(b *testing.B) {
 }
 
 func BenchmarkBulkAddToExisting(b *testing.B) {
-	numItems := 10000
+	numItems := 100000
 	keySet := make([]keys, 0, b.N)
 	for i := 0; i < b.N; i++ {
 		keySet = append(keySet, constructRandomMockKeys(numItems))

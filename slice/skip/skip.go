@@ -85,7 +85,7 @@ func generateLevel(maxLevel uint8) uint8 {
 	rnLock.Lock()
 	defer rnLock.Unlock()
 	for level = uint8(1); level < maxLevel-1; level++ {
-		if generator.ExpFloat64() >= p {
+		if generator.Float64() >= p {
 
 			return level
 		}
