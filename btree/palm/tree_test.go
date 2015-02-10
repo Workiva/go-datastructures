@@ -29,52 +29,61 @@ import (
 
 func checkTree(t testing.TB, tree *ptree) bool {
 	return true
-	/*
-		if tree.root == nil {
-			return true
-		}
 
-		return checkNode(t, tree.root)*/
+	if tree.root == nil {
+		return true
+	}
+
+	return checkNode(t, tree.root)
 }
 
 func checkNode(t testing.TB, n *node) bool {
+	if n.keys.len() == 0 {
+		assert.Equal(t, uint64(0), n.nodes.len())
+		return false
+	}
+
+	if n.isLeaf {
+		assert.Equal(t, uint64(0), n.nodes.len())
+		return false
+	}
+
+	if !assert.Equal(t, n.keys.len()+1, n.nodes.len()) {
+		return false
+	}
+
+	i := uint64(0)
+	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
+		nd := n.nodes.list.ByPosition(i).(*node)
+		k := iter.Value().(Key)
+		if !assert.NotNil(t, nd) {
+			return false
+		}
+
+		if !assert.True(t, k.Compare(nd.key()) >= 0) {
+			t.Logf(`N: %+v %p, n.keys[i]: %+v, n.nodes[i]: %+v`, n, n, k, nd)
+			return false
+		}
+		i++
+	}
+
+	k := n.keys.last()
+	nd := n.nodes.byPosition(n.nodes.len() - 1)
+	if !assert.True(t, k.Compare(nd.key()) < 0) {
+		t.Logf(`m: %+v, %p, n.nodes[len(n.nodes)-1].key(): %+v, n.keys.last(): %+v`, n, n, nd, k)
+		return false
+	}
+	for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
+		child := iter.Value().(*node)
+		if !assert.NotNil(t, child) {
+			return false
+		}
+		if !checkNode(t, child) {
+			return false
+		}
+	}
+
 	return true
-	/*
-		if len(n.keys) == 0 {
-			assert.Len(t, n.nodes, 0)
-			return false
-		}
-
-		if n.isLeaf {
-			assert.Len(t, n.nodes, 0)
-			return false
-		}
-
-		if !assert.Len(t, n.nodes, len(n.keys)+1) {
-			return false
-		}
-
-		for i := 0; i < len(n.keys); i++ {
-			if !assert.True(t, n.keys[i].Compare(n.nodes[i].keys[len(n.nodes[i].keys)-1]) >= 0) {
-				t.Logf(`N: %+v %p, n.keys[i]: %+v, n.nodes[i]: %+v`, n, n, n.keys[i], n.nodes[i])
-				return false
-			}
-		}
-
-		if !assert.True(t, n.nodes[len(n.nodes)-1].key().Compare(n.keys[len(n.keys)-1]) > 0) {
-			t.Logf(`m: %+v, %p, n.nodes[len(n.nodes)-1].key(): %+v, n.keys.last(): %+v`, n, n, n.nodes[len(n.nodes)-1].key(), n.keys[len(n.keys)-1])
-			return false
-		}
-		for _, child := range n.nodes {
-			if !assert.NotNil(t, child) {
-				return false
-			}
-			if !checkNode(t, child) {
-				return false
-			}
-		}
-
-		return true*/
 }
 
 func getConsoleLogger() *log.Logger {
@@ -181,7 +190,6 @@ func TestMultipleBulkInsertOddAry(t *testing.T) {
 	checkTree(t, tree)
 }
 
-/*
 func TestMultipleBulkInsertEvenAry(t *testing.T) {
 	tree := newTree(4)
 	defer tree.Dispose()
@@ -199,7 +207,7 @@ func TestMultipleBulkInsertEvenAry(t *testing.T) {
 		tree.print(getConsoleLogger())
 	}
 	checkTree(t, tree)
-}*/
+}
 
 func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 	tree := newTree(4)
@@ -250,7 +258,6 @@ func TestInsertOverwrite(t *testing.T) {
 	checkTree(t, tree)
 }
 
-/*
 func TestSimultaneousReadsAndWrites(t *testing.T) {
 	numLoops := 3
 	keys := make([]Keys, 0, numLoops)
@@ -276,7 +283,7 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 		assert.Equal(t, keys[i], tree.Get(keys[i]...))
 	}
 	checkTree(t, tree)
-}*/
+}
 
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
