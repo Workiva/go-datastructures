@@ -25,7 +25,12 @@ func MultithreadedSortComparators(comparators Comparators) Comparators {
 	copy(toBeSorted, comparators)
 
 	var wg sync.WaitGroup
-	chunks := chunk(toBeSorted, int64(runtime.NumCPU()))
+	numCpu := int64(runtime.NumCPU())
+	if numCpu%2 == 1 { // there may only be 1 CPU
+		numCpu++
+	}
+
+	chunks := chunk(toBeSorted, numCpu)
 	wg.Add(len(chunks))
 	for i := 0; i < len(chunks); i++ {
 		go func(i int) {
