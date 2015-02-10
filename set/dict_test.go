@@ -176,3 +176,39 @@ func BenchmarkFlatten(b *testing.B) {
 		set.Flatten()
 	}
 }
+
+func BenchmarkLen(b *testing.B) {
+	set := New()
+	for i := 0; i < 50; i++ {
+		item := strconv.Itoa(i)
+		set.Add(item)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		set.Len()
+	}
+}
+
+func BenchmarkExists(b *testing.B) {
+	set := New()
+	set.Add(1)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		set.Exists(1)
+	}
+}
+
+func BenchmarkClear(b *testing.B) {
+	set := New()
+	for i := 0; i < 50; i++ {
+		item := strconv.Itoa(i)
+		set.Add(item)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		set.Clear()
+	}
+}

@@ -59,9 +59,11 @@ func (set *Set) Remove(items ...interface{}) {
 // Exists returns a bool indicating if the given item exists in the set.
 func (set *Set) Exists(item interface{}) bool {
 	set.lock.RLock()
-	defer set.lock.RUnlock()
 
 	_, ok := set.items[item]
+
+	set.lock.RUnlock()
+
 	return ok
 }
 
@@ -84,17 +86,21 @@ func (set *Set) Flatten() []interface{} {
 // Len returns the number of items in the set.
 func (set *Set) Len() int64 {
 	set.lock.RLock()
-	defer set.lock.RUnlock()
 
-	return int64(len(set.items))
+	size := int64(len(set.items))
+
+	set.lock.RUnlock()
+
+	return size
 }
 
 // Clear will remove all items from the set.
 func (set *Set) Clear() {
 	set.lock.Lock()
-	defer set.lock.Unlock()
 
 	set.items = map[interface{}]struct{}{}
+
+	set.lock.Unlock()
 }
 
 // All returns a bool indicating if all of the supplied items exist in the set.
