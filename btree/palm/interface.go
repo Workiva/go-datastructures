@@ -26,11 +26,15 @@ for in-memory indices.  Otherwise, the operations have typical B-tree
 time complexities.
 
 You primarily see the benefits of multithreading in availability and
-bulk operations, below is a benchmark against the B-plus tree in this
-package.
+bulk operations.
 
-BenchmarkBulkAddToExisting-8	200	   8690207 ns/op
-BenchmarkBulkAddToExisting-8    100   16778514 ns/op
+Benchmarks:
+
+BenchmarkReadAndWrites-8	   		  1000	   1543648 ns/op
+BenchmarkBulkAdd-8	    			  1000	   1705673 ns/op
+BenchmarkBulkAddToExisting-8	       100	  70056512 ns/op
+BenchmarkGet-8	  					100000	     17128 ns/op
+BenchmarkBulkGet-8	    			  3000	    507249 ns/op
 */
 package palm
 
