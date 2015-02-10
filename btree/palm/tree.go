@@ -35,7 +35,7 @@ const (
 )
 
 type recursiveBuild struct {
-	keys   []Key
+	keys   Keys
 	nodes  []*node
 	parent *node
 }
