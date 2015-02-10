@@ -86,6 +86,7 @@ func generateLevel(maxLevel uint8) uint8 {
 	defer rnLock.Unlock()
 	for level = uint8(1); level < maxLevel-1; level++ {
 		if generator.Float64() >= p {
+
 			return level
 		}
 	}
@@ -146,7 +147,7 @@ func splitAt(sl *SkipList, index uint64) (*SkipList, *SkipList) {
 
 	for i := uint8(0); i <= sl.level; i++ {
 		right.head.forward[i] = sl.cache[i].forward[i]
-		if sl.cache[i].widths[i] != 0 {
+		if sl.cache[i].forward[i] != nil {
 			right.head.widths[i] = sl.cache[i].widths[i] - (index - sl.posCache[i])
 		}
 		sl.cache[i].widths[i] = 0
@@ -224,7 +225,6 @@ func (sl *SkipList) resetMaxLevel() {
 		sl.level = 1
 		return
 	}
-
 	for sl.head.forward[sl.level-1] == nil && sl.level > 1 {
 		sl.level--
 	}
@@ -244,7 +244,7 @@ func (sl *SkipList) searchByPosition(position uint64, update nodes, widths width
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.widths[offset] != 0 && pos+n.widths[offset] <= position {
+		for n.forward[offset] != nil && pos+n.widths[offset] <= position {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
@@ -371,7 +371,7 @@ func (sl *SkipList) delete(e Entry) Entry {
 
 	for sl.level > 1 && sl.head.forward[sl.level-1] == nil {
 		sl.head.widths[sl.level] = 0
-		sl.level = sl.level - 1
+		sl.level--
 	}
 
 	return n.entry
@@ -393,6 +393,24 @@ func (sl *SkipList) Delete(entries ...Entry) Entries {
 // Len returns the number of items in this skiplist.
 func (sl *SkipList) Len() uint64 {
 	return sl.num
+}
+
+func (sl *SkipList) iterAtPosition(pos uint64) *iterator {
+	n, _ := sl.searchByPosition(pos, nil, nil)
+	if n == nil || n.entry == nil {
+		return nilIterator()
+	}
+
+	return &iterator{
+		first: true,
+		n:     n,
+	}
+}
+
+// IterAtPosition is the sister method to Iter only the user defines
+// a position in the skiplist to begin iteration instead of a value.
+func (sl *SkipList) IterAtPosition(pos uint64) Iterator {
+	return sl.iterAtPosition(pos + 1)
 }
 
 func (sl *SkipList) iter(e Entry) *iterator {

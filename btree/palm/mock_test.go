@@ -13,12 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package palm
+
+import "github.com/Workiva/go-datastructures/slice/skip"
 
 type mockKey int
 
-func (mk mockKey) Compare(other Key) int {
+func (mk mockKey) Compare(other skip.Entry) int {
 	otherKey := other.(mockKey)
 
 	if mk == otherKey {

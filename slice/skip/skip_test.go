@@ -316,6 +316,23 @@ func TestIter(t *testing.T) {
 	assert.Equal(t, Entries{}, iter.exhaust())
 }
 
+func TestIterAtPosition(t *testing.T) {
+	sl := New(uint8(0))
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(10)
+
+	sl.Insert(m1, m2)
+
+	iter := sl.IterAtPosition(0)
+	assert.Equal(t, Entries{m1, m2}, iter.exhaust())
+
+	iter = sl.IterAtPosition(1)
+	assert.Equal(t, Entries{m2}, iter.exhaust())
+
+	iter = sl.IterAtPosition(2)
+	assert.Equal(t, Entries{}, iter.exhaust())
+}
+
 func BenchmarkInsert(b *testing.B) {
 	numItems := b.N
 	sl := New(uint64(0))

@@ -26,13 +26,19 @@ for in-memory indices.  Otherwise, the operations have typical B-tree
 time complexities.
 
 You primarily see the benefits of multithreading in availability and
-bulk operations, below is a benchmark against the B-plus tree in this
-package.
+bulk operations.
 
-BenchmarkBulkAddToExisting-8	200	   8690207 ns/op
-BenchmarkBulkAddToExisting-8    100   16778514 ns/op
+Benchmarks:
+
+BenchmarkReadAndWrites-8	   		  1000	   1543648 ns/op
+BenchmarkBulkAdd-8	    			  1000	   1705673 ns/op
+BenchmarkBulkAddToExisting-8	       100	  70056512 ns/op
+BenchmarkGet-8	  					100000	     17128 ns/op
+BenchmarkBulkGet-8	    			  3000	    507249 ns/op
 */
 package palm
+
+import "github.com/Workiva/go-datastructures/slice/skip"
 
 // Keys is a typed list of Key interfaces.
 type Keys []Key
@@ -44,7 +50,7 @@ type Key interface {
 	// to the provided key.  -1 will indicate less than, 0 will indicate
 	// equality, and 1 will indicate greater than.  Duplicate keys
 	// are allowed, but duplicate IDs are not.
-	Compare(Key) int
+	Compare(skip.Entry) int
 }
 
 // BTree is the interface returned from this package's constructor.

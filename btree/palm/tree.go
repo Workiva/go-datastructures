@@ -36,7 +36,7 @@ const (
 
 type recursiveBuild struct {
 	keys   Keys
-	nodes  nodes
+	nodes  []*node
 	parent *node
 }
 
@@ -93,8 +93,9 @@ func (ptree *ptree) runReads(reads actions, wg *sync.WaitGroup) {
 					action.addResult(i, nil)
 				}
 				index := n.keys.search(key)
-				if index < len(n.keys) && n.keys[index].Compare(key) == 0 {
-					action.addResult(i, n.keys[index])
+				k := n.keys.byPosition(index)
+				if index < n.keys.len() && k.Compare(key) == 0 {
+					action.addResult(i, k)
 				} else {
 					action.addResult(i, nil)
 				}
@@ -154,7 +155,7 @@ func (ptree *ptree) runOperations() {
 	ptree.runAdds(writeOperations)
 }
 
-func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *nodes, keys *Keys) {
+func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *Keys) {
 	if !n.needsSplit(ptree.ary) {
 		return
 	}
@@ -186,7 +187,10 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	}
 
 	layer = make(map[*node][]*recursiveBuild, len(layer))
-	dummyRoot := &node{}
+	dummyRoot := &node{
+		keys:  newKeys(),
+		nodes: newNodes(),
+	}
 	queue.ExecuteInParallel(q, func(ifc interface{}) {
 		rbs := ifc.([]*recursiveBuild)
 
@@ -207,23 +211,23 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 
 		for _, rb := range rbs {
 			for i, k := range rb.keys {
-				if len(n.keys) == 0 {
+				if n.keys.len() == 0 {
 					n.keys.insert(k)
 					n.nodes.push(rb.nodes[i*2])
 					n.nodes.push(rb.nodes[i*2+1])
 					continue
 				}
 
+				n.keys.insert(k)
 				index := n.search(k)
-				n.keys.insertAt(k, index)
-				n.nodes[index] = rb.nodes[i*2]
-				n.nodes.insertAt(rb.nodes[i*2+1], index+1)
+				n.nodes.replaceAt(index, rb.nodes[i*2])
+				n.nodes.insertAt(index+1, rb.nodes[i*2+1])
 			}
 		}
 
 		if n.needsSplit(ptree.ary) {
-			keys := make(Keys, 0, len(n.keys))
-			nodes := make(nodes, 0, len(n.nodes))
+			keys := make(Keys, 0, n.keys.len())
+			nodes := make([]*node, 0, n.nodes.len())
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
 			ptree.write.Lock()
 			layer[parent] = append(
@@ -248,7 +252,10 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 	}
 
 	nextLayer := make(map[*node][]*recursiveBuild)
-	dummyRoot := &node{} // constructed in case we need it
+	dummyRoot := &node{
+		keys:  newKeys(),
+		nodes: newNodes(),
+	} // constructed in case we need it
 	var needRoot uint64
 	queue.ExecuteInParallel(q, func(ifc interface{}) {
 		n := ifc.(*node)
@@ -272,8 +279,8 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 		}
 
 		if n.needsSplit(ptree.ary) {
-			keys := make(Keys, 0, len(n.keys))
-			nodes := make(nodes, 0, len(n.nodes))
+			keys := make(Keys, 0, n.keys.len())
+			nodes := make([]*node, 0, n.nodes.len())
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
 			ptree.write.Lock()
 			nextLayer[parent] = append(
@@ -335,7 +342,7 @@ func (ptree *ptree) print(output *log.Logger) {
 
 func newTree(ary uint64) *ptree {
 	ptree := &ptree{
-		root:    newNode(true, make(Keys, 0, ary), make(nodes, 0, ary+1)),
+		root:    newNode(true, newKeys(), newNodes()),
 		ary:     ary,
 		pending: &pending{},
 		waiter:  queue.New(10),
