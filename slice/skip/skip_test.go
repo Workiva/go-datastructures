@@ -109,27 +109,6 @@ func TestSplitLargeSkipList(t *testing.T) {
 	}
 }
 
-func TestAppend(t *testing.T) {
-	m1 := newMockEntry(21)
-	m2 := newMockEntry(37)
-	m3 := newMockEntry(48)
-	sl := New(uint64(0))
-	sl.Insert(m1)
-	sl.Insert(m2)
-	sl.Insert(m3)
-
-	expected := Entries{m1, m2, m3}
-	results := Entries{}
-
-	for iter := sl.IterAtPosition(0); iter.Next(); {
-		t.Logf(`ITER: %+v`, iter.Value())
-		results = append(results, iter.Value())
-	}
-
-	assert.Equal(t, expected, results)
-	t.Fail()
-}
-
 func TestSplitLargeSkipListOddNumber(t *testing.T) {
 	entries := generateMockEntries(99)
 	leftEntries := entries[:50]
@@ -161,24 +140,6 @@ func TestSplitAtSkipListLength(t *testing.T) {
 	left, right := sl.SplitAt(4)
 	assert.Equal(t, sl, left)
 	assert.Nil(t, right)
-}
-
-func TestInsertMiddle(t *testing.T) {
-	before := Entries{newMockEntry(37), newMockEntry(48)}
-	after := Entries{newMockEntry(34), newMockEntry(24), newMockEntry(23)}
-	sl := New(uint64(0))
-	sl.Insert(before...)
-
-	for _, me := range after {
-		n, index := sl.GetWithPosition(me)
-		if n == nil {
-			index = sl.Len()
-		}
-
-		sl.InsertAtPosition(index, n)
-	}
-
-	sl.PP()
 }
 
 func TestGetWithPosition(t *testing.T) {
@@ -352,6 +313,23 @@ func TestIter(t *testing.T) {
 	assert.Equal(t, Entries{m2}, iter.exhaust())
 
 	iter = sl.Iter(mockEntry(11))
+	assert.Equal(t, Entries{}, iter.exhaust())
+}
+
+func TestIterAtPosition(t *testing.T) {
+	sl := New(uint8(0))
+	m1 := newMockEntry(5)
+	m2 := newMockEntry(10)
+
+	sl.Insert(m1, m2)
+
+	iter := sl.IterAtPosition(0)
+	assert.Equal(t, Entries{m1, m2}, iter.exhaust())
+
+	iter = sl.IterAtPosition(1)
+	assert.Equal(t, Entries{m2}, iter.exhaust())
+
+	iter = sl.IterAtPosition(2)
 	assert.Equal(t, Entries{}, iter.exhaust())
 }
 

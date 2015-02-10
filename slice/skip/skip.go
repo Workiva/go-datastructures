@@ -58,7 +58,6 @@ these operation dramatically.
 package skip
 
 import (
-	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -342,15 +341,6 @@ func (sl *SkipList) replaceAtPosition(position uint64, entry Entry) {
 	n.entry = entry
 }
 
-func (sl *SkipList) PP() {
-	log.Printf(`SL.LEN: %+v, LEVEL %+v`, sl.Len(), sl.level)
-	n := sl.head
-	for n != nil {
-		log.Printf(`N: %+v`, n)
-		n = n.forward[0]
-	}
-}
-
 // Replace at position will replace the entry at the provided position
 // with the provided entry.  If the provided position does not exist,
 // this operation is a no-op.
@@ -417,6 +407,8 @@ func (sl *SkipList) iterAtPosition(pos uint64) *iterator {
 	}
 }
 
+// IterAtPosition is the sister method to Iter only the user defines
+// a position in the skiplist to begin iteration instead of a value.
 func (sl *SkipList) IterAtPosition(pos uint64) Iterator {
 	return sl.iterAtPosition(pos + 1)
 }
