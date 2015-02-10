@@ -18,11 +18,11 @@ package palm
 
 import (
 	"log"
+	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
+	//"time"
 
-	"github.com/Workiva/go-datastructures/futures"
 	"github.com/Workiva/go-datastructures/queue"
 )
 
@@ -40,39 +40,67 @@ type recursiveBuild struct {
 	parent *node
 }
 
-type pending struct {
-	reads    actions
-	writes   Keys
-	number   uint64
-	signal   *futures.Future
-	signaler chan interface{}
-}
-
 type ptree struct {
-	root        *node
-	ary, number uint64
-	pending     *pending
-	lock, write sync.Mutex
-	waiter      *queue.Queue
+	root                      *node
+	ary, number, cacheBuffer1 uint64
+	actions                   *queue.RingBuffer
+	bufferSize, cacheBuffer2  uint64
+	cache                     []interface{}
+	cacheBuffer3              uint64
+	disposed, cacheBuffer4    uint64
 }
 
-func (ptree *ptree) initPending() {
-	signaler := make(chan interface{})
-	future := futures.New(signaler, 30*time.Minute)
-	ptree.pending = &pending{
-		signal:   future,
-		signaler: signaler,
-	}
+func (ptree *ptree) init(bufferSize, ary uint64) {
+	ptree.bufferSize = bufferSize
+	ptree.ary = ary
+	ptree.cache = make([]interface{}, 0, bufferSize)
+	ptree.root = newNode(true, newKeys(), newNodes())
+	ptree.actions = queue.NewRingBuffer(bufferSize)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go ptree.listen(&wg)
+	wg.Wait()
 }
 
-func (ptree *ptree) listen() {
+func (ptree *ptree) listen(notifier *sync.WaitGroup) {
+	notifier.Done()
+	var err error
+	var a interface{}
+	i := 0
 	for {
-		_, err := ptree.waiter.Get(10)
-		if err != nil {
+		//println(`START LOOP`)
+		if atomic.LoadUint64(&ptree.disposed) == 1 {
 			return
 		}
 
-		ptree.runOperations()
+		for ptree.actions.Len() > 0 {
+			a, err = ptree.actions.Get()
+			if err != nil {
+				return
+			}
+			ptree.cache = append(ptree.cache, a)
+			if uint64(len(ptree.cache)) == ptree.bufferSize {
+				break
+			}
+		}
+		//log.Printf(`CACHE: %+v`, ptree.cache)
+
+		if len(ptree.cache) > 0 {
+			//println(`STARTING OPERATIONS`)
+			ptree.runOperations(ptree.cache)
+			//println(`STOPPED OPERATIONS`)
+			for i := range ptree.cache {
+				ptree.cache[i] = nil
+			}
+			ptree.cache = ptree.cache[:0]
+		} else {
+			//println(`WTF`)
+			//time.Sleep(3 * time.Nanosecond)
+			if i%10 == 0 {
+				runtime.Gosched()
+			}
+			i++
+		}
 	}
 }
 
@@ -106,14 +134,17 @@ func (ptree *ptree) runReads(reads actions, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func (ptree *ptree) runOperations() {
-	ptree.lock.Lock()
-	toPerform := ptree.pending
-	ptree.initPending()
-	ptree.lock.Unlock()
+func (ptree *ptree) runOperations(xns []interface{}) {
+	reads := make(actions, 0, len(xns)/2)
+	writes := make(Keys, 0, len(xns)/2)
 
-	if toPerform.number == 0 {
-		return
+	for _, a := range xns {
+		switch a.(type) {
+		case *insertAction:
+			writes = append(writes, a.(*insertAction).keys...)
+		case *getAction:
+			reads = append(reads, a.(*getAction))
+		}
 	}
 
 	var wg sync.WaitGroup
@@ -121,11 +152,11 @@ func (ptree *ptree) runOperations() {
 	var inserts []*node
 	wg.Add(1) // for the gets
 
-	if len(toPerform.writes) > 0 {
-		inserts = make([]*node, len(toPerform.writes))
-		chunks := chunkKeys(toPerform.writes, 8)
+	if len(writes) > 0 {
+		inserts = make([]*node, len(writes))
+		chunks := chunkKeys(writes, 8)
 		wg.Add(len(chunks)) // for the inserts
-		go ptree.runReads(toPerform.reads, &wg)
+		go ptree.runReads(reads, &wg)
 
 		for _, chunk := range chunks {
 			go func(offset int, chunk Keys) {
@@ -139,20 +170,24 @@ func (ptree *ptree) runOperations() {
 			offset += len(chunk)
 		}
 	} else {
-		go ptree.runReads(toPerform.reads, &wg)
+		go ptree.runReads(reads, &wg)
 	}
 
 	wg.Wait()
-	if len(toPerform.writes) == 0 {
+	if len(writes) == 0 {
 		return
 	}
 	writeOperations := make(map[*node]Keys)
 	for i, n := range inserts {
-		writeOperations[n] = append(writeOperations[n], toPerform.writes[i])
+		writeOperations[n] = append(writeOperations[n], writes[i])
 	}
 
 	ptree.runAdds(writeOperations)
-	toPerform.signaler <- true
+	for _, a := range xns {
+		if ia, ok := a.(*insertAction); ok {
+			ia.complete()
+		}
+	}
 }
 
 func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *Keys) {
@@ -181,17 +216,18 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		panic(`SHOULD ONLY HAVE ONE ROOT`)
 	}
 
-	q := queue.New(int64(len(layer)))
+	q := queue.NewRingBuffer(uint64(len(layer)))
 	for _, rbs := range layer {
 		q.Put(rbs)
 	}
 
+	var write sync.Mutex
 	layer = make(map[*node][]*recursiveBuild, len(layer))
 	dummyRoot := &node{
 		keys:  newKeys(),
 		nodes: newNodes(),
 	}
-	queue.ExecuteInParallel(q, func(ifc interface{}) {
+	executeInParallel(q, func(ifc interface{}) {
 		rbs := ifc.([]*recursiveBuild)
 
 		if len(rbs) == 0 {
@@ -229,11 +265,11 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 			keys := make(Keys, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
-			ptree.write.Lock()
+			write.Lock()
 			layer[parent] = append(
 				layer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
 			)
-			ptree.write.Unlock()
+			write.Unlock()
 		}
 	})
 
@@ -245,19 +281,19 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 		return
 	}
 
-	q := queue.New(int64(len(addOperations)))
-
+	q := queue.NewRingBuffer(uint64(len(addOperations)))
 	for n := range addOperations {
 		q.Put(n)
 	}
 
+	var write sync.Mutex
 	nextLayer := make(map[*node][]*recursiveBuild)
 	dummyRoot := &node{
 		keys:  newKeys(),
 		nodes: newNodes(),
 	} // constructed in case we need it
 	var needRoot uint64
-	queue.ExecuteInParallel(q, func(ifc interface{}) {
+	executeInParallel(q, func(ifc interface{}) {
 		n := ifc.(*node)
 		keys := addOperations[n]
 
@@ -282,11 +318,11 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 			keys := make(Keys, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
-			ptree.write.Lock()
+			write.Lock()
 			nextLayer[parent] = append(
 				nextLayer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
 			)
-			ptree.write.Unlock()
+			write.Unlock()
 		}
 	})
 
@@ -297,26 +333,21 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 
 // Insert will add the provided keys to the tree.
 func (ptree *ptree) Insert(keys ...Key) {
-	var signaler *futures.Future
-	ptree.lock.Lock()
-	ptree.pending.writes = append(ptree.pending.writes, keys...)
-	ptree.pending.number += uint64(len(keys))
-	signaler = ptree.pending.signal
-	ptree.lock.Unlock()
-
-	ptree.waiter.Put(true)
-	signaler.GetResult()
+	ia := newInsertAction(keys)
+	err := ptree.actions.Put(ia)
+	if err != nil {
+		return
+	}
+	<-ia.completer
 }
 
 // Get will retrieve a list of keys from the provided keys.
 func (ptree *ptree) Get(keys ...Key) Keys {
 	ga := newGetAction(keys)
-	ptree.lock.Lock()
-	ptree.pending.reads = append(ptree.pending.reads, ga)
-	ptree.pending.number += uint64(len(keys))
-	ptree.lock.Unlock()
-
-	ptree.waiter.Put(true)
+	err := ptree.actions.Put(ga)
+	if err != nil {
+		return nil
+	}
 	return <-ga.completer
 }
 
@@ -328,7 +359,8 @@ func (ptree *ptree) Len() uint64 {
 // Dispose will clean up any resources used by this tree.  This
 // must be called to prevent a memory leak.
 func (ptree *ptree) Dispose() {
-	ptree.waiter.Dispose()
+	ptree.actions.Dispose()
+	atomic.StoreUint64(&ptree.disposed, 1)
 }
 
 func (ptree *ptree) print(output *log.Logger) {
@@ -340,21 +372,15 @@ func (ptree *ptree) print(output *log.Logger) {
 	ptree.root.print(output)
 }
 
-func newTree(ary uint64) *ptree {
-	ptree := &ptree{
-		root:    newNode(true, newKeys(), newNodes()),
-		ary:     ary,
-		pending: &pending{},
-		waiter:  queue.New(10),
-	}
-	ptree.initPending()
-	go ptree.listen()
+func newTree(bufferSize, ary uint64) *ptree {
+	ptree := &ptree{}
+	ptree.init(bufferSize, ary)
 	return ptree
 }
 
 // New will allocate, initialize, and return a new B-Tree based
 // on PALM principles.  This type of tree is suited for in-memory
 // indices in a multi-threaded environment.
-func New(ary uint64) BTree {
-	return newTree(ary)
+func New(bufferSize, ary uint64) BTree {
+	return newTree(bufferSize, ary)
 }

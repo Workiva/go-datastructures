@@ -17,7 +17,9 @@ package queue
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
+	//"time"
 )
 
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
@@ -48,8 +50,14 @@ type nodes []*node
 // described here: http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
 // with some minor additions.
 type RingBuffer struct {
-	nodes                          nodes
-	queue, dequeue, mask, disposed uint64
+	nodes            nodes
+	queue, buffer1   uint64
+	dequeue, buffer2 uint64
+	mask, buffer3    uint64
+	disposed         uint64
+	queueCond        *sync.Cond
+	buffer4          uint64
+	dequeueCond      *sync.Cond
 }
 
 func (rb *RingBuffer) init(size uint64) {
@@ -59,6 +67,8 @@ func (rb *RingBuffer) init(size uint64) {
 		rb.nodes[i] = &node{position: i}
 	}
 	rb.mask = size - 1 // so we don't have to do this with every put/get operation
+	rb.queueCond = sync.NewCond(&sync.Mutex{})
+	rb.dequeueCond = sync.NewCond(&sync.Mutex{})
 }
 
 // Put adds the provided item to the queue.  If the queue is full, this
@@ -67,6 +77,7 @@ func (rb *RingBuffer) init(size uint64) {
 func (rb *RingBuffer) Put(item interface{}) error {
 	var n *node
 	pos := atomic.LoadUint64(&rb.queue)
+	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -83,13 +94,16 @@ L:
 		case dif < 0:
 			panic(`Ring buffer in a compromised state during a put operation.`)
 		default:
+			if i%100 == 0 {
+				runtime.Gosched()
+			}
 			pos = atomic.LoadUint64(&rb.queue)
 		}
-		runtime.Gosched() // free up the cpu before the next iteration
 	}
 
 	n.data = item
 	atomic.StoreUint64(&n.position, pos+1)
+	rb.dequeueCond.Broadcast()
 	return nil
 }
 
@@ -100,6 +114,7 @@ L:
 func (rb *RingBuffer) Get() (interface{}, error) {
 	var n *node
 	pos := atomic.LoadUint64(&rb.dequeue)
+	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -116,13 +131,17 @@ L:
 		case dif < 0:
 			panic(`Ring buffer in compromised state during a get operation.`)
 		default:
+			if i%100 == 0 {
+				runtime.Gosched()
+			}
 			pos = atomic.LoadUint64(&rb.dequeue)
+
 		}
-		runtime.Gosched() // free up cpu before next iteration
 	}
 	data := n.data
 	n.data = nil
 	atomic.StoreUint64(&n.position, pos+rb.mask+1)
+	rb.queueCond.Broadcast()
 	return data, nil
 }
 

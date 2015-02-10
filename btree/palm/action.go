@@ -16,7 +16,13 @@ limitations under the License.
 
 package palm
 
-import "sync/atomic"
+import (
+	"runtime"
+	"sync"
+	"sync/atomic"
+
+	"github.com/Workiva/go-datastructures/queue"
+)
 
 type actions []action
 
@@ -75,4 +81,57 @@ func newGetAction(keys Keys) *getAction {
 		completer: make(chan Keys),
 		result:    make(Keys, len(keys)),
 	}
+}
+
+type insertAction struct {
+	keys      Keys
+	completer chan bool
+}
+
+func (ia *insertAction) complete() {
+	close(ia.completer)
+}
+
+func newInsertAction(keys Keys) *insertAction {
+	return &insertAction{
+		keys:      keys,
+		completer: make(chan bool),
+	}
+}
+
+func executeInParallel(q *queue.RingBuffer, fn func(interface{})) {
+	if q == nil {
+		return
+	}
+
+	todo, done := q.Len(), uint64(0)
+	if todo == 0 {
+		return
+	}
+
+	numCPU := 1
+	if runtime.NumCPU() > 1 {
+		numCPU = runtime.NumCPU() - 1
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	for i := 0; i < numCPU; i++ {
+		go func() {
+			for {
+				ifc, err := q.Get()
+				if err != nil {
+					return
+				}
+				fn(ifc)
+				if atomic.AddUint64(&done, 1) == todo {
+					wg.Done()
+					break
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	q.Dispose()
 }
