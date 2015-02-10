@@ -16,15 +16,9 @@ limitations under the License.
 package queue
 
 import (
-	"errors"
-	"log"
 	"runtime"
 	"sync/atomic"
 )
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
 
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
 // power of 2.
@@ -47,6 +41,12 @@ type node struct {
 
 type nodes []*node
 
+// RingBuffer is a MPMC buffer that achieves threadsafety with CAS operations
+// only.  A put on full or get on empty call will block until an item
+// is put or retrieved.  Calling Dispose on the RingBuffer will unblock
+// any blocked threads with an error.  This buffer is similar to the buffer
+// described here: http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
+// with some minor additions.
 type RingBuffer struct {
 	nodes                          nodes
 	queue, dequeue, mask, disposed uint64
@@ -61,6 +61,9 @@ func (rb *RingBuffer) init(size uint64) {
 	rb.mask = size - 1 // so we don't have to do this with every put/get operation
 }
 
+// Put adds the provided item to the queue.  If the queue is full, this
+// call will block until an item is added to the queue or Dispose is called
+// on the queue.  An error will be returned if the queue is disposed.
 func (rb *RingBuffer) Put(item interface{}) error {
 	var n *node
 	pos := atomic.LoadUint64(&rb.queue)
@@ -78,7 +81,7 @@ L:
 				break L
 			}
 		case dif < 0:
-			return errors.New(`Full.`)
+			panic(`Ring buffer in a compromised state during a put operation.`)
 		default:
 			pos = atomic.LoadUint64(&rb.queue)
 		}
@@ -90,6 +93,10 @@ L:
 	return nil
 }
 
+// Get will return the next item in the queue.  This call will block
+// if the queue is empty.  This call will unblock when an item is added
+// to the queue or Dispose is called on the queue.  An error will be returned
+// if the queue is disposed.
 func (rb *RingBuffer) Get() (interface{}, error) {
 	var n *node
 	pos := atomic.LoadUint64(&rb.dequeue)
@@ -107,7 +114,7 @@ L:
 				break L
 			}
 		case dif < 0:
-			return nil, errors.New(`Queue empty.`)
+			panic(`Ring buffer in compromised state during a get operation.`)
 		default:
 			pos = atomic.LoadUint64(&rb.dequeue)
 		}
@@ -119,22 +126,31 @@ L:
 	return data, nil
 }
 
+// Len returns the number of items in the queue.
 func (rb *RingBuffer) Len() uint64 {
 	return atomic.LoadUint64(&rb.queue) - atomic.LoadUint64(&rb.dequeue)
 }
 
+// Cap returns the capacity of this ring buffer.
 func (rb *RingBuffer) Cap() uint64 {
 	return uint64(len(rb.nodes))
 }
 
+// Dispose will dispose of this queue and free any blocked threads
+// in the Put and/or Get methods.  Calling those methods on a disposed
+// queue will return an error.
 func (rb *RingBuffer) Dispose() {
 	atomic.CompareAndSwapUint64(&rb.disposed, 0, 1)
 }
 
+// IsDisposed will return a bool indicating if this queue has been
+// disposed.
 func (rb *RingBuffer) IsDisposed() bool {
 	return atomic.LoadUint64(&rb.disposed) == 1
 }
 
+// NewRingBuffer will allocate, initialize, and return a ring buffer
+// with the specified size.
 func NewRingBuffer(size uint64) *RingBuffer {
 	rb := &RingBuffer{}
 	rb.init(size)
