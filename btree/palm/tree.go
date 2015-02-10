@@ -151,8 +151,8 @@ func (ptree *ptree) runOperations() {
 		writeOperations[n] = append(writeOperations[n], toPerform.writes[i])
 	}
 
-	toPerform.signaler <- true
 	ptree.runAdds(writeOperations)
+	toPerform.signaler <- true
 }
 
 func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *Keys) {

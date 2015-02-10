@@ -13,9 +13,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package queue
 
-import "errors"
+type RingBuffer struct {
+	ifs               []interface{}
+	placed, retrieved uint64
+	size              int64
+}
 
-var disposedError = errors.New(`Queue has been disposed.`)
+func (rb *RingBuffer) Put(items ...interface{}) error {
+	if len(items) == 0 {
+		return nil
+	}
+
+	return nil
+}

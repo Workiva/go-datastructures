@@ -128,7 +128,7 @@ func (q *Queue) Put(items ...interface{}) error {
 
 	if q.disposed {
 		q.lock.Unlock()
-		return DisposedError{}
+		return disposedError
 	}
 
 	q.items = append(q.items, items...)
@@ -163,7 +163,7 @@ func (q *Queue) Get(number int64) ([]interface{}, error) {
 
 	if q.disposed {
 		q.lock.Unlock()
-		return nil, DisposedError{}
+		return nil, disposedError
 	}
 
 	var items []interface{}
@@ -177,7 +177,7 @@ func (q *Queue) Get(number int64) ([]interface{}, error) {
 		sema.wg.Wait()
 		// we are now inside the put's lock
 		if q.disposed {
-			return nil, DisposedError{}
+			return nil, disposedError
 		}
 		items = q.items.get(number)
 		sema.response.Done()
@@ -201,7 +201,7 @@ func (q *Queue) TakeUntil(checker func(item interface{}) bool) ([]interface{}, e
 
 	if q.disposed {
 		q.lock.Unlock()
-		return nil, DisposedError{}
+		return nil, disposedError
 	}
 
 	result := q.items.getUntil(checker)
