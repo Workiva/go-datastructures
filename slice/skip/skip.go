@@ -369,7 +369,7 @@ func (sl *SkipList) delete(e Entry) Entry {
 		sl.cache[i].forward[i] = n.forward[i]
 	}
 
-	for sl.level > 0 && sl.head.forward[sl.level] == nil {
+	for sl.level > 1 && sl.head.forward[sl.level-1] == nil {
 		sl.head.widths[sl.level] = 0
 		sl.level = sl.level - 1
 	}
