@@ -331,7 +331,7 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 		keySet = append(keySet, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(32768)
+	tree := newTree(1024)
 
 	b.ResetTimer()
 
