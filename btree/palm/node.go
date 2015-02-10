@@ -212,6 +212,9 @@ func (n *node) print(output *log.Logger) {
 	}
 }
 
+// Compare is required by the skip.Entry interface but nodes are always
+// added by position so while this method is required it doesn't
+// need to return anything useful.
 func (n *node) Compare(e skip.Entry) int {
 	return 0
 }
