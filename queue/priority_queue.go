@@ -21,6 +21,7 @@ this code is repeated instead of using casts to cast to interface{}
 back and forth.  If Go had inheritance and generics, this problem
 would be easier to solve.
 */
+
 package queue
 
 import (
