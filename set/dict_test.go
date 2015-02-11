@@ -201,6 +201,7 @@ func BenchmarkExists(b *testing.B) {
 }
 
 func BenchmarkClear(b *testing.B) {
+	set := New()
 	for i := 0; i < b.N; i++ {
 		set.Clear()
 	}
