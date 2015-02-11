@@ -15,9 +15,11 @@ limitations under the License.
 */
 
 /*
-The immutable AVL tree can be used as the foundation for many functional
-data types.  Combined with a B+ tree, you can make an immutable index which
-serves as the backbone for many different kinds of key/value stores.
+Package avl includes an immutable AVL tree.
+
+AVL trees can be used as the foundation for many functional data types.
+Combined with a B+ tree, you can make an immutable index which serves as the
+backbone for many different kinds of key/value stores.
 
 Time complexities:
 Space: O(n)
