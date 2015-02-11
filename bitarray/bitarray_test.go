@@ -291,18 +291,18 @@ func TestSetHighestLowest(t *testing.T) {
 	ba := newBitArray(10)
 
 	assert.False(t, ba.anyset)
-	assert.Equal(t, 0, ba.lowest)
-	assert.Equal(t, 0, ba.highest)
+	assert.Equal(t, uint64(0), ba.lowest)
+	assert.Equal(t, uint64(0), ba.highest)
 
 	ba.SetBit(5)
 
 	assert.True(t, ba.anyset)
-	assert.Equal(t, 5, ba.lowest)
-	assert.Equal(t, 5, ba.highest)
+	assert.Equal(t, uint64(5), ba.lowest)
+	assert.Equal(t, uint64(5), ba.highest)
 
 	ba.SetBit(8)
-	assert.Equal(t, 5, ba.lowest)
-	assert.Equal(t, 8, ba.highest)
+	assert.Equal(t, uint64(5), ba.lowest)
+	assert.Equal(t, uint64(8), ba.highest)
 }
 
 func TestGetBitAtCapacity(t *testing.T) {
@@ -330,8 +330,8 @@ func TestClearHighestLowest(t *testing.T) {
 	ba.ClearBit(5)
 
 	assert.False(t, ba.anyset)
-	assert.Equal(t, 0, ba.lowest)
-	assert.Equal(t, 0, ba.highest)
+	assert.Equal(t, uint64(0), ba.lowest)
+	assert.Equal(t, uint64(0), ba.highest)
 
 	ba.SetBit(3)
 	ba.SetBit(5)
@@ -339,24 +339,24 @@ func TestClearHighestLowest(t *testing.T) {
 
 	ba.ClearBit(7)
 	assert.True(t, ba.anyset)
-	assert.Equal(t, 5, ba.highest)
-	assert.Equal(t, 3, ba.lowest)
+	assert.Equal(t, uint64(5), ba.highest)
+	assert.Equal(t, uint64(3), ba.lowest)
 
 	ba.SetBit(7)
 	ba.ClearBit(3)
 	assert.True(t, ba.anyset)
-	assert.Equal(t, 5, ba.lowest)
-	assert.Equal(t, 7, ba.highest)
+	assert.Equal(t, uint64(5), ba.lowest)
+	assert.Equal(t, uint64(7), ba.highest)
 
 	ba.ClearBit(7)
 	assert.True(t, ba.anyset)
-	assert.Equal(t, 5, ba.lowest)
-	assert.Equal(t, 5, ba.highest)
+	assert.Equal(t, uint64(5), ba.lowest)
+	assert.Equal(t, uint64(5), ba.highest)
 
 	ba.ClearBit(5)
 	assert.False(t, ba.anyset)
-	assert.Equal(t, 0, ba.lowest)
-	assert.Equal(t, 0, ba.highest)
+	assert.Equal(t, uint64(0), ba.lowest)
+	assert.Equal(t, uint64(0), ba.highest)
 }
 
 func TestComplementResetsBounds(t *testing.T) {
@@ -364,8 +364,8 @@ func TestComplementResetsBounds(t *testing.T) {
 
 	ba.complement()
 	assert.True(t, ba.anyset)
-	assert.Equal(t, 0, ba.lowest)
-	assert.Equal(t, s-1, ba.highest)
+	assert.Equal(t, uint64(0), ba.lowest)
+	assert.Equal(t, uint64(s-1), ba.highest)
 }
 
 func TestBitArrayIntersectsSparse(t *testing.T) {
@@ -413,7 +413,7 @@ func TestConstructorSetBitArray(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result)
 	assert.Equal(t, s-1, ba.highest)
-	assert.Equal(t, 0, ba.lowest)
+	assert.Equal(t, uint64(0), ba.lowest)
 	assert.True(t, ba.anyset)
 }
 
