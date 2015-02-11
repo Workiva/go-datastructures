@@ -10,7 +10,6 @@ importing this package instead of each subpackage individually.
 import (
 	_ "github.com/Workiva/go-datastructures/augmentedtree"
 	_ "github.com/Workiva/go-datastructures/bitarray"
-	_ "github.com/Workiva/go-datastructures/btree/link"
 	_ "github.com/Workiva/go-datastructures/btree/palm"
 	_ "github.com/Workiva/go-datastructures/btree/plus"
 	_ "github.com/Workiva/go-datastructures/futures"

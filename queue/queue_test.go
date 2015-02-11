@@ -300,11 +300,12 @@ func TestExecuteInParallel(t *testing.T) {
 
 	numCalls := uint64(0)
 
-	ExecuteInParallel(q, func(interface{}) {
+	ExecuteInParallel(q, func(item interface{}) {
+		t.Logf("ExecuteInParallel called us with %+v", item)
 		atomic.AddUint64(&numCalls, 1)
 	})
 
-	assert.Equal(t, 10, numCalls)
+	assert.Equal(t, uint64(10), numCalls)
 	assert.True(t, q.Disposed())
 }
 

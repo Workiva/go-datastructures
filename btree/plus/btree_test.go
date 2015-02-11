@@ -283,7 +283,10 @@ func TestTreeGet(t *testing.T) {
 	tree.Insert(keys...)
 
 	assert.Equal(t, uint64(100), tree.Len())
-	assert.Equal(t, keys, tree.Get(keys...))
+	fromTree := tree.Get(keys...)
+	for _, key := range keys {
+		assert.Contains(t, fromTree, key)
+	}
 }
 
 func TestTreeGetNotFound(t *testing.T) {
