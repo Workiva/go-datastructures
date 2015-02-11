@@ -57,20 +57,12 @@ Initial implementation of a B+ tree.  Delete method still needs added as well as
 
 ### Installation
 
-1) Install Go 1.3 or higher.
-
-2) Configure git to use SSH instead of HTTPS for github repositories. This
-allows `go get` to use private repositories.
-
-	# ~/.gitconfig
-	[url "git@github.com:"]
-		insteadOf = https://github.com
-
-3) go get github.com/Workiva/go-datastructures ...
+ 1. Install Go 1.3 or higher.
+ 2. Run `go get github.com/Workiva/go-datastructures/...`
 
 ### Updating
 
-When new code is merged to master, you can use 
+When new code is merged to master, you can use
 
 	go get -u github.com/Workiva/go-datastructures/...
 
@@ -84,9 +76,10 @@ To run all the unit tests use these commands:
 	go get -t -u ./...
 	go test ./...
 
-Once you've done this once, you can simply use
+Once you've done this once, you can simply use this command to run all unit tests:
 
 	go test ./...
+
 
 ### Notice
 
