@@ -18,7 +18,7 @@ package palm
 
 import (
 	"log"
-	//"runtime"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	//"time"
@@ -53,7 +53,9 @@ type ptree struct {
 
 func (ptree *ptree) checkAndRun(ifc interface{}) {
 	if ptree.actions.Len() > 0 {
-		ptree.actions.Put(ifc)
+		if ifc != nil {
+			ptree.actions.Put(ifc)
+		}
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
 			var a interface{}
 			var err error
@@ -74,8 +76,8 @@ func (ptree *ptree) checkAndRun(ifc interface{}) {
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
 			switch ifc.(type) {
 			case *getAction:
-				for ptree.read(ifc.(*getAction)) {
-				}
+				ptree.read(ifc.(*getAction))
+				ifc.(*getAction).complete()
 				ptree.reset()
 			default:
 				ptree.runOperations([]interface{}{ifc})
@@ -95,33 +97,20 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
 }
 
-func (ptree *ptree) read(action action) bool {
-	key, i := action.getKey()
-	if key == nil {
-		return false
-	}
-
-	n := getParent(ptree.root, key)
-	if n == nil {
-		action.addResult(i, nil)
-	} else {
-		k, _ := n.keys.withPosition(key)
-		if k == nil {
-			action.addResult(i, nil)
+func (ptree *ptree) read(action action) {
+	for i, k := range action.keys() {
+		n := getParent(ptree.root, k)
+		if n == nil {
+			action.keys()[i] = nil
 		} else {
-			action.addResult(i, k)
+			key, _ := n.keys.withPosition(k)
+			if key == nil {
+				action.keys()[i] = nil
+			} else {
+				action.keys()[i] = key
+			}
 		}
 	}
-	return true
-}
-
-func (ptree *ptree) runReads(reads actions, wg *sync.WaitGroup) {
-	for _, action := range reads {
-		for ptree.read(action) {
-		}
-	}
-
-	wg.Done()
 }
 
 func (ptree *ptree) reset() {
@@ -135,60 +124,76 @@ func (ptree *ptree) reset() {
 }
 
 func (ptree *ptree) runOperations(xns []interface{}) {
-	//println(`RUNNING OPERATIONS`)
-	reads := make(actions, 0, len(xns)/2)
-	writes := make(Keys, 0, len(xns)/2)
-
-	for _, a := range xns {
-		switch a.(type) {
-		case *insertAction:
-			writes = append(writes, a.(*insertAction).keys...)
-		case *getAction:
-			reads = append(reads, a.(*getAction))
-		}
+	i := int64(0)
+	js := make([]int64, 0, len(xns))
+	for j := 0; j < len(xns); j++ {
+		js = append(js, -1)
 	}
-
+	numCPU := runtime.NumCPU()
+	if numCPU > 1 {
+		numCPU--
+	}
 	var wg sync.WaitGroup
-	var offset int
-	var inserts []*node
-	wg.Add(1) // for the gets
+	wg.Add(numCPU)
 
-	if len(writes) > 0 {
-		inserts = make([]*node, len(writes))
-		chunks := chunkKeys(writes, 8)
-		wg.Add(len(chunks)) // for the inserts
-		go ptree.runReads(reads, &wg)
+	for k := 0; k < numCPU; k++ {
+		go func() {
+			defer wg.Done()
+			for {
+				index := atomic.LoadInt64(&i)
+				if index >= int64(len(xns)) {
+					return
+				}
+				action := xns[index].(action)
 
-		for _, chunk := range chunks {
-			go func(offset int, chunk Keys) {
-				for i, k := range chunk {
-					n := getParent(ptree.root, k)
-					inserts[offset+i] = n
+				j := atomic.AddInt64(&js[index], 1)
+				if j > int64(len(action.keys())) { // someone else is updating i
+					continue
+				} else if j == int64(len(action.keys())) {
+					atomic.StoreInt64(&i, index+1)
+					continue
 				}
 
-				wg.Done()
-			}(offset, chunk)
-			offset += len(chunk)
-		}
-	} else {
-		go ptree.runReads(reads, &wg)
+				n := getParent(ptree.root, action.keys()[j])
+				switch action.operation() {
+				case add:
+					action.addNode(j, n)
+				case get:
+					if n == nil {
+						action.keys()[j] = nil
+					} else {
+						k, _ := n.keys.withPosition(action.keys()[j])
+						if k == nil {
+							action.keys()[j] = nil
+						} else {
+							action.keys()[j] = k
+						}
+					}
+				}
+			}
+		}()
 	}
 
 	wg.Wait()
-	if len(writes) == 0 {
-		ptree.reset()
-		return
-	}
+
 	writeOperations := make(map[*node]Keys)
-	for i, n := range inserts {
-		writeOperations[n] = append(writeOperations[n], writes[i])
+	toComplete := make(actions, 0, len(xns)/2)
+	for _, ifc := range xns {
+		action := ifc.(action)
+		switch action.operation() {
+		case add:
+			for i, n := range action.nodes() {
+				writeOperations[n] = append(writeOperations[n], action.keys()[i])
+			}
+			toComplete = append(toComplete, action)
+		case get:
+			action.complete()
+		}
 	}
 
 	ptree.runAdds(writeOperations)
-	for _, a := range xns {
-		if ia, ok := a.(*insertAction); ok {
-			ia.complete()
-		}
+	for _, a := range toComplete {
+		a.complete()
 	}
 
 	ptree.reset()

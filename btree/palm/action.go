@@ -26,23 +26,21 @@ import (
 )
 
 type gets Keys
-
 type adds Keys
 
 type actions []action
 
 type action interface {
 	operation() operation
-	getKey() (Key, uint64) // returns nil if operation complete
-	addResult(index uint64, result Key)
-	len() uint64
+	keys() Keys
 	complete()
+	addNode(int64, *node)
+	nodes() []*node
 }
 
 type getAction struct {
-	result, keys Keys
-	count, done  uint64
-	completer    *sync.WaitGroup
+	result    Keys
+	completer *sync.WaitGroup
 }
 
 func (ga *getAction) complete() {
@@ -53,55 +51,62 @@ func (ga *getAction) operation() operation {
 	return get
 }
 
-func (ga *getAction) addResult(index uint64, result Key) {
-	i := atomic.AddUint64(&ga.done, 1)
-	i--
-	if i >= uint64(len(ga.keys)) {
-		return
-	}
-	ga.result[index] = result
-	if i == uint64(len(ga.keys))-1 {
-		ga.complete()
-	}
+func (ga *getAction) keys() Keys {
+	return ga.result
 }
 
-func (ga *getAction) getKey() (Key, uint64) {
-	index := atomic.AddUint64(&ga.count, 1)
-	index-- // 0-index
-	if index >= uint64(len(ga.keys)) {
-		return nil, 0
-	}
-
-	return ga.keys[index], index
+func (ga *getAction) addNode(i int64, n *node) {
+	return // not necessary for gets
 }
 
-func (ga *getAction) len() uint64 {
-	return uint64(len(ga.keys))
+func (ga *getAction) nodes() []*node {
+	return nil
 }
 
 func newGetAction(keys Keys) *getAction {
+	result := make(Keys, len(keys))
+	copy(result, keys) // don't want to mutate passed in keys
 	ga := &getAction{
-		keys:      keys,
+		result:    result,
 		completer: new(sync.WaitGroup),
-		result:    make(Keys, len(keys)),
 	}
 	ga.completer.Add(1)
 	return ga
 }
 
 type insertAction struct {
-	keys      Keys
+	result    Keys
 	completer *sync.WaitGroup
+	ns        []*node
 }
 
 func (ia *insertAction) complete() {
 	ia.completer.Done()
 }
 
+func (ia *insertAction) operation() operation {
+	return add
+}
+
+func (ia *insertAction) keys() Keys {
+	return ia.result
+}
+
+func (ia *insertAction) addNode(i int64, n *node) {
+	ia.ns[i] = n
+}
+
+func (ia *insertAction) nodes() []*node {
+	return ia.ns
+}
+
 func newInsertAction(keys Keys) *insertAction {
+	result := make(Keys, len(keys))
+	copy(result, keys)
 	ia := &insertAction{
-		keys:      keys,
+		result:    result,
 		completer: new(sync.WaitGroup),
+		ns:        make([]*node, len(keys)),
 	}
 	ia.completer.Add(1)
 	return ia

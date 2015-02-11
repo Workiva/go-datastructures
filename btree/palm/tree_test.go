@@ -261,7 +261,7 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 	numLoops := 3
 	keys := make([]Keys, 0, numLoops)
 	for i := 0; i < numLoops; i++ {
-		keys = append(keys, generateRandomKeys(1000))
+		keys = append(keys, generateRandomKeys(10))
 	}
 
 	tree := newTree(16, 16)
