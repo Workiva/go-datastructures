@@ -18,7 +18,6 @@
 //
 // This performance could be further enhanced by using a
 // better probing technique.
-
 package fastinteger
 
 const ratio = .75 // ratio sets the capacity the hashmap has to be at before it expands
