@@ -26,7 +26,6 @@ consumer that needs a threadsafe rangetree.
 
 TODO: unify both implementations with the same interface.
 */
-
 package rangetree
 
 // Entry defines items that can be added to the rangetree.
