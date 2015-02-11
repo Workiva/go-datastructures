@@ -113,7 +113,7 @@ func TestSimpleInsert(t *testing.T) {
 	m1 := mockKey(1)
 
 	tree.Insert(m1)
-	//assert.Equal(t, Keys{m1}, tree.Get(m1))
+	assert.Equal(t, Keys{m1}, tree.Get(m1))
 	assert.Equal(t, uint64(1), tree.Len())
 	checkTree(t, tree)
 }
