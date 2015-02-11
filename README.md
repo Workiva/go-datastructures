@@ -2,7 +2,8 @@
 go-datastructures
 =================
 
-Go-datastructes is a collection of useful and performant Go datastructures.
+Go-datastructures is a collection of useful, performant, and threadsafe Go
+datastructures.
 
 ### NOTE: only tested with Go 1.3+.
 
