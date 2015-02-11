@@ -16,9 +16,8 @@ limitations under the License.
 package queue
 
 import (
-	//"runtime"
+	"runtime"
 	"sync/atomic"
-	//"time"
 )
 
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
@@ -49,11 +48,8 @@ type nodes []*node
 // described here: http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
 // with some minor additions.
 type RingBuffer struct {
-	nodes            nodes
-	queue, buffer1   uint64
-	dequeue, buffer2 uint64
-	mask, buffer3    uint64
-	disposed         uint64
+	nodes                          nodes
+	queue, dequeue, mask, disposed uint64
 }
 
 func (rb *RingBuffer) init(size uint64) {
@@ -71,7 +67,6 @@ func (rb *RingBuffer) init(size uint64) {
 func (rb *RingBuffer) Put(item interface{}) error {
 	var n *node
 	pos := atomic.LoadUint64(&rb.queue)
-	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -90,9 +85,7 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.queue)
 		}
-		if i%10 == 0 {
-			//runtime.Gosched()
-		}
+		runtime.Gosched() // free up the cpu before the next iteration
 	}
 
 	n.data = item
@@ -107,7 +100,6 @@ L:
 func (rb *RingBuffer) Get() (interface{}, error) {
 	var n *node
 	pos := atomic.LoadUint64(&rb.dequeue)
-	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -126,9 +118,7 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.dequeue)
 		}
-		if i%10 == 0 {
-			//runtime.Gosched()
-		}
+		runtime.Gosched() // free up the cpu before the next iteration
 	}
 	data := n.data
 	n.data = nil

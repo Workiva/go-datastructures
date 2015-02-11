@@ -21,7 +21,6 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
-	//"time"
 
 	"github.com/Workiva/go-datastructures/queue"
 )
