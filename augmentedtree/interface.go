@@ -29,7 +29,6 @@ The current tree is a simple top-down red-black binary search tree.
 TODO: Add a bottom-up implementation to assist with duplicate
 range handling.
 */
-
 package augmentedtree
 
 // Interval is the interface that must be implemented by any

@@ -14,9 +14,6 @@ Bitarray used to detect existence without having to resort to hashing with hashm
 #### Futures: 
 A helpful tool to send a "broadcast" message to listeners.  Channels have the issue that once one listener takes a message from a channel the other listeners aren't notified.  There were many cases when I wanted to notify many listeners of a single event and this package helps.
 
-#### Graph: 
-Still pretty specific to gotable, but contains logic required to maintain graph state.  Also has logic to flatten graph into executable chunks.
-
 #### Queue: 
 Package contains both a normal and priority queue.  Both implementations never block on send and grow as much as necessary.  Both also only return errors if you attempt to push to a disposed queue and will not panic like sending a message on a closed channel.  The priority queue also allows you to place items in priority order inside the queue.  If you give a useful hint to the regular queue, it is actually faster than a channel.  The priority queue is somewhat slow currently and targeted for an update to a Fibonacci heap.
 
@@ -57,20 +54,12 @@ Initial implementation of a B+ tree.  Delete method still needs added as well as
 
 ### Installation
 
-1) Install Go 1.3 or higher.
-
-2) Configure git to use SSH instead of HTTPS for github repositories. This
-allows `go get` to use private repositories.
-
-	# ~/.gitconfig
-	[url "git@github.com:"]
-		insteadOf = https://github.com
-
-3) go get github.com/Workiva/go-datastructures ...
+ 1. Install Go 1.3 or higher.
+ 2. Run `go get github.com/Workiva/go-datastructures/...`
 
 ### Updating
 
-When new code is merged to master, you can use 
+When new code is merged to master, you can use
 
 	go get -u github.com/Workiva/go-datastructures/...
 
@@ -84,9 +73,10 @@ To run all the unit tests use these commands:
 	go get -t -u ./...
 	go test ./...
 
-Once you've done this once, you can simply use
+Once you've done this once, you can simply use this command to run all unit tests:
 
 	go test ./...
+
 
 ### Notice
 
@@ -96,3 +86,10 @@ Requirements to commit here:
  - Compliance with [these guidelines](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
  - Unit test coverage
  - [Good commit messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)
+
+
+### Maintainers
+
+ - Dustin Hiatt <[dustin.hiatt@workiva.com](mailto:dustin.hiatt@workiva.com)>
+ - Alexander Campbell <[alexander.campbell@workiva.com](mailto:alexander.campbell@workiva.com)>
+

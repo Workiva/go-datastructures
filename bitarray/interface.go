@@ -22,7 +22,6 @@ be done in a single clock cycle (not counting the time it takes to convert)
 the resultant array back into integers).  When Go implements a command
 to get trailing zeroes, the reconversion back into integers should be much faster.
 */
-
 package bitarray
 
 // BitArray represents a structure that can be used to
