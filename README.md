@@ -14,9 +14,6 @@ Bitarray used to detect existence without having to resort to hashing with hashm
 #### Futures: 
 A helpful tool to send a "broadcast" message to listeners.  Channels have the issue that once one listener takes a message from a channel the other listeners aren't notified.  There were many cases when I wanted to notify many listeners of a single event and this package helps.
 
-#### Graph: 
-Still pretty specific to gotable, but contains logic required to maintain graph state.  Also has logic to flatten graph into executable chunks.
-
 #### Queue: 
 Package contains both a normal and priority queue.  Both implementations never block on send and grow as much as necessary.  Both also only return errors if you attempt to push to a disposed queue and will not panic like sending a message on a closed channel.  The priority queue also allows you to place items in priority order inside the queue.  If you give a useful hint to the regular queue, it is actually faster than a channel.  The priority queue is somewhat slow currently and targeted for an update to a Fibonacci heap.
 
