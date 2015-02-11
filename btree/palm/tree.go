@@ -34,6 +34,8 @@ const (
 	remove
 )
 
+const multiThreadAt = 1000 // number of keys before we multithread lookups
+
 type recursiveBuild struct {
 	keys   Keys
 	nodes  []*node
@@ -51,10 +53,10 @@ type ptree struct {
 	running, cacheBuffer5     uint64
 }
 
-func (ptree *ptree) checkAndRun(ifc interface{}) {
+func (ptree *ptree) checkAndRun(action action) {
 	if ptree.actions.Len() > 0 {
-		if ifc != nil {
-			ptree.actions.Put(ifc)
+		if action != nil {
+			ptree.actions.Put(action)
 		}
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
 			var a interface{}
@@ -70,20 +72,24 @@ func (ptree *ptree) checkAndRun(ifc interface{}) {
 				}
 			}
 
-			go ptree.operationRunner(ptree.cache)
+			go ptree.operationRunner(ptree.cache, true)
 		}
-	} else if ifc != nil {
+	} else if action != nil {
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
-			switch ifc.(type) {
-			case *getAction:
-				ptree.read(ifc.(*getAction))
-				ifc.(*getAction).complete()
+			switch action.operation() {
+			case get:
+				ptree.read(action)
+				action.complete()
 				ptree.reset()
-			default:
-				ptree.operationRunner(interfaces{ifc})
+			case add:
+				if len(action.keys()) > multiThreadAt {
+					ptree.operationRunner(interfaces{action}, true)
+				} else {
+					ptree.operationRunner(interfaces{action}, false)
+				}
 			}
 		} else {
-			ptree.actions.Put(ifc)
+			ptree.actions.Put(action)
 			ptree.checkAndRun(nil)
 		}
 	}
@@ -97,8 +103,16 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
 }
 
-func (ptree *ptree) operationRunner(xns interfaces) {
-	writeOperations, toComplete := ptree.fetchKeys(xns)
+func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
+	var writeOperations map[*node]Keys
+	var toComplete actions
+
+	if threaded {
+		writeOperations, toComplete = ptree.fetchKeys(xns)
+	} else {
+		writeOperations, toComplete = ptree.singleThreadedFetchKeys(xns)
+	}
+
 	ptree.runAdds(writeOperations)
 	for _, a := range toComplete {
 		a.complete()
@@ -121,6 +135,47 @@ func (ptree *ptree) read(action action) {
 			}
 		}
 	}
+}
+
+func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node]Keys, actions) {
+	for _, ifc := range xns {
+		action := ifc.(action)
+		for i, key := range action.keys() {
+			n := getParent(ptree.root, key)
+			switch action.operation() {
+			case add:
+				action.addNode(int64(i), n)
+			case get:
+				if n == nil {
+					action.keys()[i] = nil
+				} else {
+					k, _ := n.keys.withPosition(key)
+					if k == nil {
+						action.keys()[i] = nil
+					} else {
+						action.keys()[i] = k
+					}
+				}
+			}
+		}
+	}
+
+	writeOperations := make(map[*node]Keys, len(xns)/2)
+	toComplete := make(actions, 0, len(xns)/2)
+	for _, ifc := range xns {
+		action := ifc.(action)
+		switch action.operation() {
+		case add:
+			for i, n := range action.nodes() {
+				writeOperations[n] = append(writeOperations[n], action.keys()[i])
+			}
+			toComplete = append(toComplete, action)
+		case get:
+			action.complete()
+		}
+	}
+
+	return writeOperations, toComplete
 }
 
 func (ptree *ptree) reset() {
@@ -148,11 +203,10 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]Keys, actions) {
 
 	for k := 0; k < numCPU; k++ {
 		go func() {
-			defer wg.Done()
 			for {
 				index := atomic.LoadInt64(&i)
 				if index >= int64(len(xns)) {
-					return
+					break
 				}
 				action := xns[index].(action)
 
@@ -181,12 +235,12 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]Keys, actions) {
 					}
 				}
 			}
+			wg.Done()
 		}()
 	}
-
 	wg.Wait()
 
-	writeOperations := make(map[*node]Keys)
+	writeOperations := make(map[*node]Keys, len(xns)/2)
 	toComplete := make(actions, 0, len(xns)/2)
 	for _, ifc := range xns {
 		action := ifc.(action)
@@ -356,11 +410,8 @@ func (ptree *ptree) Insert(keys ...Key) {
 // Get will retrieve a list of keys from the provided keys.
 func (ptree *ptree) Get(keys ...Key) Keys {
 	ga := newGetAction(keys)
-	//t0 := time.Now()
 	ptree.checkAndRun(ga)
-	//log.Printf(`ALLOCATE TIME: %+v`, time.Since(t0).Nanoseconds())
 	ga.completer.Wait()
-	//log.Printf(`GET TIME: %+v`, time.Since(t0).Nanoseconds())
 	return ga.result
 }
 
