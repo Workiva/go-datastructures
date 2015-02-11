@@ -18,7 +18,7 @@ package palm
 
 import (
 	"log"
-	"runtime"
+	//"runtime"
 	"sync"
 	"sync/atomic"
 	//"time"
@@ -48,6 +48,43 @@ type ptree struct {
 	cache                     []interface{}
 	cacheBuffer3              uint64
 	disposed, cacheBuffer4    uint64
+	running, cacheBuffer5     uint64
+}
+
+func (ptree *ptree) checkAndRun(ifc interface{}) {
+	if ptree.actions.Len() > 0 {
+		ptree.actions.Put(ifc)
+		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
+			var a interface{}
+			var err error
+			for ptree.actions.Len() > 0 {
+				a, err = ptree.actions.Get()
+				if err != nil {
+					return
+				}
+				ptree.cache = append(ptree.cache, a)
+				if uint64(len(ptree.cache)) >= ptree.bufferSize {
+					break
+				}
+			}
+
+			go ptree.runOperations(ptree.cache)
+		}
+	} else if ifc != nil {
+		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
+			switch ifc.(type) {
+			case *getAction:
+				for ptree.read(ifc.(*getAction)) {
+				}
+				ptree.reset()
+			default:
+				ptree.runOperations([]interface{}{ifc})
+			}
+		} else {
+			ptree.actions.Put(ifc)
+			ptree.checkAndRun(nil)
+		}
+	}
 }
 
 func (ptree *ptree) init(bufferSize, ary uint64) {
@@ -55,86 +92,50 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.ary = ary
 	ptree.cache = make([]interface{}, 0, bufferSize)
 	ptree.root = newNode(true, newKeys(), newNodes())
-	ptree.actions = queue.NewRingBuffer(bufferSize)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go ptree.listen(&wg)
-	wg.Wait()
+	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
 }
 
-func (ptree *ptree) listen(notifier *sync.WaitGroup) {
-	notifier.Done()
-	var err error
-	var a interface{}
-	i := 0
-	for {
-		//println(`START LOOP`)
-		if atomic.LoadUint64(&ptree.disposed) == 1 {
-			return
-		}
+func (ptree *ptree) read(action action) bool {
+	key, i := action.getKey()
+	if key == nil {
+		return false
+	}
 
-		for ptree.actions.Len() > 0 {
-			a, err = ptree.actions.Get()
-			if err != nil {
-				return
-			}
-			ptree.cache = append(ptree.cache, a)
-			if uint64(len(ptree.cache)) == ptree.bufferSize {
-				break
-			}
-		}
-		//log.Printf(`CACHE: %+v`, ptree.cache)
-
-		if len(ptree.cache) > 0 {
-			//println(`STARTING OPERATIONS`)
-			ptree.runOperations(ptree.cache)
-			//println(`STOPPED OPERATIONS`)
-			for i := range ptree.cache {
-				ptree.cache[i] = nil
-			}
-			ptree.cache = ptree.cache[:0]
+	n := getParent(ptree.root, key)
+	if n == nil {
+		action.addResult(i, nil)
+	} else {
+		k, _ := n.keys.withPosition(key)
+		if k == nil {
+			action.addResult(i, nil)
 		} else {
-			//println(`WTF`)
-			//time.Sleep(3 * time.Nanosecond)
-			if i%10 == 0 {
-				runtime.Gosched()
-			}
-			i++
+			action.addResult(i, k)
 		}
 	}
+	return true
 }
 
 func (ptree *ptree) runReads(reads actions, wg *sync.WaitGroup) {
-	var key Key
-	var i uint64
 	for _, action := range reads {
-		for {
-			key, i = action.getKey()
-			if key == nil {
-				break
-			}
-
-			n := getParent(ptree.root, key)
-			switch action.operation() {
-			case get:
-				if n == nil {
-					action.addResult(i, nil)
-				}
-				index := n.keys.search(key)
-				k := n.keys.byPosition(index)
-				if index < n.keys.len() && k.Compare(key) == 0 {
-					action.addResult(i, k)
-				} else {
-					action.addResult(i, nil)
-				}
-			}
+		for ptree.read(action) {
 		}
 	}
 
 	wg.Done()
 }
 
+func (ptree *ptree) reset() {
+	for i := range ptree.cache {
+		ptree.cache[i] = nil
+	}
+
+	ptree.cache = ptree.cache[:0]
+	atomic.StoreUint64(&ptree.running, 0)
+	ptree.checkAndRun(nil)
+}
+
 func (ptree *ptree) runOperations(xns []interface{}) {
+	//println(`RUNNING OPERATIONS`)
 	reads := make(actions, 0, len(xns)/2)
 	writes := make(Keys, 0, len(xns)/2)
 
@@ -175,6 +176,7 @@ func (ptree *ptree) runOperations(xns []interface{}) {
 
 	wg.Wait()
 	if len(writes) == 0 {
+		ptree.reset()
 		return
 	}
 	writeOperations := make(map[*node]Keys)
@@ -188,6 +190,8 @@ func (ptree *ptree) runOperations(xns []interface{}) {
 			ia.complete()
 		}
 	}
+
+	ptree.reset()
 }
 
 func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *Keys) {
@@ -216,9 +220,9 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		panic(`SHOULD ONLY HAVE ONE ROOT`)
 	}
 
-	q := queue.NewRingBuffer(uint64(len(layer)))
+	ifs := make(interfaces, 0, len(layer))
 	for _, rbs := range layer {
-		q.Put(rbs)
+		ifs = append(ifs, rbs)
 	}
 
 	var write sync.Mutex
@@ -227,7 +231,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		keys:  newKeys(),
 		nodes: newNodes(),
 	}
-	executeInParallel(q, func(ifc interface{}) {
+	executeInterfacesInParallel(ifs, func(ifc interface{}) {
 		rbs := ifc.([]*recursiveBuild)
 
 		if len(rbs) == 0 {
@@ -281,19 +285,16 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 		return
 	}
 
-	q := queue.NewRingBuffer(uint64(len(addOperations)))
+	ifs := make(interfaces, 0, len(addOperations))
 	for n := range addOperations {
-		q.Put(n)
+		ifs = append(ifs, n)
 	}
 
 	var write sync.Mutex
 	nextLayer := make(map[*node][]*recursiveBuild)
-	dummyRoot := &node{
-		keys:  newKeys(),
-		nodes: newNodes(),
-	} // constructed in case we need it
+	dummyRoot := &node{} // constructed in case we need it
 	var needRoot uint64
-	executeInParallel(q, func(ifc interface{}) {
+	executeInterfacesInParallel(ifs, func(ifc interface{}) {
 		n := ifc.(*node)
 		keys := addOperations[n]
 
@@ -327,6 +328,10 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 	})
 
 	setRoot := needRoot > 0
+	if setRoot {
+		dummyRoot.keys = newKeys()
+		dummyRoot.nodes = newNodes()
+	}
 
 	ptree.recursiveAdd(nextLayer, setRoot)
 }
@@ -334,21 +339,19 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 // Insert will add the provided keys to the tree.
 func (ptree *ptree) Insert(keys ...Key) {
 	ia := newInsertAction(keys)
-	err := ptree.actions.Put(ia)
-	if err != nil {
-		return
-	}
-	<-ia.completer
+	ptree.checkAndRun(ia)
+	ia.completer.Wait()
 }
 
 // Get will retrieve a list of keys from the provided keys.
 func (ptree *ptree) Get(keys ...Key) Keys {
 	ga := newGetAction(keys)
-	err := ptree.actions.Put(ga)
-	if err != nil {
-		return nil
-	}
-	return <-ga.completer
+	//t0 := time.Now()
+	ptree.checkAndRun(ga)
+	//log.Printf(`ALLOCATE TIME: %+v`, time.Since(t0).Nanoseconds())
+	ga.completer.Wait()
+	//log.Printf(`GET TIME: %+v`, time.Since(t0).Nanoseconds())
+	return ga.result
 }
 
 // Len returns the number of items in the tree.

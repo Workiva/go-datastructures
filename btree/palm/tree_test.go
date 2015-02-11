@@ -22,7 +22,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -325,21 +324,16 @@ func BenchmarkBulkAdd(b *testing.B) {
 	}
 }
 
-func TestBulkAdd(t *testing.T) {
-	numItems := 10000
-	N := 1
-	keys := generateKeys(numItems)
-	keySet := make([]Keys, 0, N)
-	for i := 0; i < N; i++ {
-		cp := make(Keys, len(keys))
-		copy(cp, keys)
-		keySet = append(keySet, cp)
-	}
+func BenchmarkAdd(b *testing.B) {
+	numItems := 500
+	keys := generateRandomKeys(numItems)
+	tree := newTree(32, 1024)
+	tree.Insert(keys...)
 
-	for i := 0; i < N; i++ {
-		tree := newTree(8, 1024)
-		tree.Insert(keySet[i]...)
-		tree.Dispose()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Insert(keys[i%numItems])
 	}
 }
 
@@ -360,11 +354,10 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 }
 
 func BenchmarkGet(b *testing.B) {
-	numItems := 100000
+	numItems := 10000
 	keys := generateRandomKeys(numItems)
 	tree := newTree(32, 1024)
 	tree.Insert(keys...)
-	time.Sleep(2 * time.Second)
 
 	b.ResetTimer()
 

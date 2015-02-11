@@ -16,8 +16,7 @@ limitations under the License.
 package queue
 
 import (
-	"runtime"
-	"sync"
+	//"runtime"
 	"sync/atomic"
 	//"time"
 )
@@ -55,9 +54,6 @@ type RingBuffer struct {
 	dequeue, buffer2 uint64
 	mask, buffer3    uint64
 	disposed         uint64
-	queueCond        *sync.Cond
-	buffer4          uint64
-	dequeueCond      *sync.Cond
 }
 
 func (rb *RingBuffer) init(size uint64) {
@@ -67,8 +63,6 @@ func (rb *RingBuffer) init(size uint64) {
 		rb.nodes[i] = &node{position: i}
 	}
 	rb.mask = size - 1 // so we don't have to do this with every put/get operation
-	rb.queueCond = sync.NewCond(&sync.Mutex{})
-	rb.dequeueCond = sync.NewCond(&sync.Mutex{})
 }
 
 // Put adds the provided item to the queue.  If the queue is full, this
@@ -94,16 +88,15 @@ L:
 		case dif < 0:
 			panic(`Ring buffer in a compromised state during a put operation.`)
 		default:
-			if i%100 == 0 {
-				runtime.Gosched()
-			}
 			pos = atomic.LoadUint64(&rb.queue)
+		}
+		if i%10 == 0 {
+			//runtime.Gosched()
 		}
 	}
 
 	n.data = item
 	atomic.StoreUint64(&n.position, pos+1)
-	rb.dequeueCond.Broadcast()
 	return nil
 }
 
@@ -131,17 +124,15 @@ L:
 		case dif < 0:
 			panic(`Ring buffer in compromised state during a get operation.`)
 		default:
-			if i%100 == 0 {
-				runtime.Gosched()
-			}
 			pos = atomic.LoadUint64(&rb.dequeue)
-
+		}
+		if i%10 == 0 {
+			//runtime.Gosched()
 		}
 	}
 	data := n.data
 	n.data = nil
 	atomic.StoreUint64(&n.position, pos+rb.mask+1)
-	rb.queueCond.Broadcast()
 	return data, nil
 }
 
