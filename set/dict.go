@@ -29,7 +29,7 @@ var pool = sync.Pool{}
 
 // Set is an implementation of ISet using the builtin map type. Set is threadsafe.
 type Set struct {
-	items     map[interface{}]bool
+	items     map[interface{}]struct{}
 	lock      sync.RWMutex
 	flattened []interface{}
 }
@@ -41,7 +41,7 @@ func (set *Set) Add(items ...interface{}) {
 
 	set.flattened = nil
 	for _, item := range items {
-		set.items[item] = true
+		set.items[item] = struct{}{}
 	}
 }
 
@@ -59,9 +59,11 @@ func (set *Set) Remove(items ...interface{}) {
 // Exists returns a bool indicating if the given item exists in the set.
 func (set *Set) Exists(item interface{}) bool {
 	set.lock.RLock()
-	defer set.lock.RUnlock()
 
 	_, ok := set.items[item]
+
+	set.lock.RUnlock()
+
 	return ok
 }
 
@@ -84,17 +86,21 @@ func (set *Set) Flatten() []interface{} {
 // Len returns the number of items in the set.
 func (set *Set) Len() int64 {
 	set.lock.RLock()
-	defer set.lock.RUnlock()
 
-	return int64(len(set.items))
+	size := int64(len(set.items))
+
+	set.lock.RUnlock()
+
+	return size
 }
 
 // Clear will remove all items from the set.
 func (set *Set) Clear() {
 	set.lock.Lock()
-	defer set.lock.Unlock()
 
-	set.items = map[interface{}]bool{}
+	set.items = map[interface{}]struct{}{}
+
+	set.lock.Unlock()
 }
 
 // All returns a bool indicating if all of the supplied items exist in the set.
@@ -134,7 +140,7 @@ func (set *Set) Dispose() {
 func New(items ...interface{}) *Set {
 	set := pool.Get().(*Set)
 	for _, item := range items {
-		set.items[item] = true
+		set.items[item] = struct{}{}
 	}
 
 	return set
@@ -143,7 +149,7 @@ func New(items ...interface{}) *Set {
 func init() {
 	pool.New = func() interface{} {
 		return &Set{
-			items: make(map[interface{}]bool, 10),
+			items: make(map[interface{}]struct{}, 10),
 		}
 	}
 }
