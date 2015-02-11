@@ -201,13 +201,6 @@ func BenchmarkExists(b *testing.B) {
 }
 
 func BenchmarkClear(b *testing.B) {
-	set := New()
-	for i := 0; i < 50; i++ {
-		item := strconv.Itoa(i)
-		set.Add(item)
-	}
-
-	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		set.Clear()
 	}
