@@ -24,10 +24,31 @@ as opposed to panicking as with channels.  Queues will grow with unbounded
 behavior as opposed to channels which can be buffered but will pause
 while a thread attempts to put to a full channel.
 
-TODO: Unify the two types of queue to the same interface.
-TODO: Implement an even faster lockless circular buffer.
-*/
+Recently added is a lockless ring buffer using the same basic C design as
+found here:
 
+http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
+
+Modified for use with Go with the addition of some dispose semantics providing
+the capability to release blocked threads.  This works for both puts
+and gets, either will return an error if they are blocked and the buffer
+is disposed.  This could serve as a signal to kill a goroutine.  All threadsafety
+is acheived using CAS operations, making this buffer pretty quick.
+
+Benchmarks:
+BenchmarkPriorityQueue-8	 		2000000	       782 ns/op
+BenchmarkQueue-8	 		 		2000000	       671 ns/op
+BenchmarkChannel-8	 		 		1000000	      2083 ns/op
+BenchmarkQueuePut-8	   		   		20000	     84299 ns/op
+BenchmarkQueueGet-8	   		   		20000	     80753 ns/op
+BenchmarkExecuteInParallel-8	    20000	     68891 ns/op
+BenchmarkRBLifeCycle-8				10000000	       177 ns/op
+BenchmarkRBPut-8					30000000	        58.1 ns/op
+BenchmarkRBGet-8					50000000	        26.8 ns/op
+
+TODO: We really need a Fibonacci heap for the priority queue.
+TODO: Unify the types of queue to the same interface.
+*/
 package queue
 
 import (
@@ -128,7 +149,7 @@ func (q *Queue) Put(items ...interface{}) error {
 
 	if q.disposed {
 		q.lock.Unlock()
-		return DisposedError{}
+		return disposedError
 	}
 
 	q.items = append(q.items, items...)
@@ -163,7 +184,7 @@ func (q *Queue) Get(number int64) ([]interface{}, error) {
 
 	if q.disposed {
 		q.lock.Unlock()
-		return nil, DisposedError{}
+		return nil, disposedError
 	}
 
 	var items []interface{}
@@ -177,7 +198,7 @@ func (q *Queue) Get(number int64) ([]interface{}, error) {
 		sema.wg.Wait()
 		// we are now inside the put's lock
 		if q.disposed {
-			return nil, DisposedError{}
+			return nil, disposedError
 		}
 		items = q.items.get(number)
 		sema.response.Done()
@@ -201,7 +222,7 @@ func (q *Queue) TakeUntil(checker func(item interface{}) bool) ([]interface{}, e
 
 	if q.disposed {
 		q.lock.Unlock()
-		return nil, DisposedError{}
+		return nil, disposedError
 	}
 
 	result := q.items.getUntil(checker)

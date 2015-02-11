@@ -107,7 +107,7 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 	pq.lock.Lock()
 	if pq.disposed {
 		pq.lock.Unlock()
-		return DisposedError{}
+		return disposedError
 	}
 
 	for _, item := range items {
@@ -144,7 +144,7 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 
 	if pq.disposed {
 		pq.lock.Unlock()
-		return nil, DisposedError{}
+		return nil, disposedError
 	}
 
 	var items []Item
@@ -159,7 +159,7 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 		pq.disposeLock.Lock()
 		if pq.disposed {
 			pq.disposeLock.Unlock()
-			return nil, DisposedError{}
+			return nil, disposedError
 		}
 		pq.disposeLock.Unlock()
 

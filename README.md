@@ -20,6 +20,8 @@ Still pretty specific to gotable, but contains logic required to maintain graph 
 #### Queue: 
 Package contains both a normal and priority queue.  Both implementations never block on send and grow as much as necessary.  Both also only return errors if you attempt to push to a disposed queue and will not panic like sending a message on a closed channel.  The priority queue also allows you to place items in priority order inside the queue.  If you give a useful hint to the regular queue, it is actually faster than a channel.  The priority queue is somewhat slow currently and targeted for an update to a Fibonacci heap.
 
+Also included in the queue package is a MPMC threadsafe ring buffer. This is a block full/empty queue, but will return a blocked thread if the queue is disposed while a thread is blocked.  This can be used to synchronize goroutines and ensure goroutines quit so objects can be GC'd.  Threadsafety is acheived using only CAS operations making this queue quite fast.  Benchmarks can be found in that package.
+
 #### Range Tree: 
 Useful to determine if n-dimensional points fall within an n-dimensional range.  Not a typical range tree however, as we are actually using an n-dimensional sorted list of points as this proved to be simpler and faster than attempting a traditional range tree while saving space on any dimension greater than one.  Inserts are typical BBST times at O(log n^d) where d is the number of dimensions.
 

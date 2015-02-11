@@ -16,8 +16,6 @@ limitations under the License.
 
 package queue
 
-type DisposedError struct{}
+import "errors"
 
-func (de DisposedError) Error() string {
-	return `Queue has been disposed.`
-}
+var disposedError = errors.New(`Queue has been disposed.`)
