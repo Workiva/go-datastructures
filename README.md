@@ -89,3 +89,10 @@ Requirements to commit here:
  - Compliance with [these guidelines](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
  - Unit test coverage
  - [Good commit messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)
+
+
+### Maintainers
+
+ - Dustin Hiatt <[dustin.hiatt@workiva.com](mailto:dustin.hiatt@workiva.com)>
+ - Alexander Campbell <[alexander.campbell@workiva.com](mailto:alexander.campbell@workiva.com)>
+
