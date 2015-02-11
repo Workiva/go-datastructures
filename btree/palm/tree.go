@@ -70,7 +70,7 @@ func (ptree *ptree) checkAndRun(ifc interface{}) {
 				}
 			}
 
-			go ptree.runOperations(ptree.cache)
+			go ptree.operationRunner(ptree.cache)
 		}
 	} else if ifc != nil {
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
@@ -80,7 +80,7 @@ func (ptree *ptree) checkAndRun(ifc interface{}) {
 				ifc.(*getAction).complete()
 				ptree.reset()
 			default:
-				ptree.runOperations([]interface{}{ifc})
+				ptree.operationRunner(interfaces{ifc})
 			}
 		} else {
 			ptree.actions.Put(ifc)
@@ -95,6 +95,16 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.cache = make([]interface{}, 0, bufferSize)
 	ptree.root = newNode(true, newKeys(), newNodes())
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
+}
+
+func (ptree *ptree) operationRunner(xns interfaces) {
+	writeOperations, toComplete := ptree.fetchKeys(xns)
+	ptree.runAdds(writeOperations)
+	for _, a := range toComplete {
+		a.complete()
+	}
+
+	ptree.reset()
 }
 
 func (ptree *ptree) read(action action) {
@@ -123,7 +133,7 @@ func (ptree *ptree) reset() {
 	ptree.checkAndRun(nil)
 }
 
-func (ptree *ptree) runOperations(xns []interface{}) {
+func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]Keys, actions) {
 	i := int64(0)
 	js := make([]int64, 0, len(xns))
 	for j := 0; j < len(xns); j++ {
@@ -191,12 +201,7 @@ func (ptree *ptree) runOperations(xns []interface{}) {
 		}
 	}
 
-	ptree.runAdds(writeOperations)
-	for _, a := range toComplete {
-		a.complete()
-	}
-
-	ptree.reset()
+	return writeOperations, toComplete
 }
 
 func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *Keys) {
