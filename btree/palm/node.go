@@ -68,7 +68,7 @@ func (ns *nodes) len() uint64 {
 
 func newNodes() *nodes {
 	return &nodes{
-		list: skip.New(uint64(0)),
+		list: skip.New(uint16(0)),
 	}
 }
 
@@ -135,7 +135,7 @@ func (ks *keys) withPosition(k Key) (Key, uint64) {
 
 func newKeys() *keys {
 	return &keys{
-		list: skip.New(uint64(0)),
+		list: skip.New(uint16(0)),
 	}
 }
 

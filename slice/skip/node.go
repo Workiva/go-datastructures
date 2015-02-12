@@ -16,6 +16,8 @@ limitations under the License.
 
 package skip
 
+import "github.com/Workiva/go-datastructures/common"
+
 type widths []uint64
 
 type nodes []*node
@@ -29,19 +31,19 @@ type node struct {
 	// values by position in logarithmic time.
 	widths widths
 	// entry is the associated value with this node.
-	entry Entry
+	entry common.Comparator
 }
 
-func (n *node) Compare(e Entry) int {
+func (n *node) Compare(e common.Comparator) int {
 	return n.entry.Compare(e)
 }
 
 // newNode will allocate and return a new node with the entry
 // provided.  maxLevels will determine the length of the forward
 // pointer list associated with this node.
-func newNode(entry Entry, maxLevels uint8) *node {
+func newNode(cmp common.Comparator, maxLevels uint8) *node {
 	return &node{
-		entry:   entry,
+		entry:   cmp,
 		forward: make(nodes, maxLevels),
 		widths:  make(widths, maxLevels),
 	}

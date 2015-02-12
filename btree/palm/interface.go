@@ -40,7 +40,10 @@ BenchmarkBulkGet-8	    					3000	    353824 ns/op
 */
 package palm
 
-import "github.com/Workiva/go-datastructures/slice/skip"
+import (
+	"github.com/Workiva/go-datastructures/common"
+	"github.com/Workiva/go-datastructures/slice/skip"
+)
 
 // Keys is a typed list of Key interfaces.
 type Keys []Key
