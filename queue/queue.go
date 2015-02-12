@@ -170,7 +170,7 @@ func (q *Queue) Put(items ...interface{}) error {
 	return nil
 }
 
-// Get will add an item to the queue.  If there are some items in the
+// Get retrieves items from the queue.  If there are some items in the
 // queue, get will return a number UP TO the number passed in as a
 // parameter.  If no items are in the queue, this method will pause
 // until items are added to the queue.
