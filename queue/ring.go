@@ -49,8 +49,13 @@ type nodes []*node
 // described here: http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
 // with some minor additions.
 type RingBuffer struct {
-	nodes                          nodes
-	queue, dequeue, mask, disposed uint64
+	nodes          nodes
+	buffer0        [8]uint64
+	queue          uint64
+	buffer1        [8]uint64
+	dequeue        uint64
+	buffer2        [8]uint64
+	mask, disposed uint64
 }
 
 func (rb *RingBuffer) init(size uint64) {

@@ -69,7 +69,7 @@ func (ns *nodes) len() uint64 {
 
 func newNodes() *nodes {
 	return &nodes{
-		list: skip.New(uint16(0)),
+		list: skip.New(uint32(0)),
 	}
 }
 
@@ -136,7 +136,7 @@ func (ks *keys) withPosition(k common.Comparator) (common.Comparator, uint64) {
 
 func newKeys() *keys {
 	return &keys{
-		list: skip.New(uint16(0)),
+		list: skip.New(uint32(0)),
 	}
 }
 
