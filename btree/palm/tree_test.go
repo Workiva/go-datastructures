@@ -24,6 +24,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Workiva/go-datastructures/common"
 )
 
 func checkTree(t testing.TB, tree *ptree) bool {
@@ -54,7 +56,7 @@ func checkNode(t testing.TB, n *node) bool {
 	i := uint64(0)
 	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
 		nd := n.nodes.list.ByPosition(i).(*node)
-		k := iter.Value().(Key)
+		k := iter.Value()
 		if !assert.NotNil(t, nd) {
 			return false
 		}
@@ -89,8 +91,8 @@ func getConsoleLogger() *log.Logger {
 	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
-func generateRandomKeys(num int) Keys {
-	keys := make(Keys, 0, num)
+func generateRandomKeys(num int) common.Comparators {
+	keys := make(common.Comparators, 0, num)
 	for i := 0; i < num; i++ {
 		m := rand.Int()
 		keys = append(keys, mockKey(m%50))
@@ -98,8 +100,8 @@ func generateRandomKeys(num int) Keys {
 	return keys
 }
 
-func generateKeys(num int) Keys {
-	keys := make(Keys, 0, num)
+func generateKeys(num int) common.Comparators {
+	keys := make(common.Comparators, 0, num)
 	for i := 0; i < num; i++ {
 		keys = append(keys, mockKey(i))
 	}
@@ -113,7 +115,7 @@ func TestSimpleInsert(t *testing.T) {
 	m1 := mockKey(1)
 
 	tree.Insert(m1)
-	assert.Equal(t, Keys{m1}, tree.Get(m1))
+	assert.Equal(t, common.Comparators{m1}, tree.Get(m1))
 	assert.Equal(t, uint64(1), tree.Len())
 	checkTree(t, tree)
 }
@@ -125,7 +127,7 @@ func TestMultipleAdd(t *testing.T) {
 	m2 := mockKey(10)
 
 	tree.Insert(m1, m2)
-	if !assert.Equal(t, Keys{m1, m2}, tree.Get(m1, m2)) {
+	if !assert.Equal(t, common.Comparators{m1, m2}, tree.Get(m1, m2)) {
 		tree.print(getConsoleLogger())
 	}
 	assert.Equal(t, uint64(2), tree.Len())
@@ -136,7 +138,7 @@ func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 	tree := newTree(3, 3)
 	defer tree.Dispose()
 	keys := generateKeys(100)
-	reversed := keys.reverse()
+	reversed := reverseKeys(keys)
 
 	tree.Insert(reversed...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -212,7 +214,7 @@ func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
 	keys := generateKeys(1000)
-	reversed := keys.reverse()
+	reversed := reverseKeys(keys)
 
 	tree.Insert(reversed...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -253,13 +255,13 @@ func TestInsertOverwrite(t *testing.T) {
 	tree.Insert(keys...)
 
 	tree.Insert(duplicate)
-	assert.Equal(t, Keys{duplicate}, tree.Get(duplicate))
+	assert.Equal(t, common.Comparators{duplicate}, tree.Get(duplicate))
 	checkTree(t, tree)
 }
 
 func TestSimultaneousReadsAndWrites(t *testing.T) {
 	numLoops := 3
-	keys := make([]Keys, 0, numLoops)
+	keys := make([]common.Comparators, 0, numLoops)
 	for i := 0; i < numLoops; i++ {
 		keys = append(keys, generateRandomKeys(10))
 	}
@@ -286,7 +288,7 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
-	keys := make([]Keys, 0, b.N)
+	keys := make([]common.Comparators, 0, b.N)
 	for i := 0; i < b.N; i++ {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
@@ -303,7 +305,7 @@ func BenchmarkReadAndWrites(b *testing.B) {
 func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 	numItems := 1000
 	numRoutines := 8
-	keys := make([]Keys, 0, numRoutines)
+	keys := make([]common.Comparators, 0, numRoutines)
 	for i := 0; i < numRoutines; i++ {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
@@ -329,9 +331,9 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
 	keys := generateKeys(numItems)
-	keySet := make([]Keys, 0, b.N)
+	keySet := make([]common.Comparators, 0, b.N)
 	for i := 0; i < b.N; i++ {
-		cp := make(Keys, len(keys))
+		cp := make(common.Comparators, len(keys))
 		copy(cp, keys)
 		keySet = append(keySet, cp)
 	}
@@ -360,7 +362,7 @@ func BenchmarkAdd(b *testing.B) {
 
 func BenchmarkBulkAddToExisting(b *testing.B) {
 	numItems := 100000
-	keySet := make([]Keys, 0, b.N)
+	keySet := make([]common.Comparators, 0, b.N)
 	for i := 0; i < b.N; i++ {
 		keySet = append(keySet, generateRandomKeys(numItems))
 	}

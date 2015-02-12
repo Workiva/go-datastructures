@@ -15,11 +15,11 @@ limitations under the License.
 */
 package palm
 
-import "github.com/Workiva/go-datastructures/slice/skip"
+import "github.com/Workiva/go-datastructures/common"
 
 type mockKey int
 
-func (mk mockKey) Compare(other skip.Entry) int {
+func (mk mockKey) Compare(other common.Comparator) int {
 	otherKey := other.(mockKey)
 
 	if mk == otherKey {
