@@ -32,46 +32,6 @@ func getParent(parent *node, key Key) *node {
 	return parent
 }
 
-type nodes struct {
-	list *skip.SkipList
-}
-
-func (ns *nodes) push(n *node) {
-	ns.list.InsertAtPosition(ns.list.Len(), n)
-}
-
-func (ns *nodes) splitAt(i uint64) (*nodes, *nodes) {
-	_, right := ns.list.SplitAt(i)
-	return ns, &nodes{list: right}
-}
-
-func (ns *nodes) byPosition(pos uint64) *node {
-	n, ok := ns.list.ByPosition(pos).(*node)
-	if !ok {
-		return nil
-	}
-
-	return n
-}
-
-func (ns *nodes) insertAt(i uint64, n *node) {
-	ns.list.InsertAtPosition(i, n)
-}
-
-func (ns *nodes) replaceAt(i uint64, n *node) {
-	ns.list.ReplaceAtPosition(i, n)
-}
-
-func (ns *nodes) len() uint64 {
-	return ns.list.Len()
-}
-
-func newNodes() *nodes {
-	return &nodes{
-		list: skip.New(uint64(0)),
-	}
-}
-
 type keys struct {
 	list *skip.SkipList
 }
@@ -141,7 +101,6 @@ func newKeys() *keys {
 
 type node struct {
 	keys          *keys
-	nodes         *nodes
 	isLeaf        bool
 	parent, right *node
 }
@@ -150,42 +109,43 @@ func (n *node) needsSplit(ary uint64) bool {
 	return n.keys.len() >= ary
 }
 
-func (n *node) splitLeaf() (Key, *node, *node) {
-	i := n.keys.len() / 2
+func (n *node) splitLeaf(i uint64) (Key, *node, *node) {
 	key := n.keys.byPosition(i)
-	_, rightKeys := n.keys.splitAt(i)
+	leftKeys, rightKeys := n.keys.splitAt(i - 1)
 	nn := &node{
-		keys:   rightKeys,
-		nodes:  newNodes(),
+		keys:   leftKeys,
 		isLeaf: true,
 	}
-	n.right = nn
-	return key, n, nn
+	n.keys = rightKeys
+	nn.right = n
+	return key, nn, n
 }
 
-func (n *node) splitInternal() (Key, *node, *node) {
-	i := n.keys.len() / 2
-	key := n.keys.byPosition(i)
-	n.keys.delete(key)
-
-	_, rightKeys := n.keys.splitAt(i - 1)
-	_, rightNodes := n.nodes.splitAt(i)
-
-	nn := newNode(false, rightKeys, rightNodes)
-	for iter := rightNodes.list.IterAtPosition(0); iter.Next(); {
-		nd := iter.Value().(*node)
-		nd.parent = nn
-	}
-
-	return key, n, nn
-}
-
-func (n *node) split() (Key, *node, *node) {
+func (n *node) max() Key {
 	if n.isLeaf {
-		return n.splitLeaf()
+		return n.keys.last()
 	}
 
-	return n.splitInternal()
+	return n.keys.last().(*node).max()
+}
+
+func (n *node) splitInternal(i uint64) (Key, *node, *node) {
+	key := n.keys.byPosition(i)
+	//n.keys.delete(key)
+
+	leftKeys, rightKeys := n.keys.splitAt(i - 1)
+
+	n.keys = rightKeys
+	nn := newNode(false, leftKeys)
+	return key, nn, n
+}
+
+func (n *node) split(i uint64) (Key, *node, *node) {
+	if n.isLeaf {
+		return n.splitLeaf(i)
+	}
+
+	return n.splitInternal(i)
 }
 
 func (n *node) search(key Key) uint64 {
@@ -193,13 +153,28 @@ func (n *node) search(key Key) uint64 {
 }
 
 func (n *node) searchNode(key Key) *node {
+	// TODO: add successor search to skiplist to improve performance here
 	i := n.search(key)
+	if i == n.keys.len() {
+		i--
+	}
+	result := n.keys.byPosition(i)
 
-	return n.nodes.byPosition(uint64(i))
+	if result == nil {
+		return nil
+	}
+
+	return result.(*node)
 }
 
 func (n *node) key() Key {
 	return n.keys.last()
+}
+
+func (n *node) iter() {
+	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
+		log.Printf(`ITER.VALUE: %+v, %p`, iter.Value(), iter.Value())
+	}
 }
 
 func (n *node) print(output *log.Logger) {
@@ -209,7 +184,7 @@ func (n *node) print(output *log.Logger) {
 		output.Printf(`KEY: %+v`, k)
 	}
 	if !n.isLeaf {
-		for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
+		for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
 			n := iter.Value().(*node)
 			if n == nil {
 				output.Println(`NIL NODE`)
@@ -225,13 +200,27 @@ func (n *node) print(output *log.Logger) {
 // added by position so while this method is required it doesn't
 // need to return anything useful.
 func (n *node) Compare(e skip.Entry) int {
-	return 0
+	var key Key
+	switch e.(type) {
+	case *node:
+		if e.(*node).isLeaf {
+			key = e.(*node).keys.last()
+		} else {
+			key = e.(*node).max()
+		}
+	default:
+		key = e.(Key)
+	}
+
+	if n.isLeaf {
+		return n.keys.last().Compare(key)
+	}
+	return n.max().Compare(key)
 }
 
-func newNode(isLeaf bool, keys *keys, ns *nodes) *node {
+func newNode(isLeaf bool, keys *keys) *node {
 	return &node{
 		isLeaf: isLeaf,
 		keys:   keys,
-		nodes:  ns,
 	}
 }
