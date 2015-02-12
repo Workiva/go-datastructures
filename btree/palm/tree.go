@@ -43,14 +43,14 @@ type recursiveBuild struct {
 }
 
 type ptree struct {
-	root                      *node
-	ary, number, cacheBuffer1 uint64
-	actions                   *queue.RingBuffer
-	bufferSize, cacheBuffer2  uint64
-	cache                     []interface{}
-	cacheBuffer3              uint64
-	disposed, cacheBuffer4    uint64
-	running, cacheBuffer5     uint64
+	root                    *node
+	ary, number, bufferSize uint64
+	actions                 *queue.RingBuffer
+	cache                   []interface{}
+	buffer0                 [8]uint64
+	disposed                uint64
+	buffer1                 [8]uint64
+	running                 uint64
 }
 
 func (ptree *ptree) checkAndRun(action action) {
