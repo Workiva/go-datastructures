@@ -189,10 +189,14 @@ func (ptree *ptree) reset() {
 }
 
 func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]common.Comparators, actions) {
-	i := int64(0)
-	js := make([]int64, 0, len(xns))
+	var forCache struct {
+		i      int64
+		buffer [8]uint64 // different cache lines
+		js     []int64
+	}
+
 	for j := 0; j < len(xns); j++ {
-		js = append(js, -1)
+		forCache.js = append(forCache.js, -1)
 	}
 	numCPU := runtime.NumCPU()
 	if numCPU > 1 {
@@ -204,17 +208,17 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]common.Comparators, 
 	for k := 0; k < numCPU; k++ {
 		go func() {
 			for {
-				index := atomic.LoadInt64(&i)
+				index := atomic.LoadInt64(&forCache.i)
 				if index >= int64(len(xns)) {
 					break
 				}
 				action := xns[index].(action)
 
-				j := atomic.AddInt64(&js[index], 1)
+				j := atomic.AddInt64(&forCache.js[index], 1)
 				if j > int64(len(action.keys())) { // someone else is updating i
 					continue
 				} else if j == int64(len(action.keys())) {
-					atomic.StoreInt64(&i, index+1)
+					atomic.StoreInt64(&forCache.i, index+1)
 					continue
 				}
 
