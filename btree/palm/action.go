@@ -16,63 +16,139 @@ limitations under the License.
 
 package palm
 
-import "sync/atomic"
+import (
+	"runtime"
+	"sync"
+	"sync/atomic"
+)
 
 type actions []action
 
 type action interface {
 	operation() operation
-	getKey() (Key, uint64) // returns nil if operation complete
-	addResult(index uint64, result Key)
-	len() uint64
+	keys() Keys
 	complete()
+	addNode(int64, *node)
+	nodes() []*node
 }
 
 type getAction struct {
-	result, keys Keys
-	count, done  uint64
-	completer    chan Keys
+	result    Keys
+	completer *sync.WaitGroup
 }
 
 func (ga *getAction) complete() {
-	ga.completer <- ga.result
-	close(ga.completer)
+	ga.completer.Done()
 }
 
 func (ga *getAction) operation() operation {
 	return get
 }
 
-func (ga *getAction) addResult(index uint64, result Key) {
-	i := atomic.AddUint64(&ga.done, 1)
-	i--
-	if i >= uint64(len(ga.keys)) {
-		return
-	}
-	ga.result[index] = result
-	if i == uint64(len(ga.keys))-1 {
-		ga.complete()
-	}
+func (ga *getAction) keys() Keys {
+	return ga.result
 }
 
-func (ga *getAction) getKey() (Key, uint64) {
-	index := atomic.AddUint64(&ga.count, 1)
-	index-- // 0-index
-	if index >= uint64(len(ga.keys)) {
-		return nil, 0
-	}
-
-	return ga.keys[index], index
+func (ga *getAction) addNode(i int64, n *node) {
+	return // not necessary for gets
 }
 
-func (ga *getAction) len() uint64 {
-	return uint64(len(ga.keys))
+func (ga *getAction) nodes() []*node {
+	return nil
 }
 
 func newGetAction(keys Keys) *getAction {
-	return &getAction{
-		keys:      keys,
-		completer: make(chan Keys),
-		result:    make(Keys, len(keys)),
+	result := make(Keys, len(keys))
+	copy(result, keys) // don't want to mutate passed in keys
+	ga := &getAction{
+		result:    result,
+		completer: new(sync.WaitGroup),
 	}
+	ga.completer.Add(1)
+	return ga
+}
+
+type insertAction struct {
+	result    Keys
+	completer *sync.WaitGroup
+	ns        []*node
+}
+
+func (ia *insertAction) complete() {
+	ia.completer.Done()
+}
+
+func (ia *insertAction) operation() operation {
+	return add
+}
+
+func (ia *insertAction) keys() Keys {
+	return ia.result
+}
+
+func (ia *insertAction) addNode(i int64, n *node) {
+	ia.ns[i] = n
+}
+
+func (ia *insertAction) nodes() []*node {
+	return ia.ns
+}
+
+func newInsertAction(keys Keys) *insertAction {
+	result := make(Keys, len(keys))
+	copy(result, keys)
+	ia := &insertAction{
+		result:    result,
+		completer: new(sync.WaitGroup),
+		ns:        make([]*node, len(keys)),
+	}
+	ia.completer.Add(1)
+	return ia
+}
+
+func minUint64(choices ...uint64) uint64 {
+	min := choices[0]
+	for i := 1; i < len(choices); i++ {
+		if choices[i] < min {
+			min = choices[i]
+		}
+	}
+
+	return min
+}
+
+type interfaces []interface{}
+
+func executeInterfacesInParallel(ifs interfaces, fn func(interface{})) {
+	if len(ifs) == 0 {
+		return
+	}
+
+	done := int64(-1)
+	numCPU := uint64(runtime.NumCPU())
+	if numCPU > 1 {
+		numCPU--
+	}
+
+	numCPU = minUint64(numCPU, uint64(len(ifs)))
+
+	var wg sync.WaitGroup
+	wg.Add(int(numCPU))
+
+	for i := uint64(0); i < numCPU; i++ {
+		go func() {
+			defer wg.Done()
+
+			for {
+				i := atomic.AddInt64(&done, 1)
+				if i >= int64(len(ifs)) {
+					return
+				}
+
+				fn(ifs[i])
+			}
+		}()
+	}
+
+	wg.Wait()
 }

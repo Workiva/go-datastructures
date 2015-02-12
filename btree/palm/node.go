@@ -124,6 +124,15 @@ func (ks *keys) insertAt(i uint64, k Key) {
 	ks.list.InsertAtPosition(i, k.(skip.Entry))
 }
 
+func (ks *keys) withPosition(k Key) (Key, uint64) {
+	key, pos := ks.list.GetWithPosition(k)
+	if key == nil {
+		return nil, pos
+	}
+
+	return key.(Key), pos
+}
+
 func newKeys() *keys {
 	return &keys{
 		list: skip.New(uint64(0)),

@@ -119,7 +119,7 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.dequeue)
 		}
-		runtime.Gosched() // free up cpu before next iteration
+		runtime.Gosched() // free up the cpu before the next iteration
 	}
 	data := n.data
 	n.data = nil

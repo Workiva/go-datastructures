@@ -192,11 +192,9 @@ func TestDisposeOnGet(t *testing.T) {
 	}
 
 	spunUp.Wait()
-
 	rb.Dispose()
 
 	wg.Wait()
-
 	assert.True(t, rb.IsDisposed())
 }
 
