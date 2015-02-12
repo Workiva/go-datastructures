@@ -33,6 +33,7 @@ Delete: O(log N1 + log N2 + ...log Nn) = O(log N1*N2*...Nn)
 package skiplist
 
 import (
+	"github.com/Workiva/go-datastructures/common"
 	"github.com/Workiva/go-datastructures/rangetree"
 	"github.com/Workiva/go-datastructures/slice/skip"
 )
@@ -46,8 +47,8 @@ type keyed interface {
 
 type skipEntry uint64
 
-// Compare is required by the skip.Entry interface.
-func (se skipEntry) Compare(other skip.Entry) int {
+// Compare is required by the Comparator interface.
+func (se skipEntry) Compare(other common.Comparator) int {
 	otherSe := other.(skipEntry)
 	if se == otherSe {
 		return 0
@@ -96,7 +97,7 @@ type dimensionalBundle struct {
 
 // Compare returns a value indicating the relative relationship and the
 // provided bundle.
-func (db *dimensionalBundle) Compare(e skip.Entry) int {
+func (db *dimensionalBundle) Compare(e common.Comparator) int {
 	keyed := e.(keyed)
 	if db.id == keyed.key() {
 		return 0
@@ -123,7 +124,7 @@ type lastBundle struct {
 
 // Compare returns a value indicating the relative relationship and the
 // provided bundle.
-func (lb *lastBundle) Compare(e skip.Entry) int {
+func (lb *lastBundle) Compare(e common.Comparator) int {
 	keyed := e.(keyed)
 	if lb.id == keyed.key() {
 		return 0
@@ -154,7 +155,7 @@ func (rt *skipListRT) init(dimensions uint64) {
 func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 	var (
 		value int64
-		e     skip.Entry
+		e     common.Comparator
 		sl    = rt.top
 		db    *dimensionalBundle
 		lb    *lastBundle
@@ -207,7 +208,7 @@ func (rt *skipListRT) Add(entries ...rangetree.Entry) rangetree.Entries {
 func (rt *skipListRT) get(entry rangetree.Entry) rangetree.Entry {
 	var (
 		sl    = rt.top
-		e     skip.Entry
+		e     common.Comparator
 		value uint64
 	)
 	for i := uint64(0); i < rt.dimensions; i++ {
@@ -294,7 +295,7 @@ func (rt *skipListRT) apply(sl *skip.SkipList, dimension uint64,
 
 	lowValue, highValue := interval.LowAtDimension(dimension), interval.HighAtDimension(dimension)
 
-	var e skip.Entry
+	var e common.Comparator
 
 	for iter := sl.Iter(skipEntry(lowValue)); iter.Next(); {
 		e = iter.Value()
@@ -351,7 +352,7 @@ func (rt *skipListRT) flatten(sl *skip.SkipList, dimension uint64, entries *rang
 func (rt *skipListRT) insert(sl *skip.SkipList, dimension, insertDimension uint64,
 	index, number int64, deleted, affected *rangetree.Entries) {
 
-	var e skip.Entry
+	var e common.Comparator
 	lastDimension := isLastDimension(dimension, rt.dimensions)
 	affectedDimension := dimension == insertDimension
 	var iter skip.Iterator
@@ -361,9 +362,9 @@ func (rt *skipListRT) insert(sl *skip.SkipList, dimension, insertDimension uint6
 		iter = sl.Iter(skipEntry(0))
 	}
 
-	var toDelete skip.Entries
+	var toDelete common.Comparators
 	if number < 0 {
-		toDelete = make(skip.Entries, 0, 100)
+		toDelete = make(common.Comparators, 0, 100)
 	}
 
 	for iter.Next() {
