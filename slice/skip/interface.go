@@ -24,7 +24,7 @@ type Iterator interface {
 	// Next returns a bool indicating if there is future value
 	// in the iterator and moves the iterator to that value.
 	Next() bool
-	// Value returns an Entry representing the iterator's current
+	// Value returns a Comparator representing the iterator's current
 	// position.  If there is no value, this returns nil.
 	Value() common.Comparator
 	// exhaust is a helper method that will iterate this iterator

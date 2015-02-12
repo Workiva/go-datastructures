@@ -327,7 +327,7 @@ func (sl *SkipList) insertAtPosition(position uint64, cmp common.Comparator) {
 }
 
 // InsertAtPosition will insert the provided Comparator at the provided position.
-// If position is greater than the length of the skiplist, the entry
+// If position is greater than the length of the skiplist, the Comparator
 // is appended.  This method bypasses order checks and checks for
 // duplicates so use with caution.
 func (sl *SkipList) InsertAtPosition(position uint64, cmp common.Comparator) {
@@ -380,7 +380,7 @@ func (sl *SkipList) delete(cmp common.Comparator) common.Comparator {
 }
 
 // Delete will remove the provided keys from the skiplist and return
-// a list of in-order entries that were deleted.  This is a no-op if
+// a list of in-order Comparators that were deleted.  This is a no-op if
 // an associated key could not be found.  This is an O(log n) operation.
 func (sl *SkipList) Delete(comparators ...common.Comparator) common.Comparators {
 	deleted := make(common.Comparators, 0, len(comparators))
