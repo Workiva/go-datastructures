@@ -338,7 +338,7 @@ func BenchmarkInsert(b *testing.B) {
 
 func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
-	keys := constructMockKeys(numItems)
+	keys := constructRandomMockKeys(numItems)
 
 	b.ResetTimer()
 

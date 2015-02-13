@@ -330,19 +330,13 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 
 func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
-	keys := generateKeys(numItems)
-	keySet := make([]common.Comparators, 0, b.N)
-	for i := 0; i < b.N; i++ {
-		cp := make(common.Comparators, len(keys))
-		copy(cp, keys)
-		keySet = append(keySet, cp)
-	}
+	keys := generateRandomKeys(numItems)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newTree(8, 1024)
-		tree.Insert(keySet[i]...)
+		tree := newTree(8, 5000)
+		tree.Insert(keys...)
 		tree.Dispose()
 	}
 }
