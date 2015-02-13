@@ -40,28 +40,15 @@ BenchmarkBulkGet-8	    					3000	    353824 ns/op
 */
 package palm
 
-import "github.com/Workiva/go-datastructures/slice/skip"
-
-// Keys is a typed list of Key interfaces.
-type Keys []Key
-
-// Key defines items that can be inserted into or searched for
-// in the tree.
-type Key interface {
-	// Compare should return an int indicating how this key relates
-	// to the provided key.  -1 will indicate less than, 0 will indicate
-	// equality, and 1 will indicate greater than.  Duplicate keys
-	// are allowed, but duplicate IDs are not.
-	Compare(skip.Entry) int
-}
+import "github.com/Workiva/go-datastructures/common"
 
 // BTree is the interface returned from this package's constructor.
 type BTree interface {
 	// Insert will insert the provided keys into the tree.
-	Insert(...Key)
+	Insert(...common.Comparator)
 	// Get will return a key matching the associated provided
 	// key if it exists.
-	Get(...Key) Keys
+	Get(...common.Comparator) common.Comparators
 	// Len returns the number of items in the tree.
 	Len() uint64
 	// Dispose will clean up any resources used by this tree.  This

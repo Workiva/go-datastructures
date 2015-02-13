@@ -16,6 +16,8 @@ limitations under the License.
 
 package skip
 
+import "github.com/Workiva/go-datastructures/common"
+
 const iteratorExhausted = -2
 
 // iterator represents an object that can be iterated.  It will
@@ -42,9 +44,9 @@ func (iter *iterator) Next() bool {
 	return iter.n != nil
 }
 
-// Value returns an Entry representing the iterator's present
+// Value returns a Comparator representing the iterator's present
 // position in the query.  Returns nil if no values remain to iterate.
-func (iter *iterator) Value() Entry {
+func (iter *iterator) Value() common.Comparator {
 	if iter.n == nil {
 		return nil
 	}
@@ -54,8 +56,8 @@ func (iter *iterator) Value() Entry {
 
 // exhaust is a helper method to exhaust this iterator and return
 // all remaining entries.
-func (iter *iterator) exhaust() Entries {
-	entries := make(Entries, 0, 10)
+func (iter *iterator) exhaust() common.Comparators {
+	entries := make(common.Comparators, 0, 10)
 	for i := iter; i.Next(); {
 		entries = append(entries, i.Value())
 	}

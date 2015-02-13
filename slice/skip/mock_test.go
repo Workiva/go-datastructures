@@ -16,11 +16,15 @@ limitations under the License.
 
 package skip
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/stretchr/testify/mock"
+
+	"github.com/Workiva/go-datastructures/common"
+)
 
 type mockEntry uint64
 
-func (me mockEntry) Compare(other Entry) int {
+func (me mockEntry) Compare(other common.Comparator) int {
 	otherU := other.(mockEntry)
 	if me == otherU {
 		return 0
@@ -46,9 +50,9 @@ func (mi *mockIterator) Next() bool {
 	return args.Bool(0)
 }
 
-func (mi *mockIterator) Value() Entry {
+func (mi *mockIterator) Value() common.Comparator {
 	args := mi.Called()
-	result, ok := args.Get(0).(Entry)
+	result, ok := args.Get(0).(common.Comparator)
 	if !ok {
 		return nil
 	}
@@ -56,6 +60,6 @@ func (mi *mockIterator) Value() Entry {
 	return result
 }
 
-func (mi *mockIterator) exhaust() Entries {
+func (mi *mockIterator) exhaust() common.Comparators {
 	return nil
 }

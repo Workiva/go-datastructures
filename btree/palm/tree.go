@@ -22,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Workiva/go-datastructures/common"
 	"github.com/Workiva/go-datastructures/queue"
 )
 
@@ -36,7 +37,7 @@ const (
 const multiThreadAt = 1000 // number of keys before we multithread lookups
 
 type recursiveBuild struct {
-	keys   Keys
+	keys   common.Comparators
 	nodes  []*node
 	parent *node
 }
@@ -103,7 +104,7 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 }
 
 func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
-	var writeOperations map[*node]Keys
+	var writeOperations map[*node]common.Comparators
 	var toComplete actions
 
 	if threaded {
@@ -136,7 +137,7 @@ func (ptree *ptree) read(action action) {
 	}
 }
 
-func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node]Keys, actions) {
+func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node]common.Comparators, actions) {
 	for _, ifc := range xns {
 		action := ifc.(action)
 		for i, key := range action.keys() {
@@ -159,7 +160,7 @@ func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node]Keys, act
 		}
 	}
 
-	writeOperations := make(map[*node]Keys, len(xns)/2)
+	writeOperations := make(map[*node]common.Comparators, len(xns)/2)
 	toComplete := make(actions, 0, len(xns)/2)
 	for _, ifc := range xns {
 		action := ifc.(action)
@@ -187,7 +188,7 @@ func (ptree *ptree) reset() {
 	ptree.checkAndRun(nil)
 }
 
-func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]Keys, actions) {
+func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]common.Comparators, actions) {
 	i := int64(0)
 	js := make([]int64, 0, len(xns))
 	for j := 0; j < len(xns); j++ {
@@ -239,7 +240,7 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]Keys, actions) {
 	}
 	wg.Wait()
 
-	writeOperations := make(map[*node]Keys, len(xns)/2)
+	writeOperations := make(map[*node]common.Comparators, len(xns)/2)
 	toComplete := make(actions, 0, len(xns)/2)
 	for _, ifc := range xns {
 		action := ifc.(action)
@@ -257,7 +258,7 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]Keys, actions) {
 	return writeOperations, toComplete
 }
 
-func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *Keys) {
+func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *common.Comparators) {
 	if !n.needsSplit(ptree.ary) {
 		return
 	}
@@ -329,7 +330,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		}
 
 		if n.needsSplit(ptree.ary) {
-			keys := make(Keys, 0, n.keys.len())
+			keys := make(common.Comparators, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
 			write.Lock()
@@ -343,7 +344,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	ptree.recursiveAdd(layer, setRoot)
 }
 
-func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
+func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 	if len(addOperations) == 0 {
 		return
 	}
@@ -379,7 +380,7 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 		}
 
 		if n.needsSplit(ptree.ary) {
-			keys := make(Keys, 0, n.keys.len())
+			keys := make(common.Comparators, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())
 			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
 			write.Lock()
@@ -400,14 +401,14 @@ func (ptree *ptree) runAdds(addOperations map[*node]Keys) {
 }
 
 // Insert will add the provided keys to the tree.
-func (ptree *ptree) Insert(keys ...Key) {
+func (ptree *ptree) Insert(keys ...common.Comparator) {
 	ia := newInsertAction(keys)
 	ptree.checkAndRun(ia)
 	ia.completer.Wait()
 }
 
 // Get will retrieve a list of keys from the provided keys.
-func (ptree *ptree) Get(keys ...Key) Keys {
+func (ptree *ptree) Get(keys ...common.Comparator) common.Comparators {
 	ga := newGetAction(keys)
 	ptree.checkAndRun(ga)
 	ga.completer.Wait()

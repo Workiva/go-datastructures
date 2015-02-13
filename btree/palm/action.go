@@ -20,20 +20,22 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"github.com/Workiva/go-datastructures/common"
 )
 
 type actions []action
 
 type action interface {
 	operation() operation
-	keys() Keys
+	keys() common.Comparators
 	complete()
 	addNode(int64, *node)
 	nodes() []*node
 }
 
 type getAction struct {
-	result    Keys
+	result    common.Comparators
 	completer *sync.WaitGroup
 }
 
@@ -45,7 +47,7 @@ func (ga *getAction) operation() operation {
 	return get
 }
 
-func (ga *getAction) keys() Keys {
+func (ga *getAction) keys() common.Comparators {
 	return ga.result
 }
 
@@ -57,8 +59,8 @@ func (ga *getAction) nodes() []*node {
 	return nil
 }
 
-func newGetAction(keys Keys) *getAction {
-	result := make(Keys, len(keys))
+func newGetAction(keys common.Comparators) *getAction {
+	result := make(common.Comparators, len(keys))
 	copy(result, keys) // don't want to mutate passed in keys
 	ga := &getAction{
 		result:    result,
@@ -69,7 +71,7 @@ func newGetAction(keys Keys) *getAction {
 }
 
 type insertAction struct {
-	result    Keys
+	result    common.Comparators
 	completer *sync.WaitGroup
 	ns        []*node
 }
@@ -82,7 +84,7 @@ func (ia *insertAction) operation() operation {
 	return add
 }
 
-func (ia *insertAction) keys() Keys {
+func (ia *insertAction) keys() common.Comparators {
 	return ia.result
 }
 
@@ -94,8 +96,8 @@ func (ia *insertAction) nodes() []*node {
 	return ia.ns
 }
 
-func newInsertAction(keys Keys) *insertAction {
-	result := make(Keys, len(keys))
+func newInsertAction(keys common.Comparators) *insertAction {
+	result := make(common.Comparators, len(keys))
 	copy(result, keys)
 	ia := &insertAction{
 		result:    result,

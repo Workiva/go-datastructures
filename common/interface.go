@@ -13,22 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package palm
 
-import "github.com/Workiva/go-datastructures/common"
+package common
 
-type mockKey int
-
-func (mk mockKey) Compare(other common.Comparator) int {
-	otherKey := other.(mockKey)
-
-	if mk == otherKey {
-		return 0
-	}
-
-	if mk > otherKey {
-		return 1
-	}
-
-	return -1
+// Comparator is a generic interface that represents items that can
+// be compared.
+type Comparator interface {
+	// Compare compares this interface with another.  Returns a positive
+	// number if this interface is greater, 0 if equal, negative number
+	// if less.
+	Compare(Comparator) int
 }
+
+// Comparators is a typed list of type Comparator.
+type Comparators []Comparator
