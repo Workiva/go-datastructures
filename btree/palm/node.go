@@ -127,11 +127,11 @@ func (ks *keys) search(key common.Comparator) uint64 {
 	return uint64(i)
 }
 
-func (ks *keys) insert(key common.Comparator) common.Comparator {
+func (ks *keys) insert(key common.Comparator) (common.Comparator, uint64) {
 	i := ks.search(key)
 	if i == uint64(len(ks.list)) {
 		ks.list = append(ks.list, key)
-		return nil
+		return nil, i
 	}
 
 	old := ks.list[i]
@@ -141,7 +141,7 @@ func (ks *keys) insert(key common.Comparator) common.Comparator {
 		ks.insertAt(i, key)
 	}
 
-	return old
+	return old, i
 }
 
 func (ks *keys) last() common.Comparator {

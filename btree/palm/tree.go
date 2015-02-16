@@ -331,7 +331,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*keyBundle, setRoot bool) {
 
 		for _, kb := range kbs {
 			if n.keys.len() == 0 {
-				oldKey := n.keys.insert(kb.key)
+				oldKey, _ := n.keys.insert(kb.key)
 				if n.isLeaf && oldKey == nil {
 					atomic.AddUint64(&ptree.number, 1)
 				}
@@ -342,12 +342,11 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*keyBundle, setRoot bool) {
 				continue
 			}
 
-			oldKey := n.keys.insert(kb.key)
+			oldKey, index := n.keys.insert(kb.key)
 			if n.isLeaf && oldKey == nil {
 				atomic.AddUint64(&ptree.number, 1)
 			}
 			if kb.left != nil {
-				index := n.search(kb.key)
 				n.nodes.replaceAt(index, kb.left)
 				n.nodes.insertAt(index+1, kb.right)
 			}
