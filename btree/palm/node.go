@@ -195,6 +195,7 @@ func (n *node) splitLeaf(i, capacity uint64) (common.Comparator, *node, *node) {
 		keys:   rightKeys,
 		nodes:  newNodes(uint64(cap(n.nodes.list))),
 		isLeaf: true,
+		right:  n.right,
 	}
 	n.right = nn
 	return key, n, nn

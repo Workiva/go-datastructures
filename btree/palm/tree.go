@@ -32,6 +32,7 @@ const (
 	get operation = iota
 	add
 	remove
+	apply
 )
 
 const multiThreadAt = 1000 // number of keys before we multithread lookups
@@ -89,6 +90,12 @@ func (ptree *ptree) checkAndRun(action action) {
 				} else {
 					ptree.operationRunner(interfaces{action}, false)
 				}
+			case apply:
+				q := action.(*applyAction)
+				n := getParent(ptree.root, q.start)
+				ptree.apply(n, q)
+				q.complete()
+				ptree.reset()
 			}
 		} else {
 			ptree.actions.Put(action)
@@ -154,12 +161,31 @@ func (ptree *ptree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*key
 				deleteOperations[n] = append(deleteOperations[n], &keyBundle{key: action.keys()[i]})
 			}
 			toComplete = append(toComplete, action)
-		case get:
+		case get, apply:
 			action.complete()
 		}
 	}
 
 	return writeOperations, deleteOperations, toComplete
+}
+
+func (ptree *ptree) apply(n *node, aa *applyAction) {
+	i := n.search(aa.start)
+	if i == n.keys.len() { // nothing to apply against
+		return
+	}
+
+	var k common.Comparator
+	for n != nil {
+		for j := i; j < n.keys.len(); j++ {
+			k = n.keys.byPosition(j)
+			if aa.stop.Compare(k) < 1 || !aa.fn(k) {
+				return
+			}
+		}
+		n = n.right
+		i = 0
+	}
 }
 
 func (ptree *ptree) fetchKeysInSerial(xns interfaces) {
@@ -181,6 +207,9 @@ func (ptree *ptree) fetchKeysInSerial(xns interfaces) {
 						action.keys()[i] = k
 					}
 				}
+			case apply:
+				q := action.(*applyAction)
+				ptree.apply(n, q)
 			}
 		}
 	}
@@ -245,6 +274,9 @@ func (ptree *ptree) fetchKeysInParallel(xns []interface{}) {
 							action.keys()[j] = k
 						}
 					}
+				case apply:
+					q := action.(*applyAction)
+					ptree.apply(n, q)
 				}
 			}
 			wg.Done()
@@ -416,6 +448,20 @@ func (ptree *ptree) Get(keys ...common.Comparator) common.Comparators {
 // Len returns the number of items in the tree.
 func (ptree *ptree) Len() uint64 {
 	return atomic.LoadUint64(&ptree.number)
+}
+
+// Query will return a list of Comparators that fall within the
+// provided start and stop Comparators.  Start is inclusive while
+// stop is exclusive, ie [start, stop).
+func (ptree *ptree) Query(start, stop common.Comparator) common.Comparators {
+	cmps := make(common.Comparators, 0, 32)
+	aa := newApplyAction(func(cmp common.Comparator) bool {
+		cmps = append(cmps, cmp)
+		return true
+	}, start, stop)
+	ptree.checkAndRun(aa)
+	aa.completer.Wait()
+	return cmps
 }
 
 // Dispose will clean up any resources used by this tree.  This

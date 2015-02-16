@@ -122,6 +122,41 @@ func newRemoveAction(keys common.Comparators) *removeAction {
 	}
 }
 
+type applyAction struct {
+	fn          func(common.Comparator) bool
+	start, stop common.Comparator
+	completer   *sync.WaitGroup
+}
+
+func (aa *applyAction) operation() operation {
+	return apply
+}
+
+func (aa *applyAction) nodes() []*node {
+	return nil
+}
+
+func (aa *applyAction) addNode(i int64, n *node) {}
+
+func (aa *applyAction) keys() common.Comparators {
+	return nil
+}
+
+func (aa *applyAction) complete() {
+	aa.completer.Done()
+}
+
+func newApplyAction(fn func(common.Comparator) bool, start, stop common.Comparator) *applyAction {
+	aa := &applyAction{
+		fn:        fn,
+		start:     start,
+		stop:      stop,
+		completer: new(sync.WaitGroup),
+	}
+	aa.completer.Add(1)
+	return aa
+}
+
 func minUint64(choices ...uint64) uint64 {
 	min := choices[0]
 	for i := 1; i < len(choices); i++ {
