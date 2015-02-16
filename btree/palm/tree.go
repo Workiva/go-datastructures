@@ -272,7 +272,7 @@ func (ptree *ptree) splitNode(n, parent *node, nodes *[]*node, keys *common.Comp
 
 	for i := splitAt; i < length; i += splitAt {
 		offset := length - i
-		k, left, right := n.split(offset)
+		k, left, right := n.split(offset, ptree.ary)
 		left.right = right
 		*keys = append(*keys, k)
 		*nodes = append(*nodes, left, right)

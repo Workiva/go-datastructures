@@ -41,11 +41,11 @@ func (ns *nodes) push(n *node) {
 	ns.list = append(ns.list, n)
 }
 
-func (ns *nodes) splitAt(i uint64) (*nodes, *nodes) {
+func (ns *nodes) splitAt(i, capacity uint64) (*nodes, *nodes) {
 	i++
 	//log.Printf(`SPLITTING AT: %+v`, i)
 
-	right := make([]*node, uint64(len(ns.list))-i, cap(ns.list))
+	right := make([]*node, uint64(len(ns.list))-i, capacity)
 	copy(right, ns.list[i:])
 	//log.Printf(`NS.LIST: %+v, RIGHT: %+v`, ns.list, right)
 	for j := i; j < uint64(len(ns.list)); j++ {
@@ -87,9 +87,9 @@ type keys struct {
 	list common.Comparators
 }
 
-func (ks *keys) splitAt(i uint64) (*keys, *keys) {
+func (ks *keys) splitAt(i, capacity uint64) (*keys, *keys) {
 	i++
-	right := make(common.Comparators, uint64(len(ks.list))-i, cap(ks.list))
+	right := make(common.Comparators, uint64(len(ks.list))-i, capacity)
 	copy(right, ks.list[i:])
 	for j := i; j < uint64(len(ks.list)); j++ {
 		ks.list[j] = nil
@@ -183,9 +183,9 @@ func (n *node) needsSplit(ary uint64) bool {
 	return n.keys.len() >= ary
 }
 
-func (n *node) splitLeaf(i uint64) (common.Comparator, *node, *node) {
+func (n *node) splitLeaf(i, capacity uint64) (common.Comparator, *node, *node) {
 	key := n.keys.byPosition(i)
-	_, rightKeys := n.keys.splitAt(i)
+	_, rightKeys := n.keys.splitAt(i, capacity)
 	nn := &node{
 		keys:   rightKeys,
 		nodes:  newNodes(uint64(cap(n.nodes.list))),
@@ -195,12 +195,12 @@ func (n *node) splitLeaf(i uint64) (common.Comparator, *node, *node) {
 	return key, n, nn
 }
 
-func (n *node) splitInternal(i uint64) (common.Comparator, *node, *node) {
+func (n *node) splitInternal(i, capacity uint64) (common.Comparator, *node, *node) {
 	key := n.keys.byPosition(i)
 	n.keys.delete(key)
 
-	_, rightKeys := n.keys.splitAt(i - 1)
-	_, rightNodes := n.nodes.splitAt(i)
+	_, rightKeys := n.keys.splitAt(i-1, capacity)
+	_, rightNodes := n.nodes.splitAt(i, capacity)
 
 	nn := newNode(false, rightKeys, rightNodes)
 	for _, n := range rightNodes.list {
@@ -210,12 +210,12 @@ func (n *node) splitInternal(i uint64) (common.Comparator, *node, *node) {
 	return key, n, nn
 }
 
-func (n *node) split(i uint64) (common.Comparator, *node, *node) {
+func (n *node) split(i, capacity uint64) (common.Comparator, *node, *node) {
 	if n.isLeaf {
-		return n.splitLeaf(i)
+		return n.splitLeaf(i, capacity)
 	}
 
-	return n.splitInternal(i)
+	return n.splitInternal(i, capacity)
 }
 
 func (n *node) search(key common.Comparator) uint64 {
