@@ -36,14 +36,9 @@ const (
 
 const multiThreadAt = 1000 // number of keys before we multithread lookups
 
-type keyBundles struct {
-	keys  common.Comparators
-	nodes []*node
-}
-
-type recursiveBuild struct {
-	add    *keyBundles
-	remove *keyBundles
+type keyBundle struct {
+	key         common.Comparator
+	left, right *node
 }
 
 type ptree struct {
@@ -111,7 +106,7 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 }
 
 func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
-	var writeOperations map[*node]common.Comparators
+	var writeOperations map[*node][]*keyBundle
 	var toComplete actions
 
 	if threaded {
@@ -120,7 +115,7 @@ func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
 		writeOperations, toComplete = ptree.singleThreadedFetchKeys(xns)
 	}
 
-	ptree.runAdds(writeOperations)
+	ptree.recursiveAdd(writeOperations, false)
 	for _, a := range toComplete {
 		a.complete()
 	}
@@ -144,7 +139,7 @@ func (ptree *ptree) read(action action) {
 	}
 }
 
-func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node]common.Comparators, actions) {
+func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node][]*keyBundle, actions) {
 	for _, ifc := range xns {
 		action := ifc.(action)
 		for i, key := range action.keys() {
@@ -167,14 +162,14 @@ func (ptree *ptree) singleThreadedFetchKeys(xns interfaces) (map[*node]common.Co
 		}
 	}
 
-	writeOperations := make(map[*node]common.Comparators, len(xns)/2)
+	writeOperations := make(map[*node][]*keyBundle, len(xns)/2)
 	toComplete := make(actions, 0, len(xns)/2)
 	for _, ifc := range xns {
 		action := ifc.(action)
 		switch action.operation() {
 		case add:
 			for i, n := range action.nodes() {
-				writeOperations[n] = append(writeOperations[n], action.keys()[i])
+				writeOperations[n] = append(writeOperations[n], &keyBundle{key: action.keys()[i]})
 			}
 			toComplete = append(toComplete, action)
 		case get:
@@ -195,7 +190,7 @@ func (ptree *ptree) reset() {
 	ptree.checkAndRun(nil)
 }
 
-func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]common.Comparators, actions) {
+func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node][]*keyBundle, actions) {
 	var forCache struct {
 		i      int64
 		buffer [8]uint64 // different cache lines
@@ -251,14 +246,14 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]common.Comparators, 
 	}
 	wg.Wait()
 
-	writeOperations := make(map[*node]common.Comparators, len(xns)/2)
+	writeOperations := make(map[*node][]*keyBundle, len(xns)/2)
 	toComplete := make(actions, 0, len(xns)/2)
 	for _, ifc := range xns {
 		action := ifc.(action)
 		switch action.operation() {
 		case add:
 			for i, n := range action.nodes() {
-				writeOperations[n] = append(writeOperations[n], action.keys()[i])
+				writeOperations[n] = append(writeOperations[n], &keyBundle{key: action.keys()[i]})
 			}
 			toComplete = append(toComplete, action)
 		case get:
@@ -288,7 +283,7 @@ func (ptree *ptree) splitNode(n, parent *node, nodes *[]*node, keys *common.Comp
 	}
 }
 
-func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool) {
+func (ptree *ptree) recursiveAdd(layer map[*node][]*keyBundle, setRoot bool) {
 	if len(layer) == 0 {
 		return
 	}
@@ -314,13 +309,13 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	}
 
 	var write sync.Mutex
-	nextLayer := make(map[*node][]*recursiveBuild, len(layer))
+	nextLayerWrite := make(map[*node][]*keyBundle, len(layer))
 
 	executeInterfacesInParallel(ifs, func(ifc interface{}) {
 		n := ifc.(*node)
-		rbs := layer[n]
+		kbs := layer[n]
 
-		if len(rbs) == 0 {
+		if len(kbs) == 0 {
 			return
 		}
 
@@ -334,79 +329,28 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 			setRoot = true
 		}
 
-		for _, rb := range rbs {
-			for i, k := range rb.add.keys {
-				if n.keys.len() == 0 {
-					n.keys.insert(k)
-					n.nodes.push(rb.add.nodes[i*2])
-					n.nodes.push(rb.add.nodes[i*2+1])
-					continue
+		for _, kb := range kbs {
+			if n.keys.len() == 0 {
+				oldKey := n.keys.insert(kb.key)
+				if n.isLeaf && oldKey == nil {
+					atomic.AddUint64(&ptree.number, 1)
 				}
-
-				n.keys.insert(k)
-				index := n.search(k)
-				n.nodes.replaceAt(index, rb.add.nodes[i*2])
-				n.nodes.insertAt(index+1, rb.add.nodes[i*2+1])
+				if kb.left != nil {
+					n.nodes.push(kb.left)
+					n.nodes.push(kb.right)
+				}
+				continue
 			}
-		}
 
-		if n.needsSplit(ptree.ary) {
-			keys := make(common.Comparators, 0, n.keys.len())
-			nodes := make([]*node, 0, n.nodes.len())
-			ptree.splitNode(n, parent, &nodes, &keys)
-			write.Lock()
-			nextLayer[parent] = append(
-				nextLayer[parent], &recursiveBuild{add: &keyBundles{keys: keys, nodes: nodes}},
-			)
-			write.Unlock()
-		}
-	})
-
-	ptree.recursiveAdd(nextLayer, setRoot)
-}
-
-func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
-	if len(addOperations) == 0 {
-		return
-	}
-
-	var needRoot bool
-	ifs := make(interfaces, 0, len(addOperations))
-	for n := range addOperations {
-		if n.parent == nil {
-			needRoot = true
-		}
-		ifs = append(ifs, n)
-	}
-
-	var dummyRoot *node
-	if needRoot {
-		dummyRoot = &node{
-			keys:  newKeys(ptree.ary),
-			nodes: newNodes(ptree.ary),
-		}
-	}
-
-	var write sync.Mutex
-	nextLayer := make(map[*node][]*recursiveBuild)
-	executeInterfacesInParallel(ifs, func(ifc interface{}) {
-		n := ifc.(*node)
-		keys := addOperations[n]
-
-		if len(keys) == 0 {
-			return
-		}
-
-		parent := n.parent
-		if parent == nil {
-			parent = dummyRoot
-		}
-
-		for _, key := range keys {
-			oldKey := n.keys.insert(key)
-			if oldKey == nil {
+			oldKey := n.keys.insert(kb.key)
+			if n.isLeaf && oldKey == nil {
 				atomic.AddUint64(&ptree.number, 1)
 			}
+			if kb.left != nil {
+				index := n.search(kb.key)
+				n.nodes.replaceAt(index, kb.left)
+				n.nodes.insertAt(index+1, kb.right)
+			}
 		}
 
 		if n.needsSplit(ptree.ary) {
@@ -414,14 +358,14 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 			nodes := make([]*node, 0, n.nodes.len())
 			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
-			nextLayer[parent] = append(
-				nextLayer[parent], &recursiveBuild{add: &keyBundles{keys: keys, nodes: nodes}},
-			)
+			for i, k := range keys {
+				nextLayerWrite[parent] = append(nextLayerWrite[parent], &keyBundle{key: k, left: nodes[i*2], right: nodes[i*2+1]})
+			}
 			write.Unlock()
 		}
 	})
 
-	ptree.recursiveAdd(nextLayer, needRoot)
+	ptree.recursiveAdd(nextLayerWrite, setRoot)
 }
 
 // Insert will add the provided keys to the tree.
