@@ -262,7 +262,7 @@ func (ptree *ptree) fetchKeys(xns []interface{}) (map[*node]common.Comparators, 
 	return writeOperations, toComplete
 }
 
-func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *common.Comparators) {
+func (ptree *ptree) splitNode(n, parent *node, nodes *[]*node, keys *common.Comparators) {
 	if !n.needsSplit(ptree.ary) {
 		return
 	}
@@ -338,7 +338,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		if n.needsSplit(ptree.ary) {
 			keys := make(common.Comparators, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())
-			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
+			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
 			layer[parent] = append(
 				layer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
@@ -397,7 +397,7 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 		if n.needsSplit(ptree.ary) {
 			keys := make(common.Comparators, 0, n.keys.len())
 			nodes := make([]*node, 0, n.nodes.len())
-			ptree.recursiveSplit(n, parent, nil, &nodes, &keys)
+			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
 			nextLayer[parent] = append(
 				nextLayer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
