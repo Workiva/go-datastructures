@@ -39,7 +39,8 @@ BenchmarkGet-8	 						 2000000	       629 ns/op
 BenchmarkBulkGet-8	    					5000	    223249 ns/op
 BenchmarkDelete-8	  					  500000	      2421 ns/op
 BenchmarkBulkDelete-8	     				 500	   2790461 ns/op
-
+BenchmarkFindQuery-8	 				 1000000	      1166 ns/op
+BenchmarkExecuteQuery-8	   				   10000	   1290732 ns/op
 
 */
 package palm
@@ -58,6 +59,10 @@ type BTree interface {
 	Get(...common.Comparator) common.Comparators
 	// Len returns the number of items in the tree.
 	Len() uint64
+	// Query will return a list of Comparators that fall within the
+	// provided start and stop Comparators.  Start is inclusive while
+	// stop is exclusive, ie [start, stop).
+	Query(start, stop common.Comparator) common.Comparators
 	// Dispose will clean up any resources used by this tree.  This
 	// must be called to prevent a memory leak.
 	Dispose()
