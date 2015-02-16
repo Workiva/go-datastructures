@@ -47,6 +47,9 @@ import "github.com/Workiva/go-datastructures/common"
 type BTree interface {
 	// Insert will insert the provided keys into the tree.
 	Insert(...common.Comparator)
+	// Delete will remove the provided keys from the tree.  If no
+	// matching key is found, this is a no-op.
+	Delete(...common.Comparator)
 	// Get will return a key matching the associated provided
 	// key if it exists.
 	Get(...common.Comparator) common.Comparators

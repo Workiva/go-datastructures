@@ -116,6 +116,18 @@ func TestSimpleInsert(t *testing.T) {
 	checkTree(t, tree)
 }
 
+func TestSimpleDelete(t *testing.T) {
+	tree := newTree(8, 8)
+	defer tree.Dispose()
+	m1 := mockKey(1)
+	tree.Insert(m1)
+
+	tree.Delete(m1)
+	assert.Equal(t, uint64(0), tree.Len())
+	assert.Equal(t, common.Comparators{nil}, tree.Get(m1))
+	checkTree(t, tree)
+}
+
 func TestMultipleAdd(t *testing.T) {
 	tree := newTree(16, 16)
 	defer tree.Dispose()
@@ -130,6 +142,19 @@ func TestMultipleAdd(t *testing.T) {
 	checkTree(t, tree)
 }
 
+func TestMultipleDelete(t *testing.T) {
+	tree := newTree(16, 16)
+	defer tree.Dispose()
+	m1 := mockKey(1)
+	m2 := mockKey(10)
+	tree.Insert(m1, m2)
+
+	tree.Delete(m1, m2)
+	assert.Equal(t, uint64(0), tree.Len())
+	assert.Equal(t, common.Comparators{nil, nil}, tree.Get(m1, m2))
+	checkTree(t, tree)
+}
+
 func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 	tree := newTree(3, 3)
 	defer tree.Dispose()
@@ -139,6 +164,22 @@ func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 	tree.Insert(reversed...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
 		tree.print(getConsoleLogger())
+	}
+	checkTree(t, tree)
+}
+
+func TestMultipleDeleteOddAryReverseOrder(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+	keys := generateKeys(100)
+	reversed := reverseKeys(keys)
+	tree.Insert(reversed...)
+	assert.Equal(t, uint64(100), tree.Len())
+
+	tree.Delete(reversed...)
+	assert.Equal(t, uint64(0), tree.Len())
+	for _, k := range reversed {
+		assert.Equal(t, common.Comparators{nil}, tree.Get(k))
 	}
 	checkTree(t, tree)
 }
