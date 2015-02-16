@@ -199,7 +199,7 @@ func TestMultipleInsertCausesSplitOddAry(t *testing.T) {
 func TestMultipleInsertCausesSplitOddAryRandomOrder(t *testing.T) {
 	tree := newTree(3, 3)
 	defer tree.Dispose()
-	keys := generateRandomKeys(100)
+	keys := generateRandomKeys(10)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -323,6 +323,62 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 	checkTree(t, tree)
 }
 
+func TestInsertAndDelete(t *testing.T) {
+	tree := newTree(1024, 1024)
+	defer tree.Dispose()
+
+	keys := generateKeys(100)
+	keys1 := keys[:50]
+	keys2 := keys[50:]
+	tree.Insert(keys1...)
+	assert.Equal(t, uint64(len(keys1)), tree.Len())
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		tree.Insert(keys2...)
+		wg.Done()
+	}()
+
+	go func() {
+		tree.Delete(keys1...)
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	assert.Equal(t, uint64(len(keys2)), tree.Len())
+	assert.Equal(t, keys2, tree.Get(keys2...))
+}
+
+func TestInsertAndDeletesWithSplits(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+
+	keys := generateKeys(100)
+	keys1 := keys[:50]
+	keys2 := keys[50:]
+	tree.Insert(keys1...)
+	assert.Equal(t, uint64(len(keys1)), tree.Len())
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		tree.Insert(keys2...)
+		wg.Done()
+	}()
+
+	go func() {
+		tree.Delete(keys1...)
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	assert.Equal(t, uint64(len(keys2)), tree.Len())
+	assert.Equal(t, keys2, tree.Get(keys2...))
+}
+
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
 	keys := make([]common.Comparators, 0, b.N)
@@ -374,7 +430,6 @@ func BenchmarkBulkAdd(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tree := newTree(8, 8)
 		tree.Insert(keys...)
-		tree.Dispose()
 	}
 }
 
@@ -430,5 +485,35 @@ func BenchmarkBulkGet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		tree.Get(keys...)
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	numItems := b.N
+	keys := generateRandomKeys(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Delete(keys[i%numItems])
+	}
+}
+
+func BenchmarkBulkDelete(b *testing.B) {
+	numItems := 10000
+	keys := generateRandomKeys(numItems)
+	trees := make([]*ptree, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		tree := newTree(8, 8)
+		tree.Insert(keys...)
+		trees = append(trees, tree)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		trees[i].Delete(keys...)
 	}
 }
