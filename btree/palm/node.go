@@ -18,9 +18,9 @@ package palm
 
 import (
 	"log"
+	"sort"
 
 	"github.com/Workiva/go-datastructures/common"
-	"github.com/Workiva/go-datastructures/slice/skip"
 )
 
 func getParent(parent *node, key common.Comparator) *node {
@@ -84,69 +84,91 @@ func newNodes(size uint64) *nodes {
 }
 
 type keys struct {
-	list *skip.SkipList
+	list common.Comparators
 }
 
 func (ks *keys) splitAt(i uint64) (*keys, *keys) {
-	_, right := ks.list.SplitAt(i)
+	i++
+	right := make(common.Comparators, uint64(len(ks.list))-i, cap(ks.list))
+	copy(right, ks.list[i:])
+	for j := i; j < uint64(len(ks.list)); j++ {
+		ks.list[j] = nil
+	}
+	ks.list = ks.list[:i]
 	return ks, &keys{list: right}
 }
 
 func (ks *keys) len() uint64 {
-	return ks.list.Len()
+	return uint64(len(ks.list))
 }
 
 func (ks *keys) byPosition(i uint64) common.Comparator {
-	k, ok := ks.list.ByPosition(i).(common.Comparator)
-	if !ok {
+	if i >= uint64(len(ks.list)) {
 		return nil
 	}
-
-	return k
+	return ks.list[i]
 }
 
 func (ks *keys) delete(k common.Comparator) {
-	ks.list.Delete(k)
+	i := ks.search(k)
+	if i >= uint64(len(ks.list)) {
+		return
+	}
+	copy(ks.list[i:], ks.list[i+1:])
+	ks.list[len(ks.list)-1] = nil // GC
+	ks.list = ks.list[:len(ks.list)-1]
 }
 
 func (ks *keys) search(key common.Comparator) uint64 {
-	n, i := ks.list.GetWithPosition(key)
-	if n == nil {
-		return ks.list.Len()
-	}
+	i := sort.Search(len(ks.list), func(i int) bool {
+		return ks.list[i].Compare(key) > -1
+	})
 
-	return i
+	return uint64(i)
 }
 
 func (ks *keys) insert(key common.Comparator) common.Comparator {
-	old := ks.list.Insert(key)[0]
-	if old == nil {
+	i := ks.search(key)
+	if i == uint64(len(ks.list)) {
+		ks.list = append(ks.list, key)
 		return nil
+	}
+
+	old := ks.list[i]
+	if ks.list[i].Compare(key) == 0 {
+		ks.list[i] = key
+	} else {
+		ks.insertAt(i, key)
 	}
 
 	return old
 }
 
 func (ks *keys) last() common.Comparator {
-	return ks.list.ByPosition(ks.list.Len() - 1)
+	return ks.list[len(ks.list)-1]
 }
 
 func (ks *keys) insertAt(i uint64, k common.Comparator) {
-	ks.list.InsertAtPosition(i, k)
+	ks.list = append(ks.list, nil)
+	copy(ks.list[i+1:], ks.list[i:])
+	ks.list[i] = k
 }
 
 func (ks *keys) withPosition(k common.Comparator) (common.Comparator, uint64) {
-	key, pos := ks.list.GetWithPosition(k)
-	if key == nil {
-		return nil, pos
+	i := ks.search(k)
+	if i == uint64(len(ks.list)) {
+		return nil, i
+	}
+	if ks.list[i].Compare(k) == 0 {
+		return ks.list[i], i
 	}
 
-	return key, pos
+	return nil, i
 }
 
-func newKeys() *keys {
+func newKeys(size uint64) *keys {
 	return &keys{
-		list: skip.New(uint32(0)),
+		list: make(common.Comparators, 0, size),
 	}
 }
 
@@ -161,8 +183,7 @@ func (n *node) needsSplit(ary uint64) bool {
 	return n.keys.len() >= ary
 }
 
-func (n *node) splitLeaf() (common.Comparator, *node, *node) {
-	i := n.keys.len() / 2
+func (n *node) splitLeaf(i uint64) (common.Comparator, *node, *node) {
 	key := n.keys.byPosition(i)
 	_, rightKeys := n.keys.splitAt(i)
 	nn := &node{
@@ -174,8 +195,7 @@ func (n *node) splitLeaf() (common.Comparator, *node, *node) {
 	return key, n, nn
 }
 
-func (n *node) splitInternal() (common.Comparator, *node, *node) {
-	i := n.keys.len() / 2
+func (n *node) splitInternal(i uint64) (common.Comparator, *node, *node) {
 	key := n.keys.byPosition(i)
 	n.keys.delete(key)
 
@@ -190,12 +210,12 @@ func (n *node) splitInternal() (common.Comparator, *node, *node) {
 	return key, n, nn
 }
 
-func (n *node) split() (common.Comparator, *node, *node) {
+func (n *node) split(i uint64) (common.Comparator, *node, *node) {
 	if n.isLeaf {
-		return n.splitLeaf()
+		return n.splitLeaf(i)
 	}
 
-	return n.splitInternal()
+	return n.splitInternal(i)
 }
 
 func (n *node) search(key common.Comparator) uint64 {
@@ -214,8 +234,7 @@ func (n *node) key() common.Comparator {
 
 func (n *node) print(output *log.Logger) {
 	output.Printf(`NODE: %+v, %p`, n, n)
-	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
-		k := iter.Value()
+	for _, k := range n.keys.list {
 		output.Printf(`KEY: %+v`, k)
 	}
 	if !n.isLeaf {

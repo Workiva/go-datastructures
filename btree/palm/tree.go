@@ -99,7 +99,7 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.bufferSize = bufferSize
 	ptree.ary = ary
 	ptree.cache = make([]interface{}, 0, bufferSize)
-	ptree.root = newNode(true, newKeys(), newNodes(ary))
+	ptree.root = newNode(true, newKeys(ary), newNodes(ary))
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
 }
 
@@ -267,7 +267,9 @@ func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *
 		return
 	}
 
-	key, l, r := n.split()
+	i := n.keys.len() / 2
+
+	key, l, r := n.split(i)
 	if left != nil {
 		left.right = l
 	}
@@ -296,7 +298,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	var write sync.Mutex
 	layer = make(map[*node][]*recursiveBuild, len(layer))
 	dummyRoot := &node{
-		keys:  newKeys(),
+		keys:  newKeys(ptree.ary),
 		nodes: newNodes(ptree.ary),
 	}
 	executeInterfacesInParallel(ifs, func(ifc interface{}) {
@@ -365,7 +367,7 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 	var dummyRoot *node
 	if needRoot {
 		dummyRoot = &node{
-			keys:  newKeys(),
+			keys:  newKeys(ptree.ary),
 			nodes: newNodes(ptree.ary),
 		}
 	}

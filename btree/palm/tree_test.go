@@ -53,10 +53,8 @@ func checkNode(t testing.TB, n *node) bool {
 		return false
 	}
 
-	i := uint64(0)
-	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
+	for i, k := range n.keys.list {
 		nd := n.nodes.list[i]
-		k := iter.Value()
 		if !assert.NotNil(t, nd) {
 			return false
 		}
@@ -65,7 +63,6 @@ func checkNode(t testing.TB, n *node) bool {
 			t.Logf(`N: %+v %p, n.keys[i]: %+v, n.nodes[i]: %+v`, n, n, k, nd)
 			return false
 		}
-		i++
 	}
 
 	k := n.keys.last()
@@ -237,7 +234,7 @@ func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAryRandomOrder(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateRandomKeys(1000)
+	keys := generateRandomKeys(10)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
