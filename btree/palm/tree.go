@@ -99,7 +99,7 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.bufferSize = bufferSize
 	ptree.ary = ary
 	ptree.cache = make([]interface{}, 0, bufferSize)
-	ptree.root = newNode(true, newKeys(), newNodes())
+	ptree.root = newNode(true, newKeys(), newNodes(ary))
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
 }
 
@@ -297,7 +297,7 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	layer = make(map[*node][]*recursiveBuild, len(layer))
 	dummyRoot := &node{
 		keys:  newKeys(),
-		nodes: newNodes(),
+		nodes: newNodes(ptree.ary),
 	}
 	executeInterfacesInParallel(ifs, func(ifc interface{}) {
 		rbs := ifc.([]*recursiveBuild)
@@ -353,15 +353,25 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 		return
 	}
 
+	var needRoot bool
 	ifs := make(interfaces, 0, len(addOperations))
 	for n := range addOperations {
+		if n.parent == nil {
+			needRoot = true
+		}
 		ifs = append(ifs, n)
+	}
+
+	var dummyRoot *node
+	if needRoot {
+		dummyRoot = &node{
+			keys:  newKeys(),
+			nodes: newNodes(ptree.ary),
+		}
 	}
 
 	var write sync.Mutex
 	nextLayer := make(map[*node][]*recursiveBuild)
-	dummyRoot := &node{} // constructed in case we need it
-	var needRoot uint64
 	executeInterfacesInParallel(ifs, func(ifc interface{}) {
 		n := ifc.(*node)
 		keys := addOperations[n]
@@ -373,7 +383,6 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 		parent := n.parent
 		if parent == nil {
 			parent = dummyRoot
-			atomic.AddUint64(&needRoot, 1)
 		}
 
 		for _, key := range keys {
@@ -395,13 +404,7 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 		}
 	})
 
-	setRoot := needRoot > 0
-	if setRoot {
-		dummyRoot.keys = newKeys()
-		dummyRoot.nodes = newNodes()
-	}
-
-	ptree.recursiveAdd(nextLayer, setRoot)
+	ptree.recursiveAdd(nextLayer, needRoot)
 }
 
 // Insert will add the provided keys to the tree.

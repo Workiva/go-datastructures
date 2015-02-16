@@ -34,42 +34,52 @@ func getParent(parent *node, key common.Comparator) *node {
 }
 
 type nodes struct {
-	list *skip.SkipList
+	list []*node
 }
 
 func (ns *nodes) push(n *node) {
-	ns.list.InsertAtPosition(ns.list.Len(), n)
+	ns.list = append(ns.list, n)
 }
 
 func (ns *nodes) splitAt(i uint64) (*nodes, *nodes) {
-	_, right := ns.list.SplitAt(i)
+	i++
+	//log.Printf(`SPLITTING AT: %+v`, i)
+
+	right := make([]*node, uint64(len(ns.list))-i, cap(ns.list))
+	copy(right, ns.list[i:])
+	//log.Printf(`NS.LIST: %+v, RIGHT: %+v`, ns.list, right)
+	for j := i; j < uint64(len(ns.list)); j++ {
+		ns.list[j] = nil
+	}
+	ns.list = ns.list[:i]
 	return ns, &nodes{list: right}
 }
 
 func (ns *nodes) byPosition(pos uint64) *node {
-	n, ok := ns.list.ByPosition(pos).(*node)
-	if !ok {
+	if pos >= uint64(len(ns.list)) {
 		return nil
 	}
 
-	return n
+	return ns.list[pos]
 }
 
 func (ns *nodes) insertAt(i uint64, n *node) {
-	ns.list.InsertAtPosition(i, n)
+	ns.list = append(ns.list, nil)
+	copy(ns.list[i+1:], ns.list[i:])
+	ns.list[i] = n
 }
 
 func (ns *nodes) replaceAt(i uint64, n *node) {
-	ns.list.ReplaceAtPosition(i, n)
+	ns.list[i] = n
 }
 
 func (ns *nodes) len() uint64 {
-	return ns.list.Len()
+	return uint64(len(ns.list))
 }
 
-func newNodes() *nodes {
+func newNodes(size uint64) *nodes {
 	return &nodes{
-		list: skip.New(uint32(0)),
+		list: make([]*node, 0, size),
 	}
 }
 
@@ -157,7 +167,7 @@ func (n *node) splitLeaf() (common.Comparator, *node, *node) {
 	_, rightKeys := n.keys.splitAt(i)
 	nn := &node{
 		keys:   rightKeys,
-		nodes:  newNodes(),
+		nodes:  newNodes(uint64(cap(n.nodes.list))),
 		isLeaf: true,
 	}
 	n.right = nn
@@ -173,9 +183,8 @@ func (n *node) splitInternal() (common.Comparator, *node, *node) {
 	_, rightNodes := n.nodes.splitAt(i)
 
 	nn := newNode(false, rightKeys, rightNodes)
-	for iter := rightNodes.list.IterAtPosition(0); iter.Next(); {
-		nd := iter.Value().(*node)
-		nd.parent = nn
+	for _, n := range rightNodes.list {
+		n.parent = nn
 	}
 
 	return key, n, nn
@@ -210,8 +219,7 @@ func (n *node) print(output *log.Logger) {
 		output.Printf(`KEY: %+v`, k)
 	}
 	if !n.isLeaf {
-		for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
-			n := iter.Value().(*node)
+		for _, n := range n.nodes.list {
 			if n == nil {
 				output.Println(`NIL NODE`)
 				continue

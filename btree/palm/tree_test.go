@@ -55,7 +55,7 @@ func checkNode(t testing.TB, n *node) bool {
 
 	i := uint64(0)
 	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
-		nd := n.nodes.list.ByPosition(i).(*node)
+		nd := n.nodes.list[i]
 		k := iter.Value()
 		if !assert.NotNil(t, nd) {
 			return false
@@ -74,8 +74,7 @@ func checkNode(t testing.TB, n *node) bool {
 		t.Logf(`m: %+v, %p, n.nodes[len(n.nodes)-1].key(): %+v, n.keys.last(): %+v`, n, n, nd, k)
 		return false
 	}
-	for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
-		child := iter.Value().(*node)
+	for _, child := range n.nodes.list {
 		if !assert.NotNil(t, child) {
 			return false
 		}
@@ -293,7 +292,7 @@ func BenchmarkReadAndWrites(b *testing.B) {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(16, 16)
+	tree := newTree(16, 8)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -310,7 +309,7 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(16, 16)
+	tree := newTree(16, 8)
 	var wg sync.WaitGroup
 	b.ResetTimer()
 
@@ -335,7 +334,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newTree(8, 5000)
+		tree := newTree(8, 8)
 		tree.Insert(keys...)
 		tree.Dispose()
 	}
@@ -344,7 +343,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 func BenchmarkAdd(b *testing.B) {
 	numItems := 500
 	keys := generateRandomKeys(numItems)
-	tree := newTree(32, 1024)
+	tree := newTree(32, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
@@ -361,7 +360,7 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 		keySet = append(keySet, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(8, 1024)
+	tree := newTree(8, 8)
 
 	b.ResetTimer()
 
@@ -373,7 +372,7 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 func BenchmarkGet(b *testing.B) {
 	numItems := 10000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(32, 1024)
+	tree := newTree(32, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
@@ -386,7 +385,7 @@ func BenchmarkGet(b *testing.B) {
 func BenchmarkBulkGet(b *testing.B) {
 	numItems := 1000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(16, 16)
+	tree := newTree(16, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
