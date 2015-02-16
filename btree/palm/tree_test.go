@@ -434,10 +434,9 @@ func BenchmarkBulkAdd(b *testing.B) {
 }
 
 func BenchmarkAdd(b *testing.B) {
-	numItems := 500
+	numItems := b.N
 	keys := generateRandomKeys(numItems)
-	tree := newTree(32, 8)
-	tree.Insert(keys...)
+	tree := newTree(8, 8) // writes will be amortized over node splits
 
 	b.ResetTimer()
 
