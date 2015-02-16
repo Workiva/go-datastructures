@@ -43,11 +43,8 @@ func (ns *nodes) push(n *node) {
 
 func (ns *nodes) splitAt(i, capacity uint64) (*nodes, *nodes) {
 	i++
-	//log.Printf(`SPLITTING AT: %+v`, i)
-
 	right := make([]*node, uint64(len(ns.list))-i, capacity)
 	copy(right, ns.list[i:])
-	//log.Printf(`NS.LIST: %+v, RIGHT: %+v`, ns.list, right)
 	for j := i; j < uint64(len(ns.list)); j++ {
 		ns.list[j] = nil
 	}
