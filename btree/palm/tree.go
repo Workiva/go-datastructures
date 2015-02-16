@@ -267,18 +267,18 @@ func (ptree *ptree) recursiveSplit(n, parent, left *node, nodes *[]*node, keys *
 		return
 	}
 
-	i := n.keys.len() / 2
+	length := n.keys.len()
+	splitAt := ptree.ary - 1
 
-	key, l, r := n.split(i)
-	if left != nil {
-		left.right = l
+	for i := splitAt; i < length; i += splitAt {
+		offset := length - i
+		k, left, right := n.split(offset)
+		left.right = right
+		*keys = append(*keys, k)
+		*nodes = append(*nodes, left, right)
+		left.parent = parent
+		right.parent = parent
 	}
-	l.parent = parent
-	r.parent = parent
-	*keys = append(*keys, key)
-	*nodes = append(*nodes, l, r)
-	ptree.recursiveSplit(l, parent, left, nodes, keys)
-	ptree.recursiveSplit(r, parent, l, nodes, keys)
 }
 
 func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool) {

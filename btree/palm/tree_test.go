@@ -209,7 +209,7 @@ func TestMultipleBulkInsertEvenAry(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateKeys(1000)
+	keys := generateKeys(100)
 	reversed := reverseKeys(keys)
 
 	tree.Insert(reversed...)
@@ -222,7 +222,7 @@ func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateKeys(1000)
+	keys := generateKeys(100)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -234,7 +234,7 @@ func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAryRandomOrder(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateRandomKeys(10)
+	keys := generateRandomKeys(100)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
