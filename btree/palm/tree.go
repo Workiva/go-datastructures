@@ -292,15 +292,23 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 
 	ifs := make(interfaces, 0, len(layer))
 	for _, rbs := range layer {
+		if rbs[0].parent.parent == nil {
+			setRoot = true
+		}
 		ifs = append(ifs, rbs)
+	}
+
+	var dummyRoot *node
+	if setRoot {
+		dummyRoot = &node{
+			keys:  newKeys(ptree.ary),
+			nodes: newNodes(ptree.ary),
+		}
 	}
 
 	var write sync.Mutex
 	layer = make(map[*node][]*recursiveBuild, len(layer))
-	dummyRoot := &node{
-		keys:  newKeys(ptree.ary),
-		nodes: newNodes(ptree.ary),
-	}
+
 	executeInterfacesInParallel(ifs, func(ifc interface{}) {
 		rbs := ifc.([]*recursiveBuild)
 
