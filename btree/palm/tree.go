@@ -36,21 +36,28 @@ const (
 
 const multiThreadAt = 1000 // number of keys before we multithread lookups
 
+type keyBundles struct {
+	keys  common.Comparators
+	nodes []*node
+}
+
 type recursiveBuild struct {
-	keys   common.Comparators
-	nodes  []*node
-	parent *node
+	add    *keyBundles
+	remove *keyBundles
 }
 
 type ptree struct {
-	root                    *node
-	ary, number, bufferSize uint64
-	actions                 *queue.RingBuffer
-	cache                   []interface{}
-	buffer0                 [8]uint64
-	disposed                uint64
-	buffer1                 [8]uint64
-	running                 uint64
+	root            *node
+	_padding0       [8]uint64
+	number          uint64
+	_padding1       [8]uint64
+	ary, bufferSize uint64
+	actions         *queue.RingBuffer
+	cache           []interface{}
+	buffer0         [8]uint64
+	disposed        uint64
+	buffer1         [8]uint64
+	running         uint64
 }
 
 func (ptree *ptree) checkAndRun(action action) {
@@ -291,11 +298,11 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	}
 
 	ifs := make(interfaces, 0, len(layer))
-	for _, rbs := range layer {
-		if rbs[0].parent.parent == nil {
+	for n := range layer {
+		if n.parent == nil {
 			setRoot = true
 		}
-		ifs = append(ifs, rbs)
+		ifs = append(ifs, n)
 	}
 
 	var dummyRoot *node
@@ -307,16 +314,16 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 	}
 
 	var write sync.Mutex
-	layer = make(map[*node][]*recursiveBuild, len(layer))
+	nextLayer := make(map[*node][]*recursiveBuild, len(layer))
 
 	executeInterfacesInParallel(ifs, func(ifc interface{}) {
-		rbs := ifc.([]*recursiveBuild)
+		n := ifc.(*node)
+		rbs := layer[n]
 
 		if len(rbs) == 0 {
 			return
 		}
 
-		n := rbs[0].parent
 		if setRoot {
 			ptree.root = n
 		}
@@ -328,18 +335,18 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 		}
 
 		for _, rb := range rbs {
-			for i, k := range rb.keys {
+			for i, k := range rb.add.keys {
 				if n.keys.len() == 0 {
 					n.keys.insert(k)
-					n.nodes.push(rb.nodes[i*2])
-					n.nodes.push(rb.nodes[i*2+1])
+					n.nodes.push(rb.add.nodes[i*2])
+					n.nodes.push(rb.add.nodes[i*2+1])
 					continue
 				}
 
 				n.keys.insert(k)
 				index := n.search(k)
-				n.nodes.replaceAt(index, rb.nodes[i*2])
-				n.nodes.insertAt(index+1, rb.nodes[i*2+1])
+				n.nodes.replaceAt(index, rb.add.nodes[i*2])
+				n.nodes.insertAt(index+1, rb.add.nodes[i*2+1])
 			}
 		}
 
@@ -348,14 +355,14 @@ func (ptree *ptree) recursiveAdd(layer map[*node][]*recursiveBuild, setRoot bool
 			nodes := make([]*node, 0, n.nodes.len())
 			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
-			layer[parent] = append(
-				layer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
+			nextLayer[parent] = append(
+				nextLayer[parent], &recursiveBuild{add: &keyBundles{keys: keys, nodes: nodes}},
 			)
 			write.Unlock()
 		}
 	})
 
-	ptree.recursiveAdd(layer, setRoot)
+	ptree.recursiveAdd(nextLayer, setRoot)
 }
 
 func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
@@ -408,7 +415,7 @@ func (ptree *ptree) runAdds(addOperations map[*node]common.Comparators) {
 			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
 			nextLayer[parent] = append(
-				nextLayer[parent], &recursiveBuild{keys: keys, nodes: nodes, parent: parent},
+				nextLayer[parent], &recursiveBuild{add: &keyBundles{keys: keys, nodes: nodes}},
 			)
 			write.Unlock()
 		}
