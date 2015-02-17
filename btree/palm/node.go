@@ -106,14 +106,21 @@ func (ks *keys) byPosition(i uint64) common.Comparator {
 	return ks.list[i]
 }
 
-func (ks *keys) delete(k common.Comparator) {
+func (ks *keys) delete(k common.Comparator) common.Comparator {
 	i := ks.search(k)
 	if i >= uint64(len(ks.list)) {
-		return
+		return nil
 	}
+
+	if ks.list[i].Compare(k) != 0 {
+		return nil
+	}
+	old := ks.list[i]
+
 	copy(ks.list[i:], ks.list[i+1:])
 	ks.list[len(ks.list)-1] = nil // GC
 	ks.list = ks.list[:len(ks.list)-1]
+	return old
 }
 
 func (ks *keys) search(key common.Comparator) uint64 {
@@ -131,8 +138,9 @@ func (ks *keys) insert(key common.Comparator) (common.Comparator, uint64) {
 		return nil, i
 	}
 
-	old := ks.list[i]
+	var old common.Comparator
 	if ks.list[i].Compare(key) == 0 {
+		old = ks.list[i]
 		ks.list[i] = key
 	} else {
 		ks.insertAt(i, key)

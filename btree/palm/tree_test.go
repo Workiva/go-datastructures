@@ -116,6 +116,18 @@ func TestSimpleInsert(t *testing.T) {
 	checkTree(t, tree)
 }
 
+func TestSimpleDelete(t *testing.T) {
+	tree := newTree(8, 8)
+	defer tree.Dispose()
+	m1 := mockKey(1)
+	tree.Insert(m1)
+
+	tree.Delete(m1)
+	assert.Equal(t, uint64(0), tree.Len())
+	assert.Equal(t, common.Comparators{nil}, tree.Get(m1))
+	checkTree(t, tree)
+}
+
 func TestMultipleAdd(t *testing.T) {
 	tree := newTree(16, 16)
 	defer tree.Dispose()
@@ -130,6 +142,19 @@ func TestMultipleAdd(t *testing.T) {
 	checkTree(t, tree)
 }
 
+func TestMultipleDelete(t *testing.T) {
+	tree := newTree(16, 16)
+	defer tree.Dispose()
+	m1 := mockKey(1)
+	m2 := mockKey(10)
+	tree.Insert(m1, m2)
+
+	tree.Delete(m1, m2)
+	assert.Equal(t, uint64(0), tree.Len())
+	assert.Equal(t, common.Comparators{nil, nil}, tree.Get(m1, m2))
+	checkTree(t, tree)
+}
+
 func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 	tree := newTree(3, 3)
 	defer tree.Dispose()
@@ -139,6 +164,22 @@ func TestMultipleInsertCausesSplitOddAryReverseOrder(t *testing.T) {
 	tree.Insert(reversed...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
 		tree.print(getConsoleLogger())
+	}
+	checkTree(t, tree)
+}
+
+func TestMultipleDeleteOddAryReverseOrder(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+	keys := generateKeys(100)
+	reversed := reverseKeys(keys)
+	tree.Insert(reversed...)
+	assert.Equal(t, uint64(100), tree.Len())
+
+	tree.Delete(reversed...)
+	assert.Equal(t, uint64(0), tree.Len())
+	for _, k := range reversed {
+		assert.Equal(t, common.Comparators{nil}, tree.Get(k))
 	}
 	checkTree(t, tree)
 }
@@ -158,7 +199,7 @@ func TestMultipleInsertCausesSplitOddAry(t *testing.T) {
 func TestMultipleInsertCausesSplitOddAryRandomOrder(t *testing.T) {
 	tree := newTree(3, 3)
 	defer tree.Dispose()
-	keys := generateRandomKeys(100)
+	keys := generateRandomKeys(10)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -282,6 +323,62 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 	checkTree(t, tree)
 }
 
+func TestInsertAndDelete(t *testing.T) {
+	tree := newTree(1024, 1024)
+	defer tree.Dispose()
+
+	keys := generateKeys(100)
+	keys1 := keys[:50]
+	keys2 := keys[50:]
+	tree.Insert(keys1...)
+	assert.Equal(t, uint64(len(keys1)), tree.Len())
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		tree.Insert(keys2...)
+		wg.Done()
+	}()
+
+	go func() {
+		tree.Delete(keys1...)
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	assert.Equal(t, uint64(len(keys2)), tree.Len())
+	assert.Equal(t, keys2, tree.Get(keys2...))
+}
+
+func TestInsertAndDeletesWithSplits(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+
+	keys := generateKeys(100)
+	keys1 := keys[:50]
+	keys2 := keys[50:]
+	tree.Insert(keys1...)
+	assert.Equal(t, uint64(len(keys1)), tree.Len())
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		tree.Insert(keys2...)
+		wg.Done()
+	}()
+
+	go func() {
+		tree.Delete(keys1...)
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	assert.Equal(t, uint64(len(keys2)), tree.Len())
+	assert.Equal(t, keys2, tree.Get(keys2...))
+}
+
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
 	keys := make([]common.Comparators, 0, b.N)
@@ -333,7 +430,6 @@ func BenchmarkBulkAdd(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tree := newTree(8, 8)
 		tree.Insert(keys...)
-		tree.Dispose()
 	}
 }
 
@@ -389,5 +485,35 @@ func BenchmarkBulkGet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		tree.Get(keys...)
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	numItems := b.N
+	keys := generateRandomKeys(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Delete(keys[i%numItems])
+	}
+}
+
+func BenchmarkBulkDelete(b *testing.B) {
+	numItems := 10000
+	keys := generateRandomKeys(numItems)
+	trees := make([]*ptree, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		tree := newTree(8, 8)
+		tree.Insert(keys...)
+		trees = append(trees, tree)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		trees[i].Delete(keys...)
 	}
 }

@@ -108,6 +108,20 @@ func newInsertAction(keys common.Comparators) *insertAction {
 	return ia
 }
 
+type removeAction struct {
+	*insertAction
+}
+
+func (ra *removeAction) operation() operation {
+	return remove
+}
+
+func newRemoveAction(keys common.Comparators) *removeAction {
+	return &removeAction{
+		newInsertAction(keys),
+	}
+}
+
 func minUint64(choices ...uint64) uint64 {
 	min := choices[0]
 	for i := 1; i < len(choices); i++ {
