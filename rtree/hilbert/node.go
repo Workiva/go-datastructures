@@ -120,8 +120,11 @@ func (n *node) splitLeaf(i uint64) (withHilbert, *node, *node) {
 	nn := &node{
 		children: right,
 		isLeaf:   true,
+		parent:   n.parent,
+		mbr:      newRectangle(right),
 	}
 	n.right = nn
+	n.mbr = newRectangle(n.children)
 
 	return key, n, nn
 }
@@ -142,6 +145,7 @@ func (n *node) splitInternal(i uint64) (withHilbert, *node, *node) {
 	nn := &node{
 		children: right,
 		isLeaf:   false,
+		parent:   n.parent,
 	}
 	n.reset()
 	nn.reset()

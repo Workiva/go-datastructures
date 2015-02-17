@@ -40,3 +40,19 @@ func TestTwoInsert(t *testing.T) {
 	result = tree.Search(q)
 	assert.Equal(t, []rtree.Rectangle{r2}, result)
 }
+
+func TestInsertCausesRootSplitOddAry(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 10, 10)
+	r2 := newMockRectangle(5, 5, 15, 15)
+	r3 := newMockRectangle(10, 10, 20, 20)
+	tree := newTree(3)
+
+	tree.Insert(r1, r2, r3)
+	assert.Equal(t, uint64(3), tree.Len())
+
+	q := newMockRectangle(0, 0, 20, 20)
+	result := tree.Search(q)
+	assert.Contains(t, result, r1)
+	assert.Contains(t, result, r2)
+	assert.Contains(t, result, r3)
+}

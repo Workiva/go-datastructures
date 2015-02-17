@@ -96,6 +96,7 @@ func (t *tree) insert(rect rtree.Rectangle) {
 		n.insert(left)
 		n.insert(right)
 		t.root = n
+		left.parent, right.parent = n, n
 	}
 }
 
