@@ -379,6 +379,57 @@ func TestInsertAndDeletesWithSplits(t *testing.T) {
 	assert.Equal(t, keys2, tree.Get(keys2...))
 }
 
+func TestSimpleQuery(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+	m1 := mockKey(1)
+	tree.Insert(m1)
+
+	result := tree.Query(mockKey(0), mockKey(5))
+	assert.Equal(t, common.Comparators{m1}, result)
+
+	result = tree.Query(mockKey(0), mockKey(1))
+	assert.Len(t, result, 0)
+
+	result = tree.Query(mockKey(2), mockKey(10))
+	assert.Len(t, result, 0)
+
+	result = tree.Query(mockKey(1), mockKey(10))
+	assert.Equal(t, common.Comparators{m1}, result)
+}
+
+func TestMultipleQuery(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+	m1 := mockKey(1)
+	m2 := mockKey(5)
+	tree.Insert(m1, m2)
+
+	result := tree.Query(mockKey(0), mockKey(10))
+	assert.Equal(t, common.Comparators{m1, m2}, result)
+
+	result = tree.Query(mockKey(1), mockKey(5))
+	assert.Equal(t, common.Comparators{m1}, result)
+
+	result = tree.Query(mockKey(6), mockKey(10))
+	assert.Len(t, result, 0)
+
+	result = tree.Query(mockKey(5), mockKey(10))
+	assert.Equal(t, common.Comparators{m2}, result)
+}
+
+func TestCrossNodeQuery(t *testing.T) {
+	tree := newTree(3, 3)
+	defer tree.Dispose()
+	keys := generateKeys(100)
+	tree.Insert(keys...)
+
+	result := tree.Query(mockKey(0), mockKey(len(keys)))
+	if !assert.Equal(t, keys, result) {
+		tree.print(getConsoleLogger())
+	}
+}
+
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
 	keys := make([]common.Comparators, 0, b.N)
@@ -475,9 +526,9 @@ func BenchmarkGet(b *testing.B) {
 }
 
 func BenchmarkBulkGet(b *testing.B) {
-	numItems := 1000
+	numItems := b.N
 	keys := generateRandomKeys(numItems)
-	tree := newTree(16, 8)
+	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
@@ -514,5 +565,31 @@ func BenchmarkBulkDelete(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		trees[i].Delete(keys...)
+	}
+}
+
+func BenchmarkFindQuery(b *testing.B) {
+	numItems := b.N
+	keys := generateKeys(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Query(mockKey(numItems/2), mockKey(numItems/2+1))
+	}
+}
+
+func BenchmarkExecuteQuery(b *testing.B) {
+	numItems := b.N
+	keys := generateKeys(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(keys...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Query(mockKey(0), mockKey(numItems))
 	}
 }
