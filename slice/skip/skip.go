@@ -205,14 +205,16 @@ func (sl *SkipList) search(cmp common.Comparator, update nodes, widths widths) (
 
 	var pos uint64 = 0
 	var offset uint8
+	var alreadyChecked *node
 	n := sl.head
 	for i := uint8(0); i <= sl.level; i++ {
 		offset = sl.level - i
-		for n.forward[offset] != nil && n.forward[offset].Compare(cmp) < 0 {
+		for n.forward[offset] != nil && n.forward[offset] != alreadyChecked && n.forward[offset].Compare(cmp) < 0 {
 			pos += n.widths[offset]
 			n = n.forward[offset]
 		}
 
+		alreadyChecked = n
 		if update != nil {
 			update[offset] = n
 			widths[offset] = pos

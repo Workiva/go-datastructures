@@ -53,10 +53,8 @@ func checkNode(t testing.TB, n *node) bool {
 		return false
 	}
 
-	i := uint64(0)
-	for iter := n.keys.list.IterAtPosition(0); iter.Next(); {
-		nd := n.nodes.list.ByPosition(i).(*node)
-		k := iter.Value()
+	for i, k := range n.keys.list {
+		nd := n.nodes.list[i]
 		if !assert.NotNil(t, nd) {
 			return false
 		}
@@ -65,7 +63,6 @@ func checkNode(t testing.TB, n *node) bool {
 			t.Logf(`N: %+v %p, n.keys[i]: %+v, n.nodes[i]: %+v`, n, n, k, nd)
 			return false
 		}
-		i++
 	}
 
 	k := n.keys.last()
@@ -74,8 +71,7 @@ func checkNode(t testing.TB, n *node) bool {
 		t.Logf(`m: %+v, %p, n.nodes[len(n.nodes)-1].key(): %+v, n.keys.last(): %+v`, n, n, nd, k)
 		return false
 	}
-	for iter := n.nodes.list.IterAtPosition(0); iter.Next(); {
-		child := iter.Value().(*node)
+	for _, child := range n.nodes.list {
 		if !assert.NotNil(t, child) {
 			return false
 		}
@@ -213,7 +209,7 @@ func TestMultipleBulkInsertEvenAry(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateKeys(1000)
+	keys := generateKeys(100)
 	reversed := reverseKeys(keys)
 
 	tree.Insert(reversed...)
@@ -226,7 +222,7 @@ func TestMultipleInsertCausesSplitEvenAryReverseOrder(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateKeys(1000)
+	keys := generateKeys(100)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -238,7 +234,7 @@ func TestMultipleInsertCausesSplitEvenAry(t *testing.T) {
 func TestMultipleInsertCausesSplitEvenAryRandomOrder(t *testing.T) {
 	tree := newTree(4, 4)
 	defer tree.Dispose()
-	keys := generateRandomKeys(1000)
+	keys := generateRandomKeys(100)
 
 	tree.Insert(keys...)
 	if !assert.Equal(t, keys, tree.Get(keys...)) {
@@ -293,7 +289,7 @@ func BenchmarkReadAndWrites(b *testing.B) {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(16, 16)
+	tree := newTree(16, 8)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -310,7 +306,7 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(16, 16)
+	tree := newTree(16, 8)
 	var wg sync.WaitGroup
 	b.ResetTimer()
 
@@ -335,7 +331,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newTree(8, 5000)
+		tree := newTree(8, 8)
 		tree.Insert(keys...)
 		tree.Dispose()
 	}
@@ -344,7 +340,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 func BenchmarkAdd(b *testing.B) {
 	numItems := 500
 	keys := generateRandomKeys(numItems)
-	tree := newTree(32, 1024)
+	tree := newTree(32, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
@@ -361,7 +357,7 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 		keySet = append(keySet, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(8, 1024)
+	tree := newTree(8, 8)
 
 	b.ResetTimer()
 
@@ -373,7 +369,7 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 func BenchmarkGet(b *testing.B) {
 	numItems := 10000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(32, 1024)
+	tree := newTree(32, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()
@@ -386,7 +382,7 @@ func BenchmarkGet(b *testing.B) {
 func BenchmarkBulkGet(b *testing.B) {
 	numItems := 1000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(16, 16)
+	tree := newTree(16, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()

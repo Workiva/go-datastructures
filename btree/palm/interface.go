@@ -30,13 +30,13 @@ bulk operations.
 
 Benchmarks:
 
-BenchmarkReadAndWrites-8	    			2000	    906194 ns/op
-BenchmarkSimultaneousReadsAndWrites-8	     300	   5344702 ns/op
-BenchmarkBulkAdd-8	     					 200	   7586705 ns/op
-BenchmarkAdd-8	  						  100000	     17753 ns/op
-BenchmarkBulkAddToExisting-8	      		  30	  51230180 ns/op
-BenchmarkGet-8	 						 2000000	       724 ns/op
-BenchmarkBulkGet-8	    					5000	    284905 ns/op
+BenchmarkReadAndWrites-8	    			2000	    943051 ns/op
+BenchmarkSimultaneousReadsAndWrites-8	     300	   4354136 ns/op
+BenchmarkBulkAdd-8	     					 200	   5617104 ns/op
+BenchmarkAdd-8	  						  200000	      8976 ns/op
+BenchmarkBulkAddToExisting-8	     	     100	  20682933 ns/op
+BenchmarkGet-8	 						 2000000	       629 ns/op
+BenchmarkBulkGet-8	    					5000	    217915 ns/op
 
 */
 package palm
