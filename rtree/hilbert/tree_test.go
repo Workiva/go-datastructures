@@ -18,5 +18,25 @@ func TestSimpleInsert(t *testing.T) {
 	q := newMockRectangle(5, 5, 15, 15)
 	result := tree.Search(q)
 	assert.Equal(t, []rtree.Rectangle{r1}, result)
-	t.Logf(`TREE.ROOT: %+v`, tree.root)
+}
+
+func TestTwoInsert(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 10, 10)
+	r2 := newMockRectangle(5, 5, 15, 15)
+	tree := newTree(3)
+
+	tree.Insert(r1, r2)
+	assert.Equal(t, uint64(2), tree.Len())
+
+	q := newMockRectangle(0, 0, 20, 20)
+	result := tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1, r2}, result)
+
+	q = newMockRectangle(0, 0, 4, 4)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1}, result)
+
+	q = newMockRectangle(11, 11, 20, 20)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r2}, result)
 }

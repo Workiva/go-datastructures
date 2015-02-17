@@ -37,18 +37,10 @@ func intersect(rect1, rect2 rtree.Rectangle) bool {
 	xlow1, ylow1 := rect1.LowerLeft()
 	xhigh2, yhigh2 := rect2.UpperRight()
 
-	if xlow1 < xhigh2 && ylow1 < yhigh2 {
-		return true
-	}
-
 	xhigh1, yhigh1 := rect1.UpperRight()
-	xlow2, ylow2 := rect1.LowerLeft()
+	xlow2, ylow2 := rect2.LowerLeft()
 
-	if xlow2 < xhigh1 && ylow2 < yhigh1 {
-		return true
-	}
-
-	return false
+	return xhigh2 > xlow1 && xlow2 < xhigh1 && yhigh2 > ylow1 && ylow2 < yhigh1
 }
 
 type tree struct {
@@ -75,6 +67,7 @@ func (t *tree) insert(rect rtree.Rectangle) {
 		n := newNode(t.ary)
 		n.isLeaf = true
 		n.insert(hb)
+		n.mbr = newRectangle(n.children)
 		t.root = n
 		return
 	}
