@@ -168,3 +168,13 @@ func executeInterfacesInParallel(ifs interfaces, fn func(interface{})) {
 
 	wg.Wait()
 }
+
+func executeInterfacesInSerial(ifs interfaces, fn func(interface{})) {
+	if len(ifs) == 0 {
+		return
+	}
+
+	for _, ifc := range ifs {
+		fn(ifc)
+	}
+}
