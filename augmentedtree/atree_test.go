@@ -771,3 +771,14 @@ func TestInsertDuplicateIntervalChildren(t *testing.T) {
 	result := tree.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Contains(t, result, iv1)
 }
+
+func TestDeleteAtDimensionalSinglePositionReference(t *testing.T) {
+	tree := newTree(2)
+	iv := constructMultiDimensionInterval(
+		0, &dimension{low: 0, high: 1}, &dimension{low: 4, high: 5},
+	)
+	tree.Add(iv)
+	modified, deleted := tree.Insert(2, 1, -1)
+	assert.Equal(t, Intervals{iv}, modified)
+	assert.Len(t, deleted, 0)
+}
