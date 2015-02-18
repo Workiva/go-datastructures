@@ -1,12 +1,51 @@
 package hilbert
 
 import (
+	"log"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Workiva/go-datastructures/rtree"
 )
+
+func getConsoleLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags)
+}
+
+func (n *node) print(log *log.Logger) {
+	log.Printf(`NODE: %+v, MBR: %+v, %p`, n, n.mbr, n)
+	if n.isLeaf {
+		for _, wh := range n.children {
+			xlow, ylow := wh.LowerLeft()
+			xhigh, yhigh := wh.UpperRight()
+			log.Printf(`KEY: %+v, XLOW: %+v, YLOW: %+v, XHIGH: %+v, YHIGH: %+v`, wh, xlow, ylow, xhigh, yhigh)
+		}
+	} else {
+		for _, wh := range n.children {
+			wh.(*node).print(log)
+		}
+	}
+}
+
+func (t *tree) print(log *log.Logger) {
+	log.Println(`PRINTING TREE`)
+	if t.root == nil {
+		log.Println(`EMPTY TREE.`)
+		return
+	}
+
+	t.root.print(log)
+}
+
+func constructMockPoints(num int) rtree.Rectangles {
+	rects := make(rtree.Rectangles, 0, num)
+	for i := int32(0); i < int32(num); i++ {
+		rects = append(rects, newMockRectangle(i, i, i, i))
+	}
+	return rects
+}
 
 func TestSimpleInsert(t *testing.T) {
 	r1 := newMockRectangle(0, 0, 10, 10)
@@ -73,4 +112,103 @@ func TestInsertCausesRootSplitEvenAry(t *testing.T) {
 	assert.Contains(t, result, r2)
 	assert.Contains(t, result, r3)
 	assert.Contains(t, result, r4)
+}
+
+func TestQueryWithLine(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 10, 10)
+	r2 := newMockRectangle(5, 5, 15, 15)
+	tree := newTree(3)
+	tree.Insert(r1, r2)
+
+	// vertical line at x=5
+	q := newMockRectangle(5, 0, 5, 10)
+	result := tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1, r2}, result)
+
+	// horizontal line at y=5
+	q = newMockRectangle(0, 5, 10, 5)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1, r2}, result)
+
+	// vertical line at x=15
+	q = newMockRectangle(15, 0, 15, 20)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r2}, result)
+
+	// horizontal line at y=15
+	q = newMockRectangle(0, 15, 20, 15)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r2}, result)
+
+	// vertical line on the y-axis
+	q = newMockRectangle(0, 0, 0, 10)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1}, result)
+
+	// horizontal line on the x-axis
+	q = newMockRectangle(0, 0, 10, 0)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1}, result)
+
+	// vertical line at x=20
+	q = newMockRectangle(20, 0, 20, 20)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{}, result)
+
+	// horizontal line at y=20
+	q = newMockRectangle(0, 20, 20, 20)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{}, result)
+}
+
+func TestQueryForPoint(t *testing.T) {
+	r1 := newMockRectangle(5, 5, 5, 5)     // (5, 5)
+	r2 := newMockRectangle(10, 10, 10, 10) // (10, 10)
+	tree := newTree(3)
+	tree.Insert(r1, r2)
+
+	q := newMockRectangle(0, 0, 5, 5)
+	result := tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r1}, result)
+
+	q = newMockRectangle(0, 0, 20, 20)
+	result = tree.Search(q)
+	assert.Contains(t, result, r1)
+	assert.Contains(t, result, r2)
+
+	q = newMockRectangle(6, 6, 20, 20)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{r2}, result)
+
+	q = newMockRectangle(20, 20, 30, 30)
+	result = tree.Search(q)
+	assert.Equal(t, []rtree.Rectangle{}, result)
+}
+
+func TestMultipleInsertsCauseInternalSplitOddAry(t *testing.T) {
+	points := constructMockPoints(7)
+	tree := newTree(3)
+
+	tree.Insert(points[:6]...)
+	tree.print(getConsoleLogger())
+	println(`SHIT STARTS HERE`)
+	//tree.Insert(points[6:]...)
+	//tree.print(getConsoleLogger())
+
+	//tree.Insert(points[3:]...)
+	assert.Equal(t, uint64(len(points)), tree.Len())
+
+	/*
+		q := newMockRectangle(0, 0, int32(len(points)), int32(len(points)))
+		result := tree.Search(q)
+		succeeded := true
+		for _, p := range points {
+			if !assert.Contains(t, result, p) {
+				succeeded = false
+			}
+		}
+
+		if !succeeded {
+			tree.print(getConsoleLogger())
+		}*/
 }

@@ -1,10 +1,15 @@
 package hilbert
 
 import (
+	"log"
 	"sort"
 
 	"github.com/Workiva/go-datastructures/rtree"
 )
+
+func init() {
+	log.Printf(`I HATE THIS`)
+}
 
 func getCenter(rect rtree.Rectangle) (int32, int32) {
 	xlow, ylow := rect.LowerLeft()
@@ -13,15 +18,13 @@ func getCenter(rect rtree.Rectangle) (int32, int32) {
 	return (xhigh + xlow) / 2, (yhigh + ylow) / 2
 }
 
-func getParent(root *node, key *hilbertBundle, cache []*node) *node {
-	cache = append(cache, root)
+func getParent(root *node, key *hilbertBundle) *node {
 	for !root.isLeaf {
 		i := searchBundles(root.children, key)
 		if i == len(root.children) {
 			i--
 		}
 		root = root.children[i].(*node)
-		cache = append(cache, root)
 	}
 
 	return root
@@ -40,24 +43,22 @@ func intersect(rect1, rect2 rtree.Rectangle) bool {
 	xhigh1, yhigh1 := rect1.UpperRight()
 	xlow2, ylow2 := rect2.LowerLeft()
 
-	return xhigh2 > xlow1 && xlow2 < xhigh1 && yhigh2 > ylow1 && ylow2 < yhigh1
+	return xhigh2 >= xlow1 && xlow2 <= xhigh1 && yhigh2 >= ylow1 && ylow2 <= yhigh1
+}
+
+func equals(rect1, rect2 rtree.Rectangle) bool {
+	xlow1, ylow1 := rect1.LowerLeft()
+	xhigh2, yhigh2 := rect2.UpperRight()
+
+	xhigh1, yhigh1 := rect1.UpperRight()
+	xlow2, ylow2 := rect2.LowerLeft()
+
+	return xlow1 == xlow2 && xhigh1 == xhigh2 && ylow1 == ylow2 && yhigh1 == yhigh2
 }
 
 type tree struct {
 	root        *node
 	number, ary uint64
-	cache       []*node
-}
-
-func (t *tree) resetCache() {
-	for i := range t.cache {
-		t.cache[i] = nil
-	}
-	t.cache = t.cache[:0]
-}
-
-func (t *tree) Len() uint64 {
-	return t.number
 }
 
 func (t *tree) insert(rect rtree.Rectangle) {
@@ -72,8 +73,8 @@ func (t *tree) insert(rect rtree.Rectangle) {
 		return
 	}
 
-	t.resetCache()
-	n := getParent(t.root, hb, t.cache)
+	n := getParent(t.root, hb)
+	log.Printf(`ROOT: %+v, %p, PARENT: %+v, %p`, t.root, t.root, n, n)
 	n.insert(hb)
 
 	var key withHilbert
@@ -83,7 +84,12 @@ func (t *tree) insert(rect rtree.Rectangle) {
 			n.insert(key)
 		}
 		if n.needsSplit(t.ary) {
+			log.Printf(`N: %+v`, n)
 			key, left, right = n.split(uint64(len(n.children) / 2))
+			if n.isLeaf {
+				key = right
+			}
+			log.Printf(`AFTER SPLIT KEY: %+v, LEFT: %+v, RIGHT: %+v`, key, left, right)
 		} else {
 			key = nil
 			n.adjust(hb)
@@ -92,10 +98,14 @@ func (t *tree) insert(rect rtree.Rectangle) {
 	}
 
 	if key != nil {
+		println(`CREATING ROOT`)
 		n := newNode(t.ary)
 		n.insert(left)
 		n.insert(right)
 		t.root = n
+		n.mbr = newRectangle(n.children)
+		log.Printf(`LEFT: %+v, RIGHT: %+v`, left, right)
+		n.maxHilbert = right.maxHilbert
 		left.parent, right.parent = n, n
 	}
 }
@@ -124,6 +134,10 @@ func (t *tree) Search(r rtree.Rectangle) []rtree.Rectangle {
 	}
 
 	return result
+}
+
+func (t *tree) Len() uint64 {
+	return t.number
 }
 
 func newTree(ary uint64) *tree {

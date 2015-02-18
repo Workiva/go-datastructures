@@ -118,13 +118,15 @@ func (n *node) splitLeaf(i uint64) (withHilbert, *node, *node) {
 	}
 	n.children = n.children[:i+1]
 	nn := &node{
-		children: right,
-		isLeaf:   true,
-		parent:   n.parent,
-		mbr:      newRectangle(right),
+		children:   right,
+		isLeaf:     true,
+		parent:     n.parent,
+		mbr:        newRectangle(right),
+		maxHilbert: right[len(right)-1].hilbert(),
 	}
 	n.right = nn
 	n.mbr = newRectangle(n.children)
+	n.maxHilbert = n.children[len(n.children)-1].hilbert()
 
 	return key, n, nn
 }
@@ -138,10 +140,10 @@ func (n *node) splitInternal(i uint64) (withHilbert, *node, *node) {
 	key := n.children[i]
 	right := make([]withHilbert, uint64(len(n.children))-i-1, cap(n.children))
 	copy(right, n.children[i+1:])
-	for j := i; j < uint64(len(n.children)); j++ {
+	for j := i + 1; j < uint64(len(n.children)); j++ {
 		n.children[j] = nil
 	}
-	n.children = n.children[:i]
+	n.children = n.children[:i+1]
 	nn := &node{
 		children: right,
 		isLeaf:   false,
