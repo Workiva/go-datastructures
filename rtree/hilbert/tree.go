@@ -14,6 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+Package hilbert implements a Hilbert R-tree based on PALM principles
+to improve multithreaded performance.  This package is not quite complete
+and some optimization and delete codes remain to be completed.
+
+This serves as a potential replacement for the interval tree and
+rangetree.
+
+Benchmarks:
+BenchmarkBulkAddPoints-8	     500	   2589270 ns/op
+BenchmarkBulkUpdatePoints-8	    2000	   1212641 ns/op
+BenchmarkPointInsertion-8	  200000	      9135 ns/op
+BenchmarkQueryPoints-8	  	  500000	      3122 ns/op
+
+*/
 package hilbert
 
 import (
