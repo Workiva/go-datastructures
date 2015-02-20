@@ -2,123 +2,381 @@ package hilbert
 
 import (
 	"log"
-	"sort"
+	"runtime"
+	"sync"
+	"sync/atomic"
 
+	"github.com/Workiva/go-datastructures/queue"
 	"github.com/Workiva/go-datastructures/rtree"
 )
 
 func init() {
-	log.Printf(`I HATE THIS`)
+	log.Printf(`I HATE THIS.`)
 }
 
-func getCenter(rect rtree.Rectangle) (int32, int32) {
-	xlow, ylow := rect.LowerLeft()
-	xhigh, yhigh := rect.UpperRight()
+type operation int
 
-	return (xhigh + xlow) / 2, (yhigh + ylow) / 2
-}
+const (
+	get operation = iota
+	add
+	remove
+	apply
+)
 
-func getParent(root *node, key *hilbertBundle) *node {
-	for !root.isLeaf {
-		i := searchBundles(root.children, key)
-		if i == len(root.children) {
-			i--
-		}
-		root = root.children[i].(*node)
-	}
+const multiThreadAt = 1000 // number of keys before we multithread lookups
 
-	return root
-}
-
-func searchBundles(bundles []withHilbert, key withHilbert) int {
-	return sort.Search(len(bundles), func(i int) bool {
-		return bundles[i].hilbert() >= key.hilbert()
-	})
-}
-
-func intersect(rect1, rect2 rtree.Rectangle) bool {
-	xlow1, ylow1 := rect1.LowerLeft()
-	xhigh2, yhigh2 := rect2.UpperRight()
-
-	xhigh1, yhigh1 := rect1.UpperRight()
-	xlow2, ylow2 := rect2.LowerLeft()
-
-	return xhigh2 >= xlow1 && xlow2 <= xhigh1 && yhigh2 >= ylow1 && ylow2 <= yhigh1
-}
-
-func equals(rect1, rect2 rtree.Rectangle) bool {
-	xlow1, ylow1 := rect1.LowerLeft()
-	xhigh2, yhigh2 := rect2.UpperRight()
-
-	xhigh1, yhigh1 := rect1.UpperRight()
-	xlow2, ylow2 := rect2.LowerLeft()
-
-	return xlow1 == xlow2 && xhigh1 == xhigh2 && ylow1 == ylow2 && yhigh1 == yhigh2
+type keyBundle struct {
+	key         *hilbertBundle
+	left, right *node
 }
 
 type tree struct {
-	root        *node
-	number, ary uint64
+	root            *node
+	_padding0       [8]uint64
+	number          uint64
+	_padding1       [8]uint64
+	ary, bufferSize uint64
+	actions         *queue.RingBuffer
+	cache           []interface{}
+	buffer0         [8]uint64
+	disposed        uint64
+	buffer1         [8]uint64
+	running         uint64
 }
 
-func (t *tree) insert(rect rtree.Rectangle) {
-	hb := newHilbertBundle(rect)
-	t.number++
-	if t.root == nil {
-		n := newNode(t.ary)
-		n.isLeaf = true
-		n.insert(hb)
-		n.mbr = newRectangle(n.children)
-		t.root = n
+func (tree *tree) checkAndRun(action action) {
+	if tree.actions.Len() > 0 {
+		if action != nil {
+			tree.actions.Put(action)
+		}
+		if atomic.CompareAndSwapUint64(&tree.running, 0, 1) {
+			var a interface{}
+			var err error
+			for tree.actions.Len() > 0 {
+				a, err = tree.actions.Get()
+				if err != nil {
+					return
+				}
+				tree.cache = append(tree.cache, a)
+				if uint64(len(tree.cache)) >= tree.bufferSize {
+					break
+				}
+			}
+
+			go tree.operationRunner(tree.cache, true)
+		}
+	} else if action != nil {
+		if atomic.CompareAndSwapUint64(&tree.running, 0, 1) {
+			switch action.operation() {
+			case get:
+				tree.read(action)
+				action.complete()
+				tree.reset()
+			case add, remove:
+				if len(action.keys()) > multiThreadAt {
+					tree.operationRunner(interfaces{action}, true)
+				} else {
+					tree.operationRunner(interfaces{action}, false)
+				}
+			}
+		} else {
+			tree.actions.Put(action)
+			tree.checkAndRun(nil)
+		}
+	}
+}
+
+func (tree *tree) init(bufferSize, ary uint64) {
+	tree.bufferSize = bufferSize
+	tree.ary = ary
+	tree.cache = make([]interface{}, 0, bufferSize)
+	tree.root = newNode(true, newKeys(ary), newNodes(ary))
+	tree.actions = queue.NewRingBuffer(tree.bufferSize)
+}
+
+func (tree *tree) operationRunner(xns interfaces, threaded bool) {
+	writeOperations, deleteOperations, toComplete := tree.fetchKeys(xns, threaded)
+	tree.recursiveMutate(writeOperations, deleteOperations, false, threaded)
+	for _, a := range toComplete {
+		a.complete()
+	}
+
+	tree.reset()
+}
+
+func (tree *tree) read(action action) {
+	for i, k := range action.keys() {
+		n := getParent(tree.root, k)
+		if n == nil {
+			action.keys()[i] = -1
+		} else {
+			key, _ := n.keys.withPosition(k)
+			if key == -1 {
+				action.keys()[i] = -1
+			} else {
+				action.keys()[i] = key
+			}
+		}
+	}
+}
+
+func (tree *tree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*keyBundle, map[*node][]*keyBundle, actions) {
+	if inParallel {
+		tree.fetchKeysInParallel(xns)
+	} else {
+		tree.fetchKeysInSerial(xns)
+	}
+
+	writeOperations := make(map[*node][]*keyBundle)
+	deleteOperations := make(map[*node][]*keyBundle)
+	toComplete := make(actions, 0, len(xns)/2)
+	for _, ifc := range xns {
+		action := ifc.(action)
+		switch action.operation() {
+		case add:
+			for i, n := range action.nodes() {
+				writeOperations[n] = append(writeOperations[n], &keyBundle{key: action.rects()[i]})
+			}
+			toComplete = append(toComplete, action)
+		case remove:
+			for i, n := range action.nodes() {
+				deleteOperations[n] = append(deleteOperations[n], &keyBundle{key: action.rects()[i]})
+			}
+			toComplete = append(toComplete, action)
+		case get, apply:
+			action.complete()
+		}
+	}
+
+	return writeOperations, deleteOperations, toComplete
+}
+
+func (tree *tree) fetchKeysInSerial(xns interfaces) {
+	println(`IN SERIAL`)
+	for _, ifc := range xns {
+		action := ifc.(action)
+		switch action.operation() {
+		case add, remove:
+			for i, key := range action.rects() {
+				n := getParent(tree.root, key.hilbert)
+				action.addNode(int64(i), n)
+			}
+		}
+	}
+}
+
+func (tree *tree) reset() {
+	for i := range tree.cache {
+		tree.cache[i] = nil
+	}
+
+	tree.cache = tree.cache[:0]
+	atomic.StoreUint64(&tree.running, 0)
+	tree.checkAndRun(nil)
+}
+
+func (tree *tree) fetchKeysInParallel(xns []interface{}) {
+	var forCache struct {
+		i      int64
+		buffer [8]uint64 // different cache lines
+		js     []int64
+	}
+
+	for j := 0; j < len(xns); j++ {
+		forCache.js = append(forCache.js, -1)
+	}
+	numCPU := runtime.NumCPU()
+	if numCPU > 1 {
+		numCPU--
+	}
+	var wg sync.WaitGroup
+	wg.Add(numCPU)
+
+	for k := 0; k < numCPU; k++ {
+		go func() {
+			for {
+				index := atomic.LoadInt64(&forCache.i)
+				if index >= int64(len(xns)) {
+					break
+				}
+				action := xns[index].(action)
+
+				j := atomic.AddInt64(&forCache.js[index], 1)
+				if j > int64(len(action.keys())) { // someone else is updating i
+					continue
+				} else if j == int64(len(action.keys())) {
+					atomic.StoreInt64(&forCache.i, index+1)
+					continue
+				}
+
+				n := getParent(tree.root, action.keys()[j])
+				switch action.operation() {
+				case add, remove:
+					action.addNode(j, n)
+				case get:
+					if n == nil {
+						action.keys()[j] = -1
+					} else {
+						k, _ := n.keys.withPosition(action.keys()[j])
+						if k == -1 {
+							action.keys()[j] = -1
+						} else {
+							action.keys()[j] = k
+						}
+					}
+				}
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func (tree *tree) splitNode(n, parent *node, nodes *[]*node, keys *hilberts) {
+	if !n.needsSplit(tree.ary) {
 		return
 	}
 
-	n := getParent(t.root, hb)
-	log.Printf(`ROOT: %+v, %p, PARENT: %+v, %p`, t.root, t.root, n, n)
-	n.insert(hb)
+	length := n.keys.len()
+	splitAt := tree.ary - 1
 
-	var key withHilbert
-	var left, right *node
-	for n != nil {
-		if key != nil {
-			n.insert(key)
-		}
-		if n.needsSplit(t.ary) {
-			log.Printf(`N: %+v`, n)
-			key, left, right = n.split(uint64(len(n.children) / 2))
-			if n.isLeaf {
-				key = right
-			}
-			log.Printf(`AFTER SPLIT KEY: %+v, LEFT: %+v, RIGHT: %+v`, key, left, right)
-		} else {
-			key = nil
-			n.adjust(hb)
-		}
-		n = n.parent
-	}
-
-	if key != nil {
-		println(`CREATING ROOT`)
-		n := newNode(t.ary)
-		n.insert(left)
-		n.insert(right)
-		t.root = n
-		n.mbr = newRectangle(n.children)
-		log.Printf(`LEFT: %+v, RIGHT: %+v`, left, right)
-		n.maxHilbert = right.maxHilbert
-		left.parent, right.parent = n, n
+	for i := splitAt; i < length; i += splitAt {
+		offset := length - i
+		k, left, right := n.split(offset, tree.ary)
+		left.right = right
+		*keys = append(*keys, k)
+		*nodes = append(*nodes, left, right)
+		left.parent = parent
+		right.parent = parent
 	}
 }
 
-func (t *tree) Insert(rects ...rtree.Rectangle) {
-	for _, r := range rects {
-		t.insert(r)
+func (tree *tree) applyNode(n *node, adds, deletes []*keyBundle) {
+	println(`APPLY NODE`)
+
+	for _, kb := range deletes {
+		if n.keys.len() == 0 {
+			break
+		}
+
+		deleted := n.keys.delete(kb.key.hilbert)
+		if deleted != -1 {
+			atomic.AddUint64(&tree.number, ^uint64(0))
+		}
+	}
+
+	for _, kb := range adds {
+		log.Printf(`KB: %+v`, kb)
+		old := n.insert(kb)
+		if old == nil {
+			atomic.AddUint64(&tree.number, 1)
+		}
 	}
 }
 
-func (t *tree) Search(r rtree.Rectangle) []rtree.Rectangle {
-	if t.root == nil {
-		return []rtree.Rectangle{}
+func (tree *tree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot, inParallel bool) {
+	if len(adds) == 0 && len(deletes) == 0 {
+		return
+	}
+
+	log.Printf(`ADDS: %+v`, adds)
+
+	if setRoot && len(adds) > 1 {
+		panic(`SHOULD ONLY HAVE ONE ROOT`)
+	}
+
+	ifs := make(interfaces, 0, len(adds))
+	for n := range adds {
+		if n.parent == nil {
+			setRoot = true
+		}
+		ifs = append(ifs, n)
+	}
+
+	for n := range deletes {
+		if n.parent == nil {
+			setRoot = true
+		}
+
+		if _, ok := adds[n]; !ok {
+			ifs = append(ifs, n)
+		}
+	}
+
+	var dummyRoot *node
+	if setRoot {
+		dummyRoot = &node{
+			keys:  newKeys(tree.ary),
+			nodes: newNodes(tree.ary),
+		}
+	}
+
+	var write sync.Mutex
+	nextLayerWrite := make(map[*node][]*keyBundle)
+	nextLayerDelete := make(map[*node][]*keyBundle)
+
+	var mutate func(interfaces, func(interface{}))
+	if inParallel {
+		mutate = executeInterfacesInParallel
+	} else {
+		mutate = executeInterfacesInSerial
+	}
+
+	mutate(ifs, func(ifc interface{}) {
+		n := ifc.(*node)
+		adds := adds[n]
+		deletes := deletes[n]
+
+		if len(adds) == 0 && len(deletes) == 0 {
+			return
+		}
+
+		if setRoot {
+			tree.root = n
+		}
+
+		parent := n.parent
+		if parent == nil {
+			parent = dummyRoot
+			setRoot = true
+		}
+
+		tree.applyNode(n, adds, deletes)
+
+		if n.needsSplit(tree.ary) {
+			keys := make(hilberts, 0, n.keys.len())
+			nodes := make([]*node, 0, n.nodes.len())
+			tree.splitNode(n, parent, &nodes, &keys)
+			write.Lock()
+			/*
+				for i, k := range keys {
+					nextLayerWrite[parent] = append(nextLayerWrite[parent], &keyBundle{key: k, left: nodes[i*2], right: nodes[i*2+1]})
+				}*/
+			write.Unlock()
+		}
+	})
+
+	tree.recursiveMutate(nextLayerWrite, nextLayerDelete, setRoot, inParallel)
+}
+
+// Insert will add the provided keys to the tree.
+func (tree *tree) Insert(rects ...rtree.Rectangle) {
+	ia := newInsertAction(rects)
+	tree.checkAndRun(ia)
+	ia.completer.Wait()
+}
+
+// Delete will remove the provided keys from the tree.  If no
+// matching key is found, this is a no-op.
+func (tree *tree) Delete(rects ...rtree.Rectangle) {
+	ra := newRemoveAction(rects)
+	tree.checkAndRun(ra)
+	ra.completer.Wait()
+}
+
+func (tree *tree) Search(rect rtree.Rectangle) rtree.Rectangles {
+	if tree.root == nil {
+		return rtree.Rectangles
 	}
 
 	result := make([]rtree.Rectangle, 0, 10)
@@ -136,10 +394,20 @@ func (t *tree) Search(r rtree.Rectangle) []rtree.Rectangle {
 	return result
 }
 
-func (t *tree) Len() uint64 {
-	return t.number
+// Len returns the number of items in the tree.
+func (tree *tree) Len() uint64 {
+	return atomic.LoadUint64(&tree.number)
 }
 
-func newTree(ary uint64) *tree {
-	return &tree{ary: ary}
+// Dispose will clean up any resources used by this tree.  This
+// must be called to prevent a memory leak.
+func (tree *tree) Dispose() {
+	tree.actions.Dispose()
+	atomic.StoreUint64(&tree.disposed, 1)
+}
+
+func newTree(bufferSize, ary uint64) *tree {
+	tree := &tree{}
+	tree.init(bufferSize, ary)
+	return tree
 }

@@ -194,7 +194,7 @@ func TestAddLargeNumbersMultiDimensions(t *testing.T) {
 }
 
 func BenchmarkAddItemsMultiDimensions(b *testing.B) {
-	numItems := int64(1000)
+	numItems := int64(b.N)
 	intervals := make(Intervals, 0, numItems)
 
 	for i := int64(0); i < numItems; i++ {
@@ -204,11 +204,11 @@ func BenchmarkAddItemsMultiDimensions(b *testing.B) {
 		intervals = append(intervals, iv)
 	}
 
+	it := newTree(2)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		it := newTree(2)
-		it.Add(intervals...)
+		it.Add(intervals[int64(i)%numItems])
 	}
 }
 
