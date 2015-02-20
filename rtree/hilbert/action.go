@@ -61,6 +61,10 @@ func (ga *getAction) nodes() []*node {
 	return nil
 }
 
+func (ga *getAction) rects() []*hilbertBundle {
+	return nil
+}
+
 func newGetAction(rect rtree.Rectangle) *getAction {
 	r := newRectangeFromRect(rect)
 	ga := &getAction{

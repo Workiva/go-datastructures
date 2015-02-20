@@ -69,7 +69,9 @@ func (tree *tree) checkAndRun(action action) {
 		if atomic.CompareAndSwapUint64(&tree.running, 0, 1) {
 			switch action.operation() {
 			case get:
-				tree.read(action)
+				ga := action.(*getAction)
+				result := tree.search(ga.lookup)
+				ga.result = result
 				action.complete()
 				tree.reset()
 			case add, remove:
@@ -105,22 +107,6 @@ func (tree *tree) operationRunner(xns interfaces, threaded bool) {
 	tree.reset()
 }
 
-func (tree *tree) read(action action) {
-	for i, k := range action.keys() {
-		n := getParent(tree.root, k)
-		if n == nil {
-			action.keys()[i] = -1
-		} else {
-			key, _ := n.keys.withPosition(k)
-			if key == -1 {
-				action.keys()[i] = -1
-			} else {
-				action.keys()[i] = key
-			}
-		}
-	}
-}
-
 func (tree *tree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*keyBundle, map[*node][]*keyBundle, actions) {
 	if inParallel {
 		tree.fetchKeysInParallel(xns)
@@ -144,7 +130,7 @@ func (tree *tree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*keyBu
 				deleteOperations[n] = append(deleteOperations[n], &keyBundle{key: action.rects()[i].hilbert, left: action.rects()[i].rect})
 			}
 			toComplete = append(toComplete, action)
-		case get, apply:
+		case get:
 			action.complete()
 		}
 	}
@@ -161,6 +147,10 @@ func (tree *tree) fetchKeysInSerial(xns interfaces) {
 				n := getParent(tree.root, key.hilbert)
 				action.addNode(int64(i), n)
 			}
+		case get:
+			ga := action.(*getAction)
+			rects := tree.search(ga.lookup)
+			ga.result = rects
 		}
 	}
 }
@@ -209,21 +199,14 @@ func (tree *tree) fetchKeysInParallel(xns []interface{}) {
 					continue
 				}
 
-				n := getParent(tree.root, action.keys()[j])
 				switch action.operation() {
 				case add, remove:
+					n := getParent(tree.root, action.keys()[j])
 					action.addNode(j, n)
 				case get:
-					if n == nil {
-						action.keys()[j] = -1
-					} else {
-						k, _ := n.keys.withPosition(action.keys()[j])
-						if k == -1 {
-							action.keys()[j] = -1
-						} else {
-							action.keys()[j] = k
-						}
-					}
+					ga := action.(*getAction)
+					result := tree.search(ga.lookup)
+					ga.result = result
 				}
 			}
 			wg.Done()
@@ -369,12 +352,11 @@ func (tree *tree) Delete(rects ...rtree.Rectangle) {
 	ra.completer.Wait()
 }
 
-func (tree *tree) Search(rect rtree.Rectangle) rtree.Rectangles {
+func (tree *tree) search(r *rectangle) rtree.Rectangles {
 	if tree.root == nil {
 		return rtree.Rectangles{}
 	}
 
-	r := newRectangeFromRect(rect)
 	result := make(rtree.Rectangles, 0, 10)
 	whs := tree.root.searchRects(r)
 	for len(whs) > 0 {
@@ -388,6 +370,15 @@ func (tree *tree) Search(rect rtree.Rectangle) rtree.Rectangles {
 	}
 
 	return result
+}
+
+// Search will return a list of rectangles that intersect the provided
+// rectangle.
+func (tree *tree) Search(rect rtree.Rectangle) rtree.Rectangles {
+	ga := newGetAction(rect)
+	tree.checkAndRun(ga)
+	ga.completer.Wait()
+	return ga.result
 }
 
 // Len returns the number of items in the tree.
