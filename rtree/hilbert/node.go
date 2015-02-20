@@ -45,7 +45,7 @@ type nodes struct {
 	list rtree.Rectangles
 }
 
-func (ns *nodes) push(n *node) {
+func (ns *nodes) push(n rtree.Rectangle) {
 	ns.list = append(ns.list, n)
 }
 
@@ -74,7 +74,7 @@ func (ns *nodes) insertAt(i uint64, n rtree.Rectangle) {
 	ns.list[i] = n
 }
 
-func (ns *nodes) replaceAt(i uint64, n *node) {
+func (ns *nodes) replaceAt(i uint64, n rtree.Rectangle) {
 	ns.list[i] = n
 }
 
@@ -191,13 +191,12 @@ type node struct {
 }
 
 func (n *node) insert(kb *keyBundle) rtree.Rectangle {
-	i := n.keys.search(kb.key.hilbert)
-	log.Printf(`I: %+v`, i)
+	i := n.keys.search(kb.key)
 	if n.isLeaf && i != n.keys.len() { // we can have multiple keys with the same hilbert number
-		for n.keys.list[i] == kb.key.hilbert {
-			if equal(n.nodes.list[i], kb.key.rect) {
+		for n.keys.list[i] == kb.key {
+			if equal(n.nodes.list[i], kb.left) {
 				old := n.nodes.list[i]
-				n.nodes.list[i] = kb.key.rect
+				n.nodes.list[i] = kb.left
 				return old
 			}
 			i++
@@ -205,16 +204,25 @@ func (n *node) insert(kb *keyBundle) rtree.Rectangle {
 	}
 
 	if i == n.keys.len() {
-		n.maxHilbert = kb.key.hilbert
+		n.maxHilbert = kb.key
 	}
 
-	n.keys.insertAt(i, kb.key.hilbert)
+	n.keys.insertAt(i, kb.key)
 	if n.isLeaf {
-		n.nodes.insertAt(i, kb.key.rect)
+		n.nodes.insertAt(i, kb.left)
 	} else {
-		n.nodes.replaceAt(i, kb.left)
-		n.nodes.insertAt(i+1, kb.right)
-		n.mbr.adjust(kb.key.rect)
+		if n.nodes.len() == 0 {
+			n.nodes.push(kb.left)
+			n.nodes.push(kb.right)
+		} else {
+			n.nodes.replaceAt(i, kb.left)
+			n.nodes.insertAt(i+1, kb.right)
+		}
+		n.mbr.adjust(kb.left)
+		n.mbr.adjust(kb.right)
+		if kb.right.(*node).maxHilbert > n.maxHilbert {
+			n.maxHilbert = kb.right.(*node).maxHilbert
+		}
 	}
 
 	return nil
@@ -235,13 +243,19 @@ func (n *node) needsSplit(ary uint64) bool {
 func (n *node) splitLeaf(i, capacity uint64) (hilbert, *node, *node) {
 	key := n.keys.byPosition(i)
 	_, rightKeys := n.keys.splitAt(i, capacity)
+	_, rightNodes := n.nodes.splitAt(i, capacity)
 	nn := &node{
 		keys:   rightKeys,
-		nodes:  newNodes(uint64(cap(n.nodes.list))),
+		nodes:  rightNodes,
 		isLeaf: true,
 		right:  n.right,
+		parent: n.parent,
 	}
 	n.right = nn
+	nn.mbr = newRectangleFromRects(rightNodes.list)
+	n.mbr = newRectangleFromRects(n.nodes.list)
+	nn.maxHilbert = rightKeys.last()
+	n.maxHilbert = n.keys.last()
 	return key, n, nn
 }
 
@@ -256,6 +270,10 @@ func (n *node) splitInternal(i, capacity uint64) (hilbert, *node, *node) {
 	for _, n := range rightNodes.list {
 		n.(*node).parent = nn
 	}
+	nn.mbr = newRectangleFromRects(rightNodes.list)
+	n.mbr = newRectangleFromRects(n.nodes.list)
+	nn.maxHilbert = nn.keys.last()
+	n.maxHilbert = n.keys.last()
 
 	return key, n, nn
 }

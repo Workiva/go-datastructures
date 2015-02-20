@@ -123,42 +123,42 @@ func TestQueryWithLine(t *testing.T) {
 	// vertical line at x=5
 	q := newMockRectangle(5, 0, 5, 10)
 	result := tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1, r2}, result)
+	assert.Equal(t, rtree.Rectangles{r1, r2}, result)
 
 	// horizontal line at y=5
 	q = newMockRectangle(0, 5, 10, 5)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1, r2}, result)
+	assert.Equal(t, rtree.Rectangles{r1, r2}, result)
 
 	// vertical line at x=15
 	q = newMockRectangle(15, 0, 15, 20)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r2}, result)
+	assert.Equal(t, rtree.Rectangles{r2}, result)
 
 	// horizontal line at y=15
 	q = newMockRectangle(0, 15, 20, 15)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r2}, result)
+	assert.Equal(t, rtree.Rectangles{r2}, result)
 
 	// vertical line on the y-axis
 	q = newMockRectangle(0, 0, 0, 10)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1}, result)
+	assert.Equal(t, rtree.Rectangles{r1}, result)
 
 	// horizontal line on the x-axis
 	q = newMockRectangle(0, 0, 10, 0)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1}, result)
+	assert.Equal(t, rtree.Rectangles{r1}, result)
 
 	// vertical line at x=20
 	q = newMockRectangle(20, 0, 20, 20)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{}, result)
+	assert.Equal(t, rtree.Rectangles{}, result)
 
 	// horizontal line at y=20
 	q = newMockRectangle(0, 20, 20, 20)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{}, result)
+	assert.Equal(t, rtree.Rectangles{}, result)
 }
 
 func TestQueryForPoint(t *testing.T) {
@@ -169,7 +169,7 @@ func TestQueryForPoint(t *testing.T) {
 
 	q := newMockRectangle(0, 0, 5, 5)
 	result := tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1}, result)
+	assert.Equal(t, rtree.Rectangles{r1}, result)
 
 	q = newMockRectangle(0, 0, 20, 20)
 	result = tree.Search(q)
@@ -178,16 +178,38 @@ func TestQueryForPoint(t *testing.T) {
 
 	q = newMockRectangle(6, 6, 20, 20)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r2}, result)
+	assert.Equal(t, rtree.Rectangles{r2}, result)
 
 	q = newMockRectangle(20, 20, 30, 30)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{}, result)
+	assert.Equal(t, rtree.Rectangles{}, result)
 }
 
 func TestMultipleInsertsCauseInternalSplitOddAry(t *testing.T) {
 	points := constructMockPoints(100)
 	tree := newTree(3, 3)
+
+	tree.Insert(points...)
+
+	assert.Equal(t, uint64(len(points)), tree.Len())
+
+	q := newMockRectangle(0, 0, int32(len(points)), int32(len(points)))
+	result := tree.Search(q)
+	succeeded := true
+	for _, p := range points {
+		if !assert.Contains(t, result, p) {
+			succeeded = false
+		}
+	}
+
+	if !succeeded {
+		tree.print(getConsoleLogger())
+	}
+}
+
+func TestMultipleInsertsCauseInternalSplitEvenAry(t *testing.T) {
+	points := constructMockPoints(100)
+	tree := newTree(4, 4)
 
 	tree.Insert(points...)
 

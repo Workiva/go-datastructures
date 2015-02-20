@@ -26,8 +26,8 @@ const (
 const multiThreadAt = 1000 // number of keys before we multithread lookups
 
 type keyBundle struct {
-	key         *hilbertBundle
-	left, right *node
+	key         hilbert
+	left, right rtree.Rectangle
 }
 
 type tree struct {
@@ -91,6 +91,7 @@ func (tree *tree) init(bufferSize, ary uint64) {
 	tree.ary = ary
 	tree.cache = make([]interface{}, 0, bufferSize)
 	tree.root = newNode(true, newKeys(ary), newNodes(ary))
+	tree.root.mbr = &rectangle{}
 	tree.actions = queue.NewRingBuffer(tree.bufferSize)
 }
 
@@ -135,12 +136,12 @@ func (tree *tree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*keyBu
 		switch action.operation() {
 		case add:
 			for i, n := range action.nodes() {
-				writeOperations[n] = append(writeOperations[n], &keyBundle{key: action.rects()[i]})
+				writeOperations[n] = append(writeOperations[n], &keyBundle{key: action.rects()[i].hilbert, left: action.rects()[i].rect})
 			}
 			toComplete = append(toComplete, action)
 		case remove:
 			for i, n := range action.nodes() {
-				deleteOperations[n] = append(deleteOperations[n], &keyBundle{key: action.rects()[i]})
+				deleteOperations[n] = append(deleteOperations[n], &keyBundle{key: action.rects()[i].hilbert, left: action.rects()[i].rect})
 			}
 			toComplete = append(toComplete, action)
 		case get, apply:
@@ -152,7 +153,6 @@ func (tree *tree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*keyBu
 }
 
 func (tree *tree) fetchKeysInSerial(xns interfaces) {
-	println(`IN SERIAL`)
 	for _, ifc := range xns {
 		action := ifc.(action)
 		switch action.operation() {
@@ -252,23 +252,20 @@ func (tree *tree) splitNode(n, parent *node, nodes *[]*node, keys *hilberts) {
 }
 
 func (tree *tree) applyNode(n *node, adds, deletes []*keyBundle) {
-	println(`APPLY NODE`)
-
 	for _, kb := range deletes {
 		if n.keys.len() == 0 {
 			break
 		}
 
-		deleted := n.keys.delete(kb.key.hilbert)
+		deleted := n.keys.delete(kb.key)
 		if deleted != -1 {
 			atomic.AddUint64(&tree.number, ^uint64(0))
 		}
 	}
 
 	for _, kb := range adds {
-		log.Printf(`KB: %+v`, kb)
 		old := n.insert(kb)
-		if old == nil {
+		if n.isLeaf && old == nil {
 			atomic.AddUint64(&tree.number, 1)
 		}
 	}
@@ -278,8 +275,6 @@ func (tree *tree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot,
 	if len(adds) == 0 && len(deletes) == 0 {
 		return
 	}
-
-	log.Printf(`ADDS: %+v`, adds)
 
 	if setRoot && len(adds) > 1 {
 		panic(`SHOULD ONLY HAVE ONE ROOT`)
@@ -308,6 +303,7 @@ func (tree *tree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot,
 		dummyRoot = &node{
 			keys:  newKeys(tree.ary),
 			nodes: newNodes(tree.ary),
+			mbr:   &rectangle{},
 		}
 	}
 
@@ -348,10 +344,9 @@ func (tree *tree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot,
 			nodes := make([]*node, 0, n.nodes.len())
 			tree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
-			/*
-				for i, k := range keys {
-					nextLayerWrite[parent] = append(nextLayerWrite[parent], &keyBundle{key: k, left: nodes[i*2], right: nodes[i*2+1]})
-				}*/
+			for i, k := range keys {
+				nextLayerWrite[parent] = append(nextLayerWrite[parent], &keyBundle{key: k, left: nodes[i*2], right: nodes[i*2+1]})
+			}
 			write.Unlock()
 		}
 	})
