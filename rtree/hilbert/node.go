@@ -278,6 +278,17 @@ func (n *node) searchNode(key hilbert) *node {
 	return n.nodes.byPosition(uint64(i))
 }
 
+func (n *node) searchRects(r *rectangle) rtree.Rectangles {
+	rects := make(rtree.Rectangles, 0, n.nodes.len())
+	for _, child := range n.nodes.list {
+		if intersect(r, child) {
+			rects = append(rects, child)
+		}
+	}
+
+	return rects
+}
+
 func (n *node) key() hilbert {
 	return n.keys.last()
 }

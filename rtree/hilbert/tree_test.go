@@ -53,11 +53,10 @@ func TestSimpleInsert(t *testing.T) {
 
 	tree.Insert(r1)
 	assert.Equal(t, uint64(1), tree.Len())
-	tree.print(getConsoleLogger())
-	/*
-		q := newMockRectangle(5, 5, 15, 15)
-		result := tree.Search(q)
-		assert.Equal(t, []rtree.Rectangle{r1}, result)*/
+
+	q := newMockRectangle(5, 5, 15, 15)
+	result := tree.Search(q)
+	assert.Equal(t, rtree.Rectangles{r1}, result)
 }
 
 func TestTwoInsert(t *testing.T) {
@@ -70,15 +69,15 @@ func TestTwoInsert(t *testing.T) {
 
 	q := newMockRectangle(0, 0, 20, 20)
 	result := tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1, r2}, result)
+	assert.Equal(t, rtree.Rectangles{r1, r2}, result)
 
 	q = newMockRectangle(0, 0, 4, 4)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r1}, result)
+	assert.Equal(t, rtree.Rectangles{r1}, result)
 
 	q = newMockRectangle(11, 11, 20, 20)
 	result = tree.Search(q)
-	assert.Equal(t, []rtree.Rectangle{r2}, result)
+	assert.Equal(t, rtree.Rectangles{r2}, result)
 }
 
 func TestInsertCausesRootSplitOddAry(t *testing.T) {

@@ -376,17 +376,18 @@ func (tree *tree) Delete(rects ...rtree.Rectangle) {
 
 func (tree *tree) Search(rect rtree.Rectangle) rtree.Rectangles {
 	if tree.root == nil {
-		return rtree.Rectangles
+		return rtree.Rectangles{}
 	}
 
-	result := make([]rtree.Rectangle, 0, 10)
-	whs := t.root.search(r)
+	r := newRectangeFromRect(rect)
+	result := make(rtree.Rectangles, 0, 10)
+	whs := tree.root.searchRects(r)
 	for len(whs) > 0 {
 		wh := whs[0]
 		if n, ok := wh.(*node); ok {
-			whs = append(whs, n.search(r)...)
+			whs = append(whs, n.searchRects(r)...)
 		} else {
-			result = append(result, wh.(*hilbertBundle).Rectangle)
+			result = append(result, wh)
 		}
 		whs = whs[1:]
 	}
