@@ -2,6 +2,8 @@ package hilbert
 
 import (
 	"log"
+	"math"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -44,6 +46,16 @@ func constructMockPoints(num int) rtree.Rectangles {
 	for i := int32(0); i < int32(num); i++ {
 		rects = append(rects, newMockRectangle(i, i, i, i))
 	}
+	return rects
+}
+
+func constructRandomMockPoints(num int) rtree.Rectangles {
+	rects := make(rtree.Rectangles, 0, num)
+	for i := 0; i < num; i++ {
+		r := rand.Int31()
+		rects = append(rects, newMockRectangle(r, r, r, r))
+	}
+
 	return rects
 }
 
@@ -207,15 +219,15 @@ func TestMultipleInsertsCauseInternalSplitOddAry(t *testing.T) {
 	}
 }
 
-func TestMultipleInsertsCauseInternalSplitEvenAry(t *testing.T) {
-	points := constructMockPoints(100)
-	tree := newTree(4, 4)
+func TestMultipleInsertsCauseInternalSplitOddAryRandomPoints(t *testing.T) {
+	points := constructRandomMockPoints(100)
+	tree := newTree(3, 3)
 
 	tree.Insert(points...)
 
 	assert.Equal(t, uint64(len(points)), tree.Len())
 
-	q := newMockRectangle(0, 0, int32(len(points)), int32(len(points)))
+	q := newMockRectangle(0, 0, math.MaxInt32, math.MaxInt32)
 	result := tree.Search(q)
 	succeeded := true
 	for _, p := range points {
@@ -226,6 +238,75 @@ func TestMultipleInsertsCauseInternalSplitEvenAry(t *testing.T) {
 
 	if !succeeded {
 		tree.print(getConsoleLogger())
+	}
+}
+
+func TestMultipleInsertsCauseInternalSplitEvenAry(t *testing.T) {
+	points := constructMockPoints(100)
+	tree := newTree(4, 4)
+
+	tree.Insert(points...)
+
+	assert.Equal(t, uint64(len(points)), tree.Len())
+
+	q := newMockRectangle(0, 0, math.MaxInt32, math.MaxInt32)
+	result := tree.Search(q)
+	succeeded := true
+	for _, p := range points {
+		if !assert.Contains(t, result, p) {
+			succeeded = false
+		}
+	}
+
+	if !succeeded {
+		tree.print(getConsoleLogger())
+	}
+}
+
+func TestMultipleInsertsCauseInternalSplitEvenAryRandomOrder(t *testing.T) {
+	points := constructRandomMockPoints(100)
+	tree := newTree(4, 4)
+
+	tree.Insert(points...)
+
+	assert.Equal(t, uint64(len(points)), tree.Len())
+
+	q := newMockRectangle(0, 0, math.MaxInt32, math.MaxInt32)
+	result := tree.Search(q)
+	succeeded := true
+	for _, p := range points {
+		if !assert.Contains(t, result, p) {
+			succeeded = false
+		}
+	}
+
+	if !succeeded {
+		tree.print(getConsoleLogger())
+	}
+}
+
+func BenchmarkBulkAddPoints(b *testing.B) {
+	numItems := 1000
+	points := constructMockPoints(numItems)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree := newTree(8, 8)
+		tree.Insert(points...)
+	}
+}
+
+func BenchmarkBulkUpdatePoints(b *testing.B) {
+	numItems := 1000
+	points := constructMockPoints(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(points...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Insert(points...)
 	}
 }
 
