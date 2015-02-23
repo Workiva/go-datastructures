@@ -77,6 +77,11 @@ func (ns *nodes) len() uint64 {
 	return uint64(len(ns.list))
 }
 
+func (ns *nodes) deleteAt(i uint64) {
+	copy(ns.list[i:], ns.list[i+1:])
+	ns.list = ns.list[:len(ns.list)-1]
+}
+
 func newNodes(size uint64) *nodes {
 	return &nodes{
 		list: make(rtree.Rectangles, 0, size),
@@ -106,6 +111,11 @@ func (ks *keys) byPosition(i uint64) hilbert {
 	return ks.list[i]
 }
 
+func (ks *keys) deleteAt(i uint64) {
+	copy(ks.list[i:], ks.list[i+1:])
+	ks.list = ks.list[:len(ks.list)-1]
+}
+
 func (ks *keys) delete(k hilbert) hilbert {
 	i := ks.search(k)
 	if i >= uint64(len(ks.list)) {
@@ -116,9 +126,7 @@ func (ks *keys) delete(k hilbert) hilbert {
 		return -1
 	}
 	old := ks.list[i]
-
-	copy(ks.list[i:], ks.list[i+1:])
-	ks.list = ks.list[:len(ks.list)-1]
+	ks.deleteAt(i)
 	return old
 }
 
@@ -221,6 +229,22 @@ func (n *node) insert(kb *keyBundle) rtree.Rectangle {
 	}
 
 	return nil
+}
+
+func (n *node) delete(kb *keyBundle) rtree.Rectangle {
+	i := n.keys.search(kb.key)
+	if n.keys.byPosition(i) != kb.key { // hilbert value not found
+		return nil
+	}
+
+	if !equal(n.nodes.list[i], kb.left) {
+		return nil
+	}
+
+	old := n.nodes.list[i]
+	n.keys.deleteAt(i)
+	n.nodes.deleteAt(i)
+	return old
 }
 
 func (n *node) LowerLeft() (int32, int32) {

@@ -265,8 +265,8 @@ func (tree *tree) applyNode(n *node, adds, deletes []*keyBundle) {
 			break
 		}
 
-		deleted := n.keys.delete(kb.key)
-		if deleted != -1 {
+		deleted := n.delete(kb)
+		if deleted != nil {
 			atomic.AddUint64(&tree.number, ^uint64(0))
 		}
 	}
