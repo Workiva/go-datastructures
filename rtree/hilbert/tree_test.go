@@ -75,6 +75,10 @@ func constructRandomMockPoints(num int) rtree.Rectangles {
 	return rects
 }
 
+func constructInfiniteRect() rtree.Rectangle {
+	return newMockRectangle(0, 0, math.MaxInt32, math.MaxInt32)
+}
+
 func TestSimpleInsert(t *testing.T) {
 	r1 := newMockRectangle(0, 0, 10, 10)
 	tree := newTree(3, 3)
@@ -85,6 +89,47 @@ func TestSimpleInsert(t *testing.T) {
 	q := newMockRectangle(5, 5, 15, 15)
 	result := tree.Search(q)
 	assert.Equal(t, rtree.Rectangles{r1}, result)
+}
+
+func TestSimpleDelete(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 10, 10)
+	tree := newTree(3, 3)
+	tree.Insert(r1)
+
+	tree.Delete(r1)
+	assert.Equal(t, uint64(0), tree.Len())
+	q := newMockRectangle(5, 5, 15, 15)
+	result := tree.Search(q)
+	assert.Len(t, result, 0)
+}
+
+func TestDeleteIdenticalHilbergNumber(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 20, 20)
+	r2 := newMockRectangle(5, 5, 15, 15)
+	tree := newTree(3, 3)
+	tree.Insert(r1)
+
+	tree.Delete(r2)
+	assert.Equal(t, uint64(1), tree.Len())
+	result := tree.Search(r2)
+	assert.Equal(t, rtree.Rectangles{r1}, result)
+
+	tree.Delete(r1)
+	assert.Equal(t, uint64(0), tree.Len())
+	result = tree.Search(r1)
+	assert.Len(t, result, 0)
+}
+
+func TestDeleteAll(t *testing.T) {
+	points := constructRandomMockPoints(5)
+	tree := newTree(3, 3)
+	tree.Insert(points...)
+	assert.Equal(t, uint64(len(points)), tree.Len())
+
+	tree.Delete(points...)
+	assert.Equal(t, uint64(0), tree.Len())
+	result := tree.Search(constructInfiniteRect())
+	assert.Len(t, result, 0)
 }
 
 func TestTwoInsert(t *testing.T) {
@@ -348,5 +393,18 @@ func BenchmarkQueryPoints(b *testing.B) {
 
 	for i := int32(0); i < int32(b.N); i++ {
 		tree.Search(newMockRectangle(i, i, i+10, i+10))
+	}
+}
+
+func BenchmarkQueryBulkPoints(b *testing.B) {
+	numItems := b.N
+	points := constructMockPoints(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(points...)
+
+	b.ResetTimer()
+
+	for i := int32(0); i < int32(b.N); i++ {
+		tree.Search(newMockRectangle(i, i, int32(numItems), int32(numItems)))
 	}
 }
