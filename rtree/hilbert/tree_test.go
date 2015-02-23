@@ -121,7 +121,7 @@ func TestDeleteIdenticalHilbergNumber(t *testing.T) {
 }
 
 func TestDeleteAll(t *testing.T) {
-	points := constructRandomMockPoints(5)
+	points := constructRandomMockPoints(3)
 	tree := newTree(3, 3)
 	tree.Insert(points...)
 	assert.Equal(t, uint64(len(points)), tree.Len())
@@ -346,6 +346,56 @@ func TestMultipleInsertsCauseInternalSplitEvenAryRandomOrder(t *testing.T) {
 	}
 }
 
+func TestInsertDuplicateHilbert(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 20, 20)
+	r2 := newMockRectangle(1, 1, 19, 19)
+	r3 := newMockRectangle(2, 2, 18, 18)
+	r4 := newMockRectangle(3, 3, 17, 17)
+	tree := newTree(3, 3)
+	tree.Insert(r1)
+	tree.Insert(r2)
+	tree.Insert(r3)
+	tree.Insert(r4)
+
+	assert.Equal(t, uint64(4), tree.Len())
+	q := newMockRectangle(0, 0, 30, 30)
+	result := tree.Search(q)
+	assert.Len(t, result, 4)
+	assert.Contains(t, result, r1)
+	assert.Contains(t, result, r2)
+	assert.Contains(t, result, r3)
+	assert.Contains(t, result, r4)
+}
+
+func TestDeleteAllDuplicateHilbert(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 20, 20)
+	r2 := newMockRectangle(1, 1, 19, 19)
+	r3 := newMockRectangle(2, 2, 18, 18)
+	r4 := newMockRectangle(3, 3, 17, 17)
+	tree := newTree(3, 3)
+	tree.Insert(r1)
+	tree.Insert(r2)
+	tree.Insert(r3)
+	tree.Insert(r4)
+
+	tree.Delete(r1, r2, r3, r4)
+	assert.Equal(t, uint64(0), tree.Len())
+	result := tree.Search(constructInfiniteRect())
+	assert.Len(t, result, 0)
+}
+
+func TestInsertDuplicateRect(t *testing.T) {
+	r1 := newMockRectangle(0, 0, 20, 20)
+	r2 := newMockRectangle(0, 0, 20, 20)
+	tree := newTree(3, 3)
+	tree.Insert(r1)
+	tree.Insert(r2)
+
+	assert.Equal(t, uint64(1), tree.Len())
+	result := tree.Search(constructInfiniteRect())
+	assert.Equal(t, rtree.Rectangles{r2}, result)
+}
+
 func BenchmarkBulkAddPoints(b *testing.B) {
 	numItems := 1000
 	points := constructMockPoints(numItems)
@@ -406,5 +456,18 @@ func BenchmarkQueryBulkPoints(b *testing.B) {
 
 	for i := int32(0); i < int32(b.N); i++ {
 		tree.Search(newMockRectangle(i, i, int32(numItems), int32(numItems)))
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	numItems := b.N
+	points := constructMockPoints(numItems)
+	tree := newTree(8, 8)
+	tree.Insert(points...)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		tree.Delete(points[i%numItems])
 	}
 }

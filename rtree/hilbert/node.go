@@ -26,11 +26,35 @@ type hilbert int64
 
 type hilberts []hilbert
 
-func getParent(parent *node, key hilbert) *node {
+func getParent(parent *node, key hilbert, r1 rtree.Rectangle) *node {
 	var n *node
 	for parent != nil && !parent.isLeaf {
 		n = parent.searchNode(key)
 		parent = n
+	}
+
+	if parent != nil && r1 != nil { // must be leaf and we need exact match
+		// we are safe to travel to the right
+		i := parent.search(key)
+		for parent.keys.byPosition(i) == key {
+			if equal(parent.nodes.list[i], r1) {
+				break
+			}
+
+			i++
+			if i == parent.keys.len() {
+				if parent.right == nil { // we are far to the right
+					break
+				}
+
+				if parent.right.keys.byPosition(0) != key {
+					break
+				}
+
+				parent = parent.right
+				i = 0
+			}
+		}
 	}
 
 	return parent
@@ -195,8 +219,8 @@ type node struct {
 
 func (n *node) insert(kb *keyBundle) rtree.Rectangle {
 	i := n.keys.search(kb.key)
-	if n.isLeaf && i != n.keys.len() { // we can have multiple keys with the same hilbert number
-		for n.keys.list[i] == kb.key {
+	if n.isLeaf { // we can have multiple keys with the same hilbert number
+		for i < n.keys.len() && n.keys.list[i] == kb.key {
 			if equal(n.nodes.list[i], kb.left) {
 				old := n.nodes.list[i]
 				n.nodes.list[i] = kb.left
