@@ -17,15 +17,10 @@ limitations under the License.
 package hilbert
 
 import (
-	"log"
 	"sort"
 
 	"github.com/Workiva/go-datastructures/rtree"
 )
-
-func init() {
-	log.Printf(`I HATE THIS.`)
-}
 
 type hilbert int64
 

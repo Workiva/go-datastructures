@@ -424,3 +424,8 @@ func newTree(bufferSize, ary uint64) *tree {
 	tree.init(bufferSize, ary)
 	return tree
 }
+
+// New will construct a new Hilbert R-Tree and return it.
+func New(bufferSize, ary uint64) rtree.RTree {
+	return newTree(bufferSize, ary)
+}

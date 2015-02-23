@@ -26,3 +26,19 @@ type Rectangle interface {
 	// UpperRight describes the upper right coordinate of this rectangle.
 	UpperRight() (int32, int32)
 }
+
+// RTree defines an object that can be returned from any subpackage
+// of this package.
+type RTree interface {
+	// Search will perform an intersection search of the given
+	// rectangle and return any rectangles that intersect.
+	Search(Rectangle) Rectangles
+	// Len returns in the number of items in the RTree.
+	Len() uint64
+	// Dispose will clean up any objects used by the RTree.
+	Dispose()
+	// Delete will remove the provided rectangles from the RTree.
+	Delete(...Rectangle)
+	// Insert will add the provided rectangles to the RTree.
+	Insert(...Rectangle)
+}
