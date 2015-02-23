@@ -57,15 +57,15 @@ type keyBundle struct {
 
 type tree struct {
 	root            *node
-	_padding0       [8]uint64
+	_               [8]uint64
 	number          uint64
-	_padding1       [8]uint64
+	_               [8]uint64
 	ary, bufferSize uint64
 	actions         *queue.RingBuffer
 	cache           []interface{}
-	buffer0         [8]uint64
+	_               [8]uint64
 	disposed        uint64
-	buffer1         [8]uint64
+	_               [8]uint64
 	running         uint64
 }
 
@@ -169,7 +169,7 @@ func (tree *tree) fetchKeysInSerial(xns interfaces) {
 		switch action.operation() {
 		case add, remove:
 			for i, key := range action.rects() {
-				n := getParent(tree.root, key.hilbert)
+				n := getParent(tree.root, key.hilbert, key.rect)
 				action.addNode(int64(i), n)
 			}
 		case get:
@@ -217,16 +217,17 @@ func (tree *tree) fetchKeysInParallel(xns []interface{}) {
 				action := xns[index].(action)
 
 				j := atomic.AddInt64(&forCache.js[index], 1)
-				if j > int64(len(action.keys())) { // someone else is updating i
+				if j > int64(len(action.rects())) { // someone else is updating i
 					continue
-				} else if j == int64(len(action.keys())) {
+				} else if j == int64(len(action.rects())) {
 					atomic.StoreInt64(&forCache.i, index+1)
 					continue
 				}
 
 				switch action.operation() {
 				case add, remove:
-					n := getParent(tree.root, action.keys()[j])
+					hb := action.rects()[j]
+					n := getParent(tree.root, hb.hilbert, hb.rect)
 					action.addNode(j, n)
 				case get:
 					ga := action.(*getAction)

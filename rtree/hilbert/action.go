@@ -62,7 +62,7 @@ func (ga *getAction) nodes() []*node {
 }
 
 func (ga *getAction) rects() []*hilbertBundle {
-	return nil
+	return []*hilbertBundle{&hilbertBundle{}}
 }
 
 func newGetAction(rect rtree.Rectangle) *getAction {
