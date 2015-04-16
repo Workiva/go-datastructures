@@ -28,6 +28,10 @@ import (
 
 type operation int
 
+type disposable interface {
+	dispose(*ptree)
+}
+
 const (
 	get operation = iota
 	add
@@ -42,15 +46,12 @@ type keyBundle struct {
 	left, right *node
 }
 
-func (kb *keyBundle) Dispose() {
+func (kb *keyBundle) dispose(ptree *ptree) {
+	if ptree.kbRing.Len() == ptree.kbRing.Cap() {
+		return
+	}
 	kb.key, kb.left, kb.right = nil, nil, nil
-	keyBundlePool.Put(kb)
-}
-
-func newKeyBundle(key common.Comparator) *keyBundle {
-	kb := keyBundlePool.Get().(*keyBundle)
-	kb.key = key
-	return kb
+	ptree.kbRing.Put(kb)
 }
 
 type ptree struct {
@@ -65,6 +66,10 @@ type ptree struct {
 	disposed        uint64
 	buffer1         [8]uint64
 	running         uint64
+	_padding2       [8]uint64
+	kbRing          *queue.RingBuffer
+	disposeChannel  chan bool
+	mpChannel       chan map[*node][]*keyBundle
 }
 
 func (ptree *ptree) checkAndRun(action action) {
@@ -121,6 +126,29 @@ func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.cache = make([]interface{}, 0, bufferSize)
 	ptree.root = newNode(true, newKeys(ary), newNodes(ary))
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
+	ptree.kbRing = queue.NewRingBuffer(1024)
+	for i := uint64(0); i < ptree.kbRing.Cap(); i++ {
+		ptree.kbRing.Put(&keyBundle{})
+	}
+	ptree.disposeChannel = make(chan bool)
+	ptree.mpChannel = make(chan map[*node][]*keyBundle, 1024)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go ptree.disposer(&wg)
+	wg.Wait()
+}
+
+func (ptree *ptree) newKeyBundle(key common.Comparator) *keyBundle {
+	if ptree.kbRing.Len() == 0 {
+		return &keyBundle{key: key}
+	}
+	ifc, err := ptree.kbRing.Get()
+	if err != nil {
+		return nil
+	}
+	kb := ifc.(*keyBundle)
+	kb.key = key
+	return kb
 }
 
 func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
@@ -164,12 +192,12 @@ func (ptree *ptree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*key
 		switch action.operation() {
 		case add:
 			for i, n := range action.nodes() {
-				writeOperations[n] = append(writeOperations[n], newKeyBundle(action.keys()[i]))
+				writeOperations[n] = append(writeOperations[n], ptree.newKeyBundle(action.keys()[i]))
 			}
 			toComplete = append(toComplete, action)
 		case remove:
 			for i, n := range action.nodes() {
-				deleteOperations[n] = append(deleteOperations[n], newKeyBundle(action.keys()[i]))
+				deleteOperations[n] = append(deleteOperations[n], ptree.newKeyBundle(action.keys()[i]))
 			}
 			toComplete = append(toComplete, action)
 		case get, apply:
@@ -196,6 +224,19 @@ func (ptree *ptree) apply(n *node, aa *applyAction) {
 		}
 		n = n.right
 		i = 0
+	}
+}
+
+func (ptree *ptree) disposer(wg *sync.WaitGroup) {
+	wg.Done()
+
+	for {
+		select {
+		case mp := <-ptree.mpChannel:
+			ptree.cleanMap(mp)
+		case <-ptree.disposeChannel:
+			return
+		}
 	}
 }
 
@@ -354,7 +395,7 @@ func (ptree *ptree) applyNode(n *node, adds, deletes []*keyBundle) {
 func (ptree *ptree) cleanMap(op map[*node][]*keyBundle) {
 	for _, bundles := range op {
 		for _, kb := range bundles {
-			kb.Dispose()
+			kb.dispose(ptree)
 		}
 	}
 }
@@ -437,7 +478,7 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
 			for i, k := range keys {
-				kb := newKeyBundle(k)
+				kb := ptree.newKeyBundle(k)
 				kb.left = nodes[i*2]
 				kb.right = nodes[i*2+1]
 				nextLayerWrite[parent] = append(nextLayerWrite[parent], kb)
@@ -446,7 +487,8 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 		}
 	})
 
-	go ptree.cleanMaps(adds, deletes)
+	ptree.mpChannel <- adds
+	ptree.mpChannel <- deletes
 
 	ptree.recursiveMutate(nextLayerWrite, nextLayerDelete, setRoot, inParallel)
 }
@@ -496,8 +538,12 @@ func (ptree *ptree) Query(start, stop common.Comparator) common.Comparators {
 // Dispose will clean up any resources used by this tree.  This
 // must be called to prevent a memory leak.
 func (ptree *ptree) Dispose() {
+	if atomic.LoadUint64(&ptree.disposed) == 1 {
+		return
+	}
 	ptree.actions.Dispose()
 	atomic.StoreUint64(&ptree.disposed, 1)
+	close(ptree.disposeChannel)
 }
 
 func (ptree *ptree) print(output *log.Logger) {

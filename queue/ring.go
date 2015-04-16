@@ -17,7 +17,7 @@ limitations under the License.
 package queue
 
 import (
-	"runtime"
+	//"runtime"
 	"sync/atomic"
 )
 
@@ -74,6 +74,7 @@ func (rb *RingBuffer) init(size uint64) {
 func (rb *RingBuffer) Put(item interface{}) error {
 	var n *node
 	pos := atomic.LoadUint64(&rb.queue)
+	//i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -92,7 +93,13 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.queue)
 		}
-		runtime.Gosched() // free up the cpu before the next iteration
+		/*
+			if i == 10000 {
+				//runtime.Gosched() // free up the cpu before the next iteration
+				i = 0
+			} else {
+				i++
+			}*/
 	}
 
 	n.data = item
@@ -107,6 +114,7 @@ L:
 func (rb *RingBuffer) Get() (interface{}, error) {
 	var n *node
 	pos := atomic.LoadUint64(&rb.dequeue)
+	//i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -125,7 +133,13 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.dequeue)
 		}
-		runtime.Gosched() // free up the cpu before the next iteration
+		/*
+			if i == 10000 {
+				//runtime.Gosched() // free up the cpu before the next iteration
+				i = 0
+			} else {
+				i++
+			}*/
 	}
 	data := n.data
 	n.data = nil
