@@ -39,7 +39,7 @@ const (
 	apply
 )
 
-const multiThreadAt = 1000 // number of keys before we multithread lookups
+const multiThreadAt = 400 // number of keys before we multithread lookups
 
 type keyBundle struct {
 	key         common.Comparator

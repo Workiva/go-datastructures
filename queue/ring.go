@@ -17,7 +17,7 @@ limitations under the License.
 package queue
 
 import (
-	//"runtime"
+	"runtime"
 	"sync/atomic"
 )
 
@@ -49,13 +49,13 @@ type nodes []*node
 // described here: http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
 // with some minor additions.
 type RingBuffer struct {
-	_buffer0       [8]uint64
+	_padding0      [8]uint64
 	queue          uint64
-	_buffer1       [8]uint64
+	_padding1      [8]uint64
 	dequeue        uint64
-	_buffer2       [8]uint64
+	_padding2      [8]uint64
 	mask, disposed uint64
-	_buffer3       [8]uint64
+	_padding3      [8]uint64
 	nodes          nodes
 }
 
@@ -74,7 +74,7 @@ func (rb *RingBuffer) init(size uint64) {
 func (rb *RingBuffer) Put(item interface{}) error {
 	var n *node
 	pos := atomic.LoadUint64(&rb.queue)
-	//i := 0
+	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -93,13 +93,13 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.queue)
 		}
-		/*
-			if i == 10000 {
-				//runtime.Gosched() // free up the cpu before the next iteration
-				i = 0
-			} else {
-				i++
-			}*/
+
+		if i == 10000 {
+			runtime.Gosched() // free up the cpu before the next iteration
+			i = 0
+		} else {
+			i++
+		}
 	}
 
 	n.data = item
@@ -114,7 +114,7 @@ L:
 func (rb *RingBuffer) Get() (interface{}, error) {
 	var n *node
 	pos := atomic.LoadUint64(&rb.dequeue)
-	//i := 0
+	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -133,13 +133,13 @@ L:
 		default:
 			pos = atomic.LoadUint64(&rb.dequeue)
 		}
-		/*
-			if i == 10000 {
-				//runtime.Gosched() // free up the cpu before the next iteration
-				i = 0
-			} else {
-				i++
-			}*/
+
+		if i == 10000 {
+			runtime.Gosched() // free up the cpu before the next iteration
+			i = 0
+		} else {
+			i++
+		}
 	}
 	data := n.data
 	n.data = nil
