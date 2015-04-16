@@ -28,10 +28,6 @@ import (
 
 type operation int
 
-type disposable interface {
-	dispose(*ptree)
-}
-
 const (
 	get operation = iota
 	add
@@ -398,11 +394,6 @@ func (ptree *ptree) cleanMap(op map[*node][]*keyBundle) {
 			kb.dispose(ptree)
 		}
 	}
-}
-
-func (ptree *ptree) cleanMaps(adds, deletes map[*node][]*keyBundle) {
-	ptree.cleanMap(adds)
-	ptree.cleanMap(deletes)
 }
 
 func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot, inParallel bool) {
