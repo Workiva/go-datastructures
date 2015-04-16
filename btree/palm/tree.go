@@ -42,6 +42,17 @@ type keyBundle struct {
 	left, right *node
 }
 
+func (kb *keyBundle) Dispose() {
+	kb.key, kb.left, kb.right = nil, nil, nil
+	keyBundlePool.Put(kb)
+}
+
+func newKeyBundle(key common.Comparator) *keyBundle {
+	kb := keyBundlePool.Get().(*keyBundle)
+	kb.key = key
+	return kb
+}
+
 type ptree struct {
 	root            *node
 	_padding0       [8]uint64
@@ -153,12 +164,12 @@ func (ptree *ptree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*key
 		switch action.operation() {
 		case add:
 			for i, n := range action.nodes() {
-				writeOperations[n] = append(writeOperations[n], &keyBundle{key: action.keys()[i]})
+				writeOperations[n] = append(writeOperations[n], newKeyBundle(action.keys()[i]))
 			}
 			toComplete = append(toComplete, action)
 		case remove:
 			for i, n := range action.nodes() {
-				deleteOperations[n] = append(deleteOperations[n], &keyBundle{key: action.keys()[i]})
+				deleteOperations[n] = append(deleteOperations[n], newKeyBundle(action.keys()[i]))
 			}
 			toComplete = append(toComplete, action)
 		case get, apply:
@@ -340,6 +351,19 @@ func (ptree *ptree) applyNode(n *node, adds, deletes []*keyBundle) {
 	}
 }
 
+func (ptree *ptree) cleanMap(op map[*node][]*keyBundle) {
+	for _, bundles := range op {
+		for _, kb := range bundles {
+			kb.Dispose()
+		}
+	}
+}
+
+func (ptree *ptree) cleanMaps(adds, deletes map[*node][]*keyBundle) {
+	ptree.cleanMap(adds)
+	ptree.cleanMap(deletes)
+}
+
 func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot, inParallel bool) {
 	if len(adds) == 0 && len(deletes) == 0 {
 		return
@@ -413,11 +437,16 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 			ptree.splitNode(n, parent, &nodes, &keys)
 			write.Lock()
 			for i, k := range keys {
-				nextLayerWrite[parent] = append(nextLayerWrite[parent], &keyBundle{key: k, left: nodes[i*2], right: nodes[i*2+1]})
+				kb := newKeyBundle(k)
+				kb.left = nodes[i*2]
+				kb.right = nodes[i*2+1]
+				nextLayerWrite[parent] = append(nextLayerWrite[parent], kb)
 			}
 			write.Unlock()
 		}
 	})
+
+	go ptree.cleanMaps(adds, deletes)
 
 	ptree.recursiveMutate(nextLayerWrite, nextLayerDelete, setRoot, inParallel)
 }
