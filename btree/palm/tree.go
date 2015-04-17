@@ -57,7 +57,7 @@ type ptree struct {
 	_padding1       [8]uint64
 	ary, bufferSize uint64
 	actions         *queue.RingBuffer
-	cache           []interface{}
+	cache           actions
 	buffer0         [8]uint64
 	disposed        uint64
 	buffer1         [8]uint64
@@ -68,10 +68,10 @@ type ptree struct {
 	mpChannel       chan map[*node][]*keyBundle
 }
 
-func (ptree *ptree) checkAndRun(action action) {
+func (ptree *ptree) checkAndRun(act action) {
 	if ptree.actions.Len() > 0 {
-		if action != nil {
-			ptree.actions.Put(action)
+		if act != nil {
+			ptree.actions.Put(act)
 		}
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
 			var a interface{}
@@ -81,7 +81,7 @@ func (ptree *ptree) checkAndRun(action action) {
 				if err != nil {
 					return
 				}
-				ptree.cache = append(ptree.cache, a)
+				ptree.cache = append(ptree.cache, a.(action))
 				if uint64(len(ptree.cache)) >= ptree.bufferSize {
 					break
 				}
@@ -89,28 +89,32 @@ func (ptree *ptree) checkAndRun(action action) {
 
 			go ptree.operationRunner(ptree.cache, true)
 		}
-	} else if action != nil {
+	} else if act != nil {
 		if atomic.CompareAndSwapUint64(&ptree.running, 0, 1) {
-			switch action.operation() {
+			switch act.operation() {
 			case get:
-				ptree.read(action)
-				action.complete()
+				if len(act.keys()) > 50 {
+					ptree.read(act, true)
+				} else {
+					ptree.read(act, false)
+				}
+				act.complete()
 				ptree.reset()
 			case add, remove:
-				if len(action.keys()) > multiThreadAt {
-					ptree.operationRunner(interfaces{action}, true)
+				if len(act.keys()) > multiThreadAt {
+					ptree.operationRunner(actions{act}, true)
 				} else {
-					ptree.operationRunner(interfaces{action}, false)
+					ptree.operationRunner(actions{act}, false)
 				}
 			case apply:
-				q := action.(*applyAction)
+				q := act.(*applyAction)
 				n := getParent(ptree.root, q.start)
 				ptree.apply(n, q)
 				q.complete()
 				ptree.reset()
 			}
 		} else {
-			ptree.actions.Put(action)
+			ptree.actions.Put(act)
 			ptree.checkAndRun(nil)
 		}
 	}
@@ -119,7 +123,7 @@ func (ptree *ptree) checkAndRun(action action) {
 func (ptree *ptree) init(bufferSize, ary uint64) {
 	ptree.bufferSize = bufferSize
 	ptree.ary = ary
-	ptree.cache = make([]interface{}, 0, bufferSize)
+	ptree.cache = make(actions, 0, bufferSize)
 	ptree.root = newNode(true, newKeys(ary), newNodes(ary))
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
 	ptree.kbRing = queue.NewRingBuffer(1024)
@@ -147,7 +151,7 @@ func (ptree *ptree) newKeyBundle(key common.Comparator) *keyBundle {
 	return kb
 }
 
-func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
+func (ptree *ptree) operationRunner(xns actions, threaded bool) {
 	writeOperations, deleteOperations, toComplete := ptree.fetchKeys(xns, threaded)
 	ptree.recursiveMutate(writeOperations, deleteOperations, false, threaded)
 	for _, a := range toComplete {
@@ -157,7 +161,7 @@ func (ptree *ptree) operationRunner(xns interfaces, threaded bool) {
 	ptree.reset()
 }
 
-func (ptree *ptree) read(action action) {
+func (ptree *ptree) readInSerial(action action) {
 	for i, k := range action.keys() {
 		n := getParent(ptree.root, k)
 		if n == nil {
@@ -173,23 +177,65 @@ func (ptree *ptree) read(action action) {
 	}
 }
 
-func (ptree *ptree) fetchKeys(xns interfaces, inParallel bool) (map[*node][]*keyBundle, map[*node][]*keyBundle, actions) {
+func (ptree *ptree) readInParallel(action action) {
+	var done = int64(-1)
+	var wg sync.WaitGroup
+	length := int64(len(action.keys()))
+	wg.Add(runtime.NumCPU())
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for {
+				i := atomic.AddInt64(&done, 1)
+				if i >= length {
+					wg.Done()
+					return
+				}
+
+				k := action.keys()[i]
+				n := getParent(ptree.root, k)
+				if n == nil {
+					action.keys()[i] = nil
+				} else {
+					key, _ := n.keys.withPosition(k)
+					if key == nil {
+						action.keys()[i] = nil
+					} else {
+						action.keys()[i] = key
+					}
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+func (ptree *ptree) read(action action, multithreaded bool) {
+	if multithreaded {
+		ptree.readInParallel(action)
+	} else {
+		ptree.readInSerial(action)
+	}
+}
+
+func (ptree *ptree) fetchKeys(xns actions, inParallel bool) (map[*node][]*keyBundle, map[*node][]*keyBundle, actions) {
 	if inParallel {
 		ptree.fetchKeysInParallel(xns)
 	} else {
 		ptree.fetchKeysInSerial(xns)
 	}
 
-	writeOperations := make(map[*node][]*keyBundle)
-	deleteOperations := make(map[*node][]*keyBundle)
+	writeOperations := make(map[*node][]*keyBundle, len(xns)/2)
+	deleteOperations := make(map[*node][]*keyBundle, len(xns)/2)
 	toComplete := make(actions, 0, len(xns)/2)
-	for _, ifc := range xns {
-		action := ifc.(action)
+	for _, action := range xns {
 		switch action.operation() {
 		case add:
+			bundles := make([]*keyBundle, 0, len(action.keys()))
 			for i, n := range action.nodes() {
-				writeOperations[n] = append(writeOperations[n], ptree.newKeyBundle(action.keys()[i]))
+				bundles = append(bundles, &keyBundle{key: action.keys()[i]})
 			}
+			writeOperations[n] = bundles
 			toComplete = append(toComplete, action)
 		case remove:
 			for i, n := range action.nodes() {
@@ -236,9 +282,8 @@ func (ptree *ptree) disposer(wg *sync.WaitGroup) {
 	}
 }
 
-func (ptree *ptree) fetchKeysInSerial(xns interfaces) {
-	for _, ifc := range xns {
-		action := ifc.(action)
+func (ptree *ptree) fetchKeysInSerial(xns actions) {
+	for _, action := range xns {
 		for i, key := range action.keys() {
 			n := getParent(ptree.root, key)
 			switch action.operation() {
@@ -273,7 +318,7 @@ func (ptree *ptree) reset() {
 	ptree.checkAndRun(nil)
 }
 
-func (ptree *ptree) fetchKeysInParallel(xns []interface{}) {
+func (ptree *ptree) fetchKeysInParallel(xns actions) {
 	var forCache struct {
 		i      int64
 		buffer [8]uint64 // different cache lines
@@ -284,9 +329,6 @@ func (ptree *ptree) fetchKeysInParallel(xns []interface{}) {
 		forCache.js = append(forCache.js, -1)
 	}
 	numCPU := runtime.NumCPU()
-	if numCPU > 1 {
-		numCPU--
-	}
 	var wg sync.WaitGroup
 	wg.Add(numCPU)
 
@@ -327,6 +369,7 @@ func (ptree *ptree) fetchKeysInParallel(xns []interface{}) {
 					ptree.apply(n, q)
 				}
 			}
+
 			wg.Done()
 		}()
 	}
@@ -442,6 +485,7 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 		mutate = executeInterfacesInSerial
 	}
 
+	number := 0
 	mutate(ifs, func(ifc interface{}) {
 		n := ifc.(*node)
 		adds := adds[n]
@@ -473,6 +517,7 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 				kb.left = nodes[i*2]
 				kb.right = nodes[i*2+1]
 				nextLayerWrite[parent] = append(nextLayerWrite[parent], kb)
+				number++
 			}
 			write.Unlock()
 		}
@@ -481,7 +526,7 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 	ptree.mpChannel <- adds
 	ptree.mpChannel <- deletes
 
-	ptree.recursiveMutate(nextLayerWrite, nextLayerDelete, setRoot, inParallel)
+	ptree.recursiveMutate(nextLayerWrite, nextLayerDelete, setRoot, number >= multiThreadAt)
 }
 
 // Insert will add the provided keys to the tree.
