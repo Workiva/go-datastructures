@@ -437,7 +437,7 @@ func BenchmarkReadAndWrites(b *testing.B) {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
-	tree := newTree(16, 8)
+	tree := newTree(8, 8)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -447,25 +447,27 @@ func BenchmarkReadAndWrites(b *testing.B) {
 }
 
 func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
-	numItems := 1000
+	numItems := 10000
 	numRoutines := 8
-	keys := make([]common.Comparators, 0, numRoutines)
-	for i := 0; i < numRoutines; i++ {
-		keys = append(keys, generateRandomKeys(numItems))
+	keys := generateRandomKeys(numItems)
+	chunks := chunkKeys(keys, int64(numRoutines))
+
+	trees := make([]*ptree, 0, numItems)
+	for i := 0; i < b.N; i++ {
+		trees = append(trees, newTree(8, 8))
 	}
 
-	tree := newTree(16, 8)
 	var wg sync.WaitGroup
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		wg.Add(numRoutines)
 		for j := 0; j < numRoutines; j++ {
-			go func(j int) {
-				tree.Insert(keys[j]...)
-				tree.Get(keys[j]...)
+			go func(i, j int) {
+				trees[i].Insert(chunks[j]...)
+				trees[i].Get(chunks[j]...)
 				wg.Done()
-			}(j)
+			}(i, j)
 		}
 
 		wg.Wait()
@@ -475,12 +477,15 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
 	keys := generateRandomKeys(numItems)
+	trees := make([]*ptree, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		trees = append(trees, newTree(8, 8))
+	}
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		tree := newTree(8, 8)
-		tree.Insert(keys...)
+		trees[i].Insert(keys...)
 	}
 }
 
@@ -515,7 +520,7 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 func BenchmarkGet(b *testing.B) {
 	numItems := 10000
 	keys := generateRandomKeys(numItems)
-	tree := newTree(32, 8)
+	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
 	b.ResetTimer()

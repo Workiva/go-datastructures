@@ -17,6 +17,7 @@ limitations under the License.
 package plus
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -392,5 +393,36 @@ func BenchmarkReadAndWrites(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tree.Insert(ks[i]...)
 		tree.Get(ks[i]...)
+	}
+}
+
+func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
+	numItems := 10000
+	numRoutines := 8
+	keys := constructRandomMockKeys(numItems)
+	chunks := chunkKeys(keys, int64(numRoutines))
+
+	trees := make([]*btree, 0, numItems)
+	for i := 0; i < b.N; i++ {
+		trees = append(trees, newBTree(8))
+	}
+
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		wg.Add(numRoutines)
+		for j := 0; j < numRoutines; j++ {
+			go func(i, j int) {
+				lock.Lock()
+				trees[i].Insert(chunks[j]...)
+				trees[i].Get(chunks[j]...)
+				lock.Unlock()
+				wg.Done()
+			}(i, j)
+		}
+
+		wg.Wait()
 	}
 }
