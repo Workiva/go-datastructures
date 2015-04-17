@@ -27,6 +27,14 @@ func reverseKeys(cmps common.Comparators) common.Comparators {
 	return reversed
 }
 
+func reverseNodes(nodes []*node) []*node {
+	for i := 0; i < len(nodes)/2; i++ {
+		nodes[i], nodes[len(nodes)-i-1] = nodes[len(nodes)-i-1], nodes[i]
+	}
+
+	return nodes
+}
+
 func chunkKeys(keys common.Comparators, numParts int64) []common.Comparators {
 	parts := make([]common.Comparators, numParts)
 	for i := int64(0); i < numParts; i++ {

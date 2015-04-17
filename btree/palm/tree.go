@@ -35,8 +35,6 @@ const (
 	apply
 )
 
-const multiThreadAt = 400 // number of keys before we multithread lookups
-
 type keyBundle struct {
 	key         common.Comparator
 	left, right *node
@@ -66,6 +64,7 @@ type ptree struct {
 	kbRing          *queue.RingBuffer
 	disposeChannel  chan bool
 	mpChannel       chan map[*node][]*keyBundle
+	multiThreadAt   uint64
 }
 
 func (ptree *ptree) checkAndRun(action action) {
@@ -97,7 +96,7 @@ func (ptree *ptree) checkAndRun(action action) {
 				action.complete()
 				ptree.reset()
 			case add, remove:
-				if len(action.keys()) > multiThreadAt {
+				if uint64(len(action.keys())) > ptree.multiThreadAt {
 					ptree.operationRunner(interfaces{action}, true)
 				} else {
 					ptree.operationRunner(interfaces{action}, false)
@@ -116,9 +115,10 @@ func (ptree *ptree) checkAndRun(action action) {
 	}
 }
 
-func (ptree *ptree) init(bufferSize, ary uint64) {
+func (ptree *ptree) init(bufferSize, ary, multithreadAt uint64) {
 	ptree.bufferSize = bufferSize
 	ptree.ary = ary
+	ptree.multiThreadAt = multithreadAt
 	ptree.cache = make([]interface{}, 0, bufferSize)
 	ptree.root = newNode(true, newKeys(ary), newNodes(ary))
 	ptree.actions = queue.NewRingBuffer(ptree.bufferSize)
@@ -346,13 +346,16 @@ func (ptree *ptree) splitNode(n, parent *node, nodes *[]*node, keys *common.Comp
 		k, left, right := n.split(offset, ptree.ary)
 		left.right = right
 		*keys = append(*keys, k)
-		*nodes = append(*nodes, left, right)
+		*nodes = append(*nodes, right, left)
 		left.parent = parent
 		right.parent = parent
 	}
+
+	*keys = reverseKeys(*keys)
+	*nodes = reverseNodes(*nodes)
 }
 
-func (ptree *ptree) applyNode(n *node, adds, deletes []*keyBundle) {
+func (ptree *ptree) applyNode(n *node, adds, deletes []*keyBundle, recursiveRoot bool) {
 	for _, kb := range deletes {
 		if n.keys.len() == 0 {
 			break
@@ -364,14 +367,24 @@ func (ptree *ptree) applyNode(n *node, adds, deletes []*keyBundle) {
 		}
 	}
 
-	for _, kb := range adds {
-		if n.keys.len() == 0 {
-			oldKey, _ := n.keys.insert(kb.key)
-			if n.isLeaf && oldKey == nil {
+	for i, kb := range adds {
+		if n.keys.len() == 0 || recursiveRoot {
+			n.keys.push(kb.key)
+			if n.isLeaf {
 				atomic.AddUint64(&ptree.number, 1)
 			}
+			if recursiveRoot {
+				if i == 0 {
+					n.nodes.push(kb.left)
+					n.nodes.push(kb.right)
+				} else {
+					//n.nodes.replaceAt(uint64(i), kb.left)
+					n.nodes.push(kb.right)
+				}
+				continue
+			}
 			if kb.left != nil {
-				n.nodes.push(kb.left)
+				n.nodes.insertAt(uint64(i), kb.left)
 				n.nodes.push(kb.right)
 			}
 			continue
@@ -425,6 +438,30 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 
 	var dummyRoot *node
 	if setRoot {
+		currentNode := ifs[0].(*node)
+		if currentNode == ptree.root {
+			ptree.applyNode(currentNode, adds[currentNode], deletes[currentNode], false)
+			for currentNode.needsSplit(ptree.ary) {
+				dummyRoot = &node{
+					keys:  newKeys(ptree.ary),
+					nodes: newNodes(ptree.ary),
+				}
+				keys := make(common.Comparators, 0, currentNode.keys.len())
+				nodes := make([]*node, 0, currentNode.nodes.len())
+				ptree.splitNode(currentNode, dummyRoot, &nodes, &keys)
+				ptree.root = dummyRoot
+				currentNode = dummyRoot
+				kbs := make([]*keyBundle, 0, len(keys))
+				for i, k := range keys {
+					kb := ptree.newKeyBundle(k)
+					kb.left = nodes[i*2]
+					kb.right = nodes[i*2+1]
+					kbs = append(kbs, kb)
+				}
+				ptree.applyNode(dummyRoot, kbs, nil, true)
+			}
+			return
+		}
 		dummyRoot = &node{
 			keys:  newKeys(ptree.ary),
 			nodes: newNodes(ptree.ary),
@@ -461,7 +498,7 @@ func (ptree *ptree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoo
 			setRoot = true
 		}
 
-		ptree.applyNode(n, adds, deletes)
+		ptree.applyNode(n, adds, deletes, false)
 
 		if n.needsSplit(ptree.ary) {
 			keys := make(common.Comparators, 0, n.keys.len())
@@ -546,15 +583,19 @@ func (ptree *ptree) print(output *log.Logger) {
 	ptree.root.print(output)
 }
 
-func newTree(bufferSize, ary uint64) *ptree {
+func newTree(bufferSize, ary, multithreadAt uint64) *ptree {
 	ptree := &ptree{}
-	ptree.init(bufferSize, ary)
+	ptree.init(bufferSize, ary, multithreadAt)
 	return ptree
 }
 
 // New will allocate, initialize, and return a new B-Tree based
 // on PALM principles.  This type of tree is suited for in-memory
-// indices in a multi-threaded environment.
-func New(bufferSize, ary uint64) BTree {
-	return newTree(bufferSize, ary)
+// indices in a multi-threaded environment.  Buffer size indicates
+// how many operations can be in the queue before calls to this
+// tree block, ary defines the width of the nodes, and multithreadAt
+// defines how many lookups need to occur before the lookups are
+// multithreaded (multithreading incurs an overhead).
+func New(bufferSize, ary, multithreadAt uint64) BTree {
+	return newTree(bufferSize, ary, multithreadAt)
 }

@@ -131,6 +131,10 @@ func (ks *keys) search(key common.Comparator) uint64 {
 	return uint64(i)
 }
 
+func (ks *keys) push(key common.Comparator) {
+	ks.list = append(ks.list, key)
+}
+
 func (ks *keys) insert(key common.Comparator) (common.Comparator, uint64) {
 	i := ks.search(key)
 	if i == uint64(len(ks.list)) {
