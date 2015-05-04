@@ -44,3 +44,25 @@ func TestInsertAndLookup(t *testing.T) {
 	assert.True(ok)
 	assert.Equal("qux", val)
 }
+
+func BenchmarkInsert(b *testing.B) {
+	ctrie := New()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ctrie.Insert([]byte("foo"), 0)
+	}
+}
+
+func BenchmarkLookup(b *testing.B) {
+	numItems := 1000
+	ctrie := New()
+	for i := 0; i < numItems; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	key := []byte(strconv.Itoa(numItems / 2))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ctrie.Lookup(key)
+	}
+}
