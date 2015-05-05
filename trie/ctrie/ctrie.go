@@ -114,6 +114,29 @@ type lNode struct {
 	next *lNode
 }
 
+func (l *lNode) lookup(entry *entry) (interface{}, bool) {
+	if bytes.Equal(entry.key, l.sn.key) {
+		return l.sn.value, true
+	}
+	if l.next != nil {
+		return l.next.lookup(entry)
+	}
+	return nil, false
+}
+
+func (l *lNode) removed(entry *entry) *lNode {
+	// TODO
+	return nil
+}
+
+func (l *lNode) length() uint {
+	length := uint(1)
+	for curr := l.next; curr != nil; curr = curr.next {
+		length++
+	}
+	return length
+}
+
 // branch is either an iNode or sNode.
 type branch interface{}
 
@@ -281,11 +304,13 @@ func ilookup(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 			panic("Ctrie is in an invalid state")
 		}
 	case main.tNode != nil:
-		// TODO
-		return nil, false, true
+		clean(parent, lev-w)
+		return nil, false, false
 	case main.lNode != nil:
-		// TODO
-		return nil, false, true
+		// Hash collisions are handled using L-nodes, which are essentially
+		// persistent linked lists.
+		val, ok := main.lNode.lookup(entry)
+		return val, ok, true
 	default:
 		panic("Ctrie is in an invalid state")
 	}
@@ -341,10 +366,16 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 			panic("Ctrie is in an invalid state")
 		}
 	case main.tNode != nil:
-		// TODO
-		return nil, false, true
+		clean(parent, lev-w)
+		return nil, false, false
 	case main.lNode != nil:
+		nln := main.lNode.removed(entry)
 		// TODO
+		nMain := &mainNode{lNode: nln}
+		if atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(nMain)) {
+			val, ok := main.lNode.lookup(entry)
+			return val, ok, true
+		}
 		return nil, false, true
 	default:
 		panic("Ctrie is in an invalid state")
