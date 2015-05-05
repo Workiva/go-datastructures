@@ -14,6 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+Package ctrie provides an implementation of the Ctrie data structure, which is
+a concurrent, lock-free hash trie. This data structure was originally presented
+in the paper Concurrent Tries with Efficient Non-Blocking Snapshots:
+
+https://axel22.github.io/resources/docs/ctries-snapshot.pdf
+
+TODO: Add snapshot support.
+*/
 package ctrie
 
 import (

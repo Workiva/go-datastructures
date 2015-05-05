@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+Package list provides list implementations. Currently, this includes a
+persistent, immutable linked list.
+*/
 package list
 
 import "errors"
