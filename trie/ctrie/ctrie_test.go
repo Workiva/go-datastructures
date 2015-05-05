@@ -1,8 +1,12 @@
 package ctrie
 
 import (
+	"hash"
+	"hash/fnv"
 	"strconv"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -60,6 +64,92 @@ func TestCtrie(t *testing.T) {
 	}
 }
 
+type mockHash32 struct {
+	hash.Hash32
+}
+
+func (m *mockHash32) Sum32() uint32 {
+	return 0
+}
+
+func TestInsertLNode(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New()
+	ctrie.SetHash(&mockHash32{fnv.New32a()})
+
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+
+	for i := 0; i < 10; i++ {
+		val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+	_, ok := ctrie.Lookup([]byte("11"))
+	assert.False(ok)
+
+	for i := 0; i < 10; i++ {
+		val, ok := ctrie.Remove([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+}
+
+func TestInsertTNode(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New()
+
+	for i := 0; i < 100000; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+
+	for i := 0; i < 50000; i++ {
+		ctrie.Remove([]byte(strconv.Itoa(i)))
+	}
+
+	for i := 0; i < 100000; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+
+	for i := 0; i < 100000; i++ {
+		val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+}
+
+func TestConcurrency(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New()
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		for i := 0; i < 100000; i++ {
+			ctrie.Insert([]byte(strconv.Itoa(i)), i)
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		for i := 0; i < 100000; i++ {
+			val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
+			if ok {
+				assert.Equal(i, val)
+			}
+		}
+		wg.Done()
+	}()
+
+	for i := 0; i < 100000; i++ {
+		time.Sleep(5)
+		ctrie.Remove([]byte(strconv.Itoa(i)))
+	}
+
+	wg.Wait()
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New()
 	b.ResetTimer()
@@ -79,5 +169,19 @@ func BenchmarkLookup(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		ctrie.Lookup(key)
+	}
+}
+
+func BenchmarkRemove(b *testing.B) {
+	numItems := 1000
+	ctrie := New()
+	for i := 0; i < numItems; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	key := []byte(strconv.Itoa(numItems / 2))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ctrie.Remove(key)
 	}
 }
