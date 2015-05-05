@@ -16,7 +16,7 @@ const (
 
 type Ctrie struct {
 	root *iNode
-	h    hash.Hash64
+	h    hash.Hash32
 	hMu  sync.Mutex
 }
 
@@ -36,7 +36,7 @@ type cNode struct {
 	array []branch
 }
 
-func newMainNode(x *sNode, xhc uint64, y *sNode, yhc uint64, lev uint) *mainNode {
+func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint) *mainNode {
 	if lev < 35 {
 		xidx := (xhc >> lev) & 0x1f
 		yidx := (yhc >> lev) & 0x1f
@@ -142,7 +142,7 @@ type branch interface{}
 
 type entry struct {
 	key   []byte
-	hash  uint64
+	hash  uint32
 	value interface{}
 }
 
@@ -152,10 +152,10 @@ type sNode struct {
 
 func New() *Ctrie {
 	root := &iNode{main: &mainNode{cNode: &cNode{}}}
-	return &Ctrie{root: root, h: fnv.New64a()}
+	return &Ctrie{root: root, h: fnv.New32a()}
 }
 
-func (c *Ctrie) SetHash(hash hash.Hash64) {
+func (c *Ctrie) SetHash(hash hash.Hash32) {
 	c.hMu.Lock()
 	c.h = hash
 	c.hMu.Unlock()
@@ -205,10 +205,10 @@ func (c *Ctrie) remove(entry *entry) (interface{}, bool) {
 	return result, exists
 }
 
-func (c *Ctrie) hash(k []byte) uint64 {
+func (c *Ctrie) hash(k []byte) uint32 {
 	c.hMu.Lock()
 	c.h.Write(k)
-	hash := c.h.Sum64()
+	hash := c.h.Sum32()
 	c.h.Reset()
 	c.hMu.Unlock()
 	return hash
@@ -436,7 +436,7 @@ func clean(i *iNode, lev uint) bool {
 	return true
 }
 
-func cleanParent(p, i *iNode, hc uint64, lev uint) {
+func cleanParent(p, i *iNode, hc uint32, lev uint) {
 	var (
 		mainPtr  = (*unsafe.Pointer)(unsafe.Pointer(&i.main))
 		main     = (*mainNode)(atomic.LoadPointer(mainPtr))
@@ -458,7 +458,7 @@ func cleanParent(p, i *iNode, hc uint64, lev uint) {
 	}
 }
 
-func flagPos(hashcode uint64, lev uint, bmp uint32) (uint32, uint32) {
+func flagPos(hashcode uint32, lev uint, bmp uint32) (uint32, uint32) {
 	idx := (hashcode >> lev) & 0x1f
 	flag := uint32(1) << uint32(idx)
 	mask := uint32(flag - 1)
