@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"hash"
 	"hash/fnv"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -16,6 +17,7 @@ const (
 type Ctrie struct {
 	root *iNode
 	h    hash.Hash64
+	hMu  sync.Mutex
 }
 
 type iNode struct {
@@ -82,8 +84,29 @@ func (c *cNode) updated(pos uint32, br branch) *cNode {
 	return ncn
 }
 
+// removed returns a copy of this cNode with the entry at the given index
+// removed.
+func (c *cNode) removed(pos, flag uint32) *cNode {
+	length := uint32(len(c.array))
+	bmp := c.bmp
+	array := make([]branch, length-1)
+	for i := uint32(0); i < pos; i++ {
+		array[i] = c.array[i]
+	}
+	for i, x := pos, uint32(0); x < length-pos-1; i++ {
+		array[i] = c.array[i+1]
+		x++
+	}
+	ncn := &cNode{bmp: bmp ^ flag, array: array}
+	return ncn
+}
+
 type tNode struct {
-	sn *sNode
+	*sNode
+}
+
+func (t *tNode) untombed() *sNode {
+	return &sNode{&entry{key: t.key, hash: t.hash, value: t.value}}
 }
 
 type lNode struct {
@@ -109,6 +132,12 @@ func New() *Ctrie {
 	return &Ctrie{root: root, h: fnv.New64a()}
 }
 
+func (c *Ctrie) SetHash(hash hash.Hash64) {
+	c.hMu.Lock()
+	c.h = hash
+	c.hMu.Unlock()
+}
+
 func (c *Ctrie) Insert(key []byte, value interface{}) {
 	c.insert(&entry{
 		key:   key,
@@ -119,6 +148,10 @@ func (c *Ctrie) Insert(key []byte, value interface{}) {
 
 func (c *Ctrie) Lookup(key []byte) (interface{}, bool) {
 	return c.lookup(&entry{key: key, hash: c.hash(key)})
+}
+
+func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
+	return c.remove(&entry{key: key, hash: c.hash(key)})
 }
 
 func (c *Ctrie) insert(entry *entry) {
@@ -139,10 +172,22 @@ func (c *Ctrie) lookup(entry *entry) (interface{}, bool) {
 	return result, exists
 }
 
+func (c *Ctrie) remove(entry *entry) (interface{}, bool) {
+	rootPtr := (*unsafe.Pointer)(unsafe.Pointer(&c.root))
+	root := (*iNode)(atomic.LoadPointer(rootPtr))
+	result, exists, ok := iremove(root, entry, 0, nil)
+	for !ok {
+		return c.remove(entry)
+	}
+	return result, exists
+}
+
 func (c *Ctrie) hash(k []byte) uint64 {
+	c.hMu.Lock()
 	c.h.Write(k)
 	hash := c.h.Sum64()
 	c.h.Reset()
+	c.hMu.Unlock()
 	return hash
 }
 
@@ -243,6 +288,142 @@ func ilookup(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 		return nil, false, true
 	default:
 		panic("Ctrie is in an invalid state")
+	}
+}
+
+func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool, bool) {
+	mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&i.main))
+	// Linearization point.
+	main := (*mainNode)(atomic.LoadPointer(mainPtr))
+	switch {
+	case main.cNode != nil:
+		cn := main.cNode
+		flag, pos := flagPos(entry.hash, lev, cn.bmp)
+		if cn.bmp&flag == 0 {
+			// If the bitmap does not contain the relevant bit, a key with the
+			// required hashcode prefix is not present in the trie.
+			return nil, false, true
+		}
+		// Otherwise, the relevant branch at index pos is read from the array.
+		branch := cn.array[pos]
+		switch branch.(type) {
+		case *iNode:
+			// If the branch is an I-node, the iremove procedure is called
+			// recursively at the next level.
+			return iremove(branch.(*iNode), entry, lev+w, i)
+		case *sNode:
+			// If the branch is an S-node, its key is compared against the key
+			// being removed.
+			sn := branch.(*sNode)
+			if !bytes.Equal(sn.key, entry.key) {
+				// If the keys are not equal, the NOTFOUND value is returned.
+				return nil, false, true
+			}
+			//  If the keys are equal, a copy of the current node without the
+			//  S-node is created. The contraction of the copy is then created
+			//  using the toContracted procedure. A successful CAS will
+			//  substitute the old C-node with the copied C-node, thus removing
+			//  the S-node with the given key from the trie – this is the
+			//  linearization point
+			ncn := cn.removed(pos, flag)
+			cntr := toContracted(ncn, lev)
+			if atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(cntr)) {
+				if parent != nil {
+					main = (*mainNode)(atomic.LoadPointer(mainPtr))
+					if main.tNode != nil {
+						cleanParent(parent, i, entry.hash, lev-w)
+					}
+				}
+				return sn.value, true, true
+			}
+			return nil, false, false
+		default:
+			panic("Ctrie is in an invalid state")
+		}
+	case main.tNode != nil:
+		// TODO
+		return nil, false, true
+	case main.lNode != nil:
+		// TODO
+		return nil, false, true
+	default:
+		panic("Ctrie is in an invalid state")
+	}
+}
+
+func toContracted(cn *cNode, lev uint) *mainNode {
+	if lev > 0 && len(cn.array) == 1 {
+		branch := cn.array[0]
+		switch branch.(type) {
+		case *sNode:
+			return &mainNode{tNode: &tNode{branch.(*sNode)}}
+		default:
+			return &mainNode{cNode: cn}
+		}
+	}
+	return &mainNode{cNode: cn}
+}
+
+func toCompressed(cn *cNode, lev uint) *mainNode {
+	bmp := cn.bmp
+	i := 0
+	arr := cn.array
+	tmpArray := make([]branch, len(arr))
+	for i < len(arr) {
+		sub := arr[i]
+		switch sub.(type) {
+		case *iNode:
+			inode := sub.(*iNode)
+			mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&inode.main))
+			main := (*mainNode)(atomic.LoadPointer(mainPtr))
+			tmpArray[i] = resurrect(inode, main)
+		case *sNode:
+			tmpArray[i] = sub
+		default:
+			panic("Ctrie is in an invalid state")
+		}
+		i++
+	}
+
+	return toContracted(&cNode{bmp: bmp, array: tmpArray}, lev)
+}
+
+func resurrect(iNode *iNode, main *mainNode) branch {
+	if main.tNode != nil {
+		return main.tNode.untombed()
+	}
+	return iNode
+}
+
+func clean(i *iNode, lev uint) bool {
+	mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&i.main))
+	main := (*mainNode)(atomic.LoadPointer(mainPtr))
+	if main.cNode != nil {
+		return atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main),
+			unsafe.Pointer(toCompressed(main.cNode, lev)))
+	}
+	return true
+}
+
+func cleanParent(p, i *iNode, hc uint64, lev uint) {
+	var (
+		mainPtr  = (*unsafe.Pointer)(unsafe.Pointer(&i.main))
+		main     = (*mainNode)(atomic.LoadPointer(mainPtr))
+		pMainPtr = (*unsafe.Pointer)(unsafe.Pointer(&p.main))
+		pMain    = (*mainNode)(atomic.LoadPointer(pMainPtr))
+	)
+	if pMain.cNode != nil {
+		flag, pos := flagPos(hc, lev, pMain.cNode.bmp)
+		if pMain.cNode.bmp&flag != 0 {
+			sub := pMain.cNode.array[pos]
+			if sub == i && main.tNode != nil {
+				ncn := pMain.cNode.updated(pos, resurrect(i, main))
+				if !atomic.CompareAndSwapPointer(pMainPtr, unsafe.Pointer(pMain),
+					unsafe.Pointer(toContracted(ncn, lev))) {
+					cleanParent(p, i, hc, lev)
+				}
+			}
+		}
 	}
 }
 

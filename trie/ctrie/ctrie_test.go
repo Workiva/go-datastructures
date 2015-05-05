@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInsertAndLookup(t *testing.T) {
+func TestCtrie(t *testing.T) {
 	assert := assert.New(t)
 	ctrie := New()
 
@@ -43,6 +43,21 @@ func TestInsertAndLookup(t *testing.T) {
 	val, ok = ctrie.Lookup([]byte("foo"))
 	assert.True(ok)
 	assert.Equal("qux", val)
+
+	val, ok = ctrie.Remove([]byte("foo"))
+	assert.True(ok)
+	assert.Equal("qux", val)
+
+	_, ok = ctrie.Remove([]byte("foo"))
+	assert.False(ok)
+
+	val, ok = ctrie.Remove([]byte("fooooo"))
+	assert.True(ok)
+	assert.Equal("baz", val)
+
+	for i := 0; i < 100; i++ {
+		ctrie.Remove([]byte(strconv.Itoa(i)))
+	}
 }
 
 func BenchmarkInsert(b *testing.B) {
