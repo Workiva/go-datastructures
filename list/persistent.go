@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	// Empty is an empty PersistentList.
-	Empty = &emptyList{}
+	Empty PersistentList = &emptyList{}
 
 	// ErrEmptyList is returned when an invalid operation is performed on an
 	// empty list.
@@ -24,6 +24,9 @@ type PersistentList interface {
 	// IsEmpty indicates if the list is empty.
 	IsEmpty() bool
 
+	// Length returns the number of items in the list.
+	Length() uint
+
 	// Add will add the item to the list, returning the new list.
 	Add(head interface{}) PersistentList
 
@@ -38,6 +41,14 @@ type PersistentList interface {
 	// Remove will remove the item at the given position, returning the new
 	// list or an error if the position is invalid.
 	Remove(pos uint) (PersistentList, error)
+
+	// Find applies the predicate function to the list and returns the first
+	// item which matches.
+	Find(func(interface{}) bool) (interface{}, bool)
+
+	// FindIndex applies the predicate function to the list and returns the
+	// index of the first item which matches or -1 if there is no match.
+	FindIndex(func(interface{}) bool) int
 }
 
 type emptyList struct{}
@@ -57,6 +68,11 @@ func (e *emptyList) Tail() (PersistentList, bool) {
 // IsEmpty indicates if the list is empty.
 func (e *emptyList) IsEmpty() bool {
 	return true
+}
+
+// Length returns the number of items in the list.
+func (e *emptyList) Length() uint {
+	return 0
 }
 
 // Add will add the item to the list, returning the new list.
@@ -85,6 +101,18 @@ func (e *emptyList) Remove(pos uint) (PersistentList, error) {
 	return nil, ErrEmptyList
 }
 
+// Find applies the predicate function to the list and returns the first item
+// which matches.
+func (e *emptyList) Find(func(interface{}) bool) (interface{}, bool) {
+	return nil, false
+}
+
+// FindIndex applies the predicate function to the list and returns the index
+// of the first item which matches or -1 if there is no match.
+func (e *emptyList) FindIndex(func(interface{}) bool) int {
+	return -1
+}
+
 type list struct {
 	head interface{}
 	tail PersistentList
@@ -105,6 +133,20 @@ func (l *list) Tail() (PersistentList, bool) {
 // IsEmpty indicates if the list is empty.
 func (l *list) IsEmpty() bool {
 	return false
+}
+
+// Length returns the number of items in the list.
+func (l *list) Length() uint {
+	curr := l
+	length := uint(0)
+	for {
+		length += 1
+		tail, _ := curr.Tail()
+		if tail.IsEmpty() {
+			return length
+		}
+		curr = tail.(*list)
+	}
 }
 
 // Add will add the item to the list, returning the new list.
@@ -147,4 +189,31 @@ func (l *list) Remove(pos uint) (PersistentList, error) {
 		return nil, err
 	}
 	return &list{l.head, nl}, nil
+}
+
+// Find applies the predicate function to the list and returns the first item
+// which matches.
+func (l *list) Find(pred func(interface{}) bool) (interface{}, bool) {
+	if pred(l.head) {
+		return l.head, true
+	}
+	return l.tail.Find(pred)
+}
+
+// FindIndex applies the predicate function to the list and returns the index
+// of the first item which matches or -1 if there is no match.
+func (l *list) FindIndex(pred func(interface{}) bool) int {
+	curr := l
+	idx := 0
+	for {
+		if pred(curr.head) {
+			return idx
+		}
+		tail, _ := curr.Tail()
+		if tail.IsEmpty() {
+			return -1
+		}
+		curr = tail.(*list)
+		idx += 1
+	}
 }

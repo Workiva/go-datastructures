@@ -207,3 +207,56 @@ func TestRemove(t *testing.T) {
 	assert.True(ok)
 	assert.Equal(2, head)
 }
+
+func TestFind(t *testing.T) {
+	assert := assert.New(t)
+	pred := func(item interface{}) bool {
+		return item == 1
+	}
+
+	found, ok := Empty.Find(pred)
+	assert.Nil(found)
+	assert.False(ok)
+
+	l := Empty.Add("blah").Add("bleh")
+
+	found, ok = l.Find(pred)
+	assert.Nil(found)
+	assert.False(ok)
+
+	l = l.Add(1).Add("foo")
+
+	found, ok = l.Find(pred)
+	assert.Equal(1, found)
+	assert.True(ok)
+}
+
+func TestFindIndex(t *testing.T) {
+	assert := assert.New(t)
+	pred := func(item interface{}) bool {
+		return item == 1
+	}
+
+	idx := Empty.FindIndex(pred)
+	assert.Equal(-1, idx)
+
+	l := Empty.Add("blah").Add("bleh")
+
+	idx = l.FindIndex(pred)
+	assert.Equal(-1, idx)
+
+	l = l.Add(1).Add("foo")
+
+	idx = l.FindIndex(pred)
+	assert.Equal(1, idx)
+}
+
+func TestLength(t *testing.T) {
+	assert := assert.New(t)
+	assert.Equal(uint(0), Empty.Length())
+
+	l := Empty.Add("foo")
+	assert.Equal(uint(1), l.Length())
+	l = l.Add("bar").Add("baz")
+	assert.Equal(uint(3), l.Length())
+}
