@@ -9,7 +9,10 @@ import (
 	"unsafe"
 )
 
-const w = 5
+const (
+	w    = 5
+	exp2 = 32
+)
 
 type Ctrie struct {
 	root *iNode
@@ -33,12 +36,18 @@ type cNode struct {
 	array []branch
 }
 
+// newMainNode is a recursive constructor which creates a new mainNode. This
+// mainNode will consist of cNodes as long as the hashcode chunks of the two
+// keys are equal at the given level. If the level exceeds 2^w, an lNode is
+// created.
 func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint) *mainNode {
-	if lev < 35 {
+	if lev < exp2 {
 		xidx := (xhc >> lev) & 0x1f
 		yidx := (yhc >> lev) & 0x1f
 		bmp := uint32((1 << xidx) | (1 << yidx))
+
 		if xidx == yidx {
+			// Recurse when indexes are equal.
 			main := newMainNode(x, xhc, y, yhc, lev+w)
 			iNode := &iNode{main}
 			return &mainNode{cNode: &cNode{bmp, []branch{iNode}}}
