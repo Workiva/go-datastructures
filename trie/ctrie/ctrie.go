@@ -9,10 +9,7 @@ import (
 	"unsafe"
 )
 
-const (
-	w    = 5
-	exp2 = 32
-)
+const w = 5
 
 type Ctrie struct {
 	root *iNode
