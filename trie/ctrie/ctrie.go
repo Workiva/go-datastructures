@@ -37,27 +37,38 @@ import (
 )
 
 const (
-	w    = 5
+	// w controls the number of branches at a node (2^w branches).
+	w = 5
+
+	// exp2 is 2^w, which is the hashcode space.
 	exp2 = 32
 )
 
+// Ctrie is a concurrent, lock-free hash trie. By default, keys are hashed
+// using FNV-1a, but the hashing function used can be set with SetHash.
 type Ctrie struct {
 	root *iNode
 	h    hash.Hash32
 	hMu  sync.Mutex
 }
 
+// iNode is an indirection node. I-nodes remain present in the Ctrie even as
+// nodes above and below change. Thread-safety is achieved in part by
+// performing CAS operations on the I-node instead of the internal node array.
 type iNode struct {
 	main *mainNode
 }
 
-// mainNode is either a cNode, tNode, or lNode.
+// mainNode is either a cNode, tNode, or lNode which makes up an I-node.
 type mainNode struct {
 	cNode *cNode
 	tNode *tNode
 	lNode *lNode
 }
 
+// cNode is an internal main node containing a bitmap and the array with
+// references to branch nodes. A branch node is either another I-node or a
+// singleton S-node.
 type cNode struct {
 	bmp   uint32
 	array []branch
@@ -135,23 +146,31 @@ func (c *cNode) removed(pos, flag uint32) *cNode {
 	return ncn
 }
 
+// tNode is tomb node which is a special node used to ensure proper ordering
+// during removals.
 type tNode struct {
 	*sNode
 }
 
+// untombed returns the S-node contained by the T-node.
 func (t *tNode) untombed() *sNode {
 	return &sNode{&entry{key: t.key, hash: t.hash, value: t.value}}
 }
 
+// lNode is a list node which is a leaf node used to handle hashcode
+// collisions by keeping such keys in a persistent list.
 type lNode struct {
 	list.PersistentList
 }
 
+// entry returns the first S-node contained in the L-node.
 func (l *lNode) entry() *sNode {
 	head, _ := l.Head()
 	return head.(*sNode)
 }
 
+// lookup returns the value at the given entry in the L-node or returns false
+// if it's not contained.
 func (l *lNode) lookup(e *entry) (interface{}, bool) {
 	found, ok := l.Find(func(sn interface{}) bool {
 		return bytes.Equal(e.key, sn.(*sNode).key)
@@ -162,10 +181,12 @@ func (l *lNode) lookup(e *entry) (interface{}, bool) {
 	return found.(*sNode).value, true
 }
 
+// inserted creates a new L-node with the added entry.
 func (l *lNode) inserted(entry *entry) *lNode {
 	return &lNode{l.Add(&sNode{entry})}
 }
 
+// removed creates a new L-node with the entry removed.
 func (l *lNode) removed(e *entry) *lNode {
 	idx := l.FindIndex(func(sn interface{}) bool {
 		return bytes.Equal(e.key, sn.(*sNode).key)
@@ -177,6 +198,7 @@ func (l *lNode) removed(e *entry) *lNode {
 	return &lNode{nl}
 }
 
+// length returns the L-node list length.
 func (l *lNode) length() uint {
 	return l.Length()
 }
@@ -184,27 +206,37 @@ func (l *lNode) length() uint {
 // branch is either an iNode or sNode.
 type branch interface{}
 
+// entry contains a Ctrie entry, which is also a technique used to cache the
+// hashcode of the key.
 type entry struct {
 	key   []byte
 	hash  uint32
 	value interface{}
 }
 
+// sNode is a singleton node which contains a single key and value.
 type sNode struct {
 	*entry
 }
 
+// New creates an empty Ctrie, defaulting to FNV-1a for key hashing. Use
+// SetHash to change the hash function.
 func New() *Ctrie {
 	root := &iNode{main: &mainNode{cNode: &cNode{}}}
 	return &Ctrie{root: root, h: fnv.New32a()}
 }
 
+// SetHash sets the hash function used by the Ctrie. Existing entries are not
+// rehashed when this is set, so this should be called on a newly created
+// Ctrie.
 func (c *Ctrie) SetHash(hash hash.Hash32) {
 	c.hMu.Lock()
 	c.h = hash
 	c.hMu.Unlock()
 }
 
+// Insert adds the key-value pair to the Ctrie, replacing the existing value if
+// the key already exists.
 func (c *Ctrie) Insert(key []byte, value interface{}) {
 	c.insert(&entry{
 		key:   key,
@@ -213,10 +245,14 @@ func (c *Ctrie) Insert(key []byte, value interface{}) {
 	})
 }
 
+// Lookup returns the value for the associated key or returns false if the key
+// doesn't exist.
 func (c *Ctrie) Lookup(key []byte) (interface{}, bool) {
 	return c.lookup(&entry{key: key, hash: c.hash(key)})
 }
 
+// Remove deletes the value for the associated key, returning true if it was
+// removed or false if the entry doesn't exist.
 func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
 	return c.remove(&entry{key: key, hash: c.hash(key)})
 }
