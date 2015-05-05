@@ -130,6 +130,10 @@ func (l *lNode) lookup(entry *entry) (interface{}, bool) {
 	return nil, false
 }
 
+func (l *lNode) inserted(entry *entry) *lNode {
+	return &lNode{sn: &sNode{entry}, next: l}
+}
+
 func (l *lNode) removed(entry *entry) *lNode {
 	// TODO
 	return nil
@@ -232,7 +236,8 @@ func iinsert(i *iNode, entry *entry, lev uint, parent *iNode) bool {
 			// cNode with the new entry is created. The linearization point is
 			// a successful CAS.
 			ncn := &mainNode{cNode: cn.inserted(pos, flag, &sNode{entry})}
-			return atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
+			return atomic.CompareAndSwapPointer(
+				mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
 		}
 		// If the relevant bit is present in the bitmap, then its corresponding
 		// branch is read from the array.
@@ -254,22 +259,25 @@ func iinsert(i *iNode, entry *entry, lev uint, parent *iNode) bool {
 				nsn := &sNode{entry}
 				nin := &iNode{newMainNode(sn, sn.hash, nsn, nsn.hash, lev+w)}
 				ncn := &mainNode{cNode: cn.updated(pos, nin)}
-				return atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
+				return atomic.CompareAndSwapPointer(
+					mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
 			}
 			// If the key in the S-node is equal to the key being inserted,
 			// then the C-node is replaced with its updated version with a new
 			// S-node. The linearization point is a successful CAS.
 			ncn := &mainNode{cNode: cn.updated(pos, &sNode{entry})}
-			return atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
+			return atomic.CompareAndSwapPointer(
+				mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
 		default:
 			panic("Ctrie is in an invalid state")
 		}
 	case main.tNode != nil:
-		// TODO
-		return true
+		clean(parent, lev-w)
+		return false
 	case main.lNode != nil:
-		// TODO
-		return true
+		nln := &mainNode{lNode: main.lNode.inserted(entry)}
+		return atomic.CompareAndSwapPointer(
+			mainPtr, unsafe.Pointer(main), unsafe.Pointer(nln))
 	default:
 		panic("Ctrie is in an invalid state")
 	}
@@ -358,7 +366,8 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 			//  linearization point
 			ncn := cn.removed(pos, flag)
 			cntr := toContracted(ncn, lev)
-			if atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(cntr)) {
+			if atomic.CompareAndSwapPointer(
+				mainPtr, unsafe.Pointer(main), unsafe.Pointer(cntr)) {
 				if parent != nil {
 					main = (*mainNode)(atomic.LoadPointer(mainPtr))
 					if main.tNode != nil {
@@ -375,10 +384,12 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 		clean(parent, lev-w)
 		return nil, false, false
 	case main.lNode != nil:
-		nln := main.lNode.removed(entry)
-		// TODO
-		nMain := &mainNode{lNode: nln}
-		if atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main), unsafe.Pointer(nMain)) {
+		nln := &mainNode{lNode: main.lNode.removed(entry)}
+		if nln.lNode.length() == 1 {
+			nln = entomb(nln.lNode.sn)
+		}
+		if atomic.CompareAndSwapPointer(
+			mainPtr, unsafe.Pointer(main), unsafe.Pointer(nln)) {
 			val, ok := main.lNode.lookup(entry)
 			return val, ok, true
 		}
@@ -393,7 +404,7 @@ func toContracted(cn *cNode, lev uint) *mainNode {
 		branch := cn.array[0]
 		switch branch.(type) {
 		case *sNode:
-			return &mainNode{tNode: &tNode{branch.(*sNode)}}
+			return entomb(branch.(*sNode))
 		default:
 			return &mainNode{cNode: cn}
 		}
@@ -423,6 +434,10 @@ func toCompressed(cn *cNode, lev uint) *mainNode {
 	}
 
 	return toContracted(&cNode{bmp: bmp, array: tmpArray}, lev)
+}
+
+func entomb(m *sNode) *mainNode {
+	return &mainNode{tNode: &tNode{m}}
 }
 
 func resurrect(iNode *iNode, main *mainNode) branch {
