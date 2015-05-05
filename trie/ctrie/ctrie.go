@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/Workiva/go-datastructures/list"
 )
 
 const (
@@ -57,7 +59,8 @@ func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint) *mainNode
 		}
 		return &mainNode{cNode: &cNode{bmp, []branch{y, x}}}
 	}
-	return &mainNode{lNode: &lNode{sn: x, next: &lNode{sn: y}}}
+	l := list.Empty.Add(x).Add(y)
+	return &mainNode{lNode: &lNode{l}}
 }
 
 // inserted returns a copy of this cNode with the new entry at the given
@@ -116,35 +119,41 @@ func (t *tNode) untombed() *sNode {
 }
 
 type lNode struct {
-	sn   *sNode
-	next *lNode
+	list.PersistentList
 }
 
-func (l *lNode) lookup(entry *entry) (interface{}, bool) {
-	if bytes.Equal(entry.key, l.sn.key) {
-		return l.sn.value, true
+func (l *lNode) entry() *sNode {
+	head, _ := l.Head()
+	return head.(*sNode)
+}
+
+func (l *lNode) lookup(e *entry) (interface{}, bool) {
+	found, ok := l.Find(func(sn interface{}) bool {
+		return bytes.Equal(e.key, sn.(*sNode).key)
+	})
+	if !ok {
+		return nil, false
 	}
-	if l.next != nil {
-		return l.next.lookup(entry)
-	}
-	return nil, false
+	return found.(*sNode).value, true
 }
 
 func (l *lNode) inserted(entry *entry) *lNode {
-	return &lNode{sn: &sNode{entry}, next: l}
+	return &lNode{l.Add(&sNode{entry})}
 }
 
-func (l *lNode) removed(entry *entry) *lNode {
-	// TODO
-	return nil
+func (l *lNode) removed(e *entry) *lNode {
+	idx := l.FindIndex(func(sn interface{}) bool {
+		return bytes.Equal(e.key, sn.(*sNode).key)
+	})
+	if idx < 0 {
+		return l
+	}
+	nl, _ := l.Remove(uint(idx))
+	return &lNode{nl}
 }
 
 func (l *lNode) length() uint {
-	length := uint(1)
-	for curr := l.next; curr != nil; curr = curr.next {
-		length++
-	}
-	return length
+	return l.Length()
 }
 
 // branch is either an iNode or sNode.
@@ -386,7 +395,7 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 	case main.lNode != nil:
 		nln := &mainNode{lNode: main.lNode.removed(entry)}
 		if nln.lNode.length() == 1 {
-			nln = entomb(nln.lNode.sn)
+			nln = entomb(nln.lNode.entry())
 		}
 		if atomic.CompareAndSwapPointer(
 			mainPtr, unsafe.Pointer(main), unsafe.Pointer(nln)) {
@@ -399,6 +408,10 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 	}
 }
 
+// toContracted ensures that every I-node except the root points to a C-node
+// with at least one branch. If a given C-Node has only a single S-node below
+// it and is not at the root level, a T-node which wraps the S-node is
+// returned.
 func toContracted(cn *cNode, lev uint) *mainNode {
 	if lev > 0 && len(cn.array) == 1 {
 		branch := cn.array[0]
@@ -412,6 +425,7 @@ func toContracted(cn *cNode, lev uint) *mainNode {
 	return &mainNode{cNode: cn}
 }
 
+// toCompressed compacts the C-node as a performance optimization.
 func toCompressed(cn *cNode, lev uint) *mainNode {
 	bmp := cn.bmp
 	i := 0
