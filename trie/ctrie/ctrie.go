@@ -493,10 +493,8 @@ func toContracted(cn *cNode, lev uint) *mainNode {
 
 // toCompressed compacts the C-node as a performance optimization.
 func toCompressed(cn *cNode, lev uint) *mainNode {
-	bmp := cn.bmp
-	arr := cn.array
-	tmpArray := make([]branch, len(arr))
-	for i, sub := range arr {
+	tmpArray := make([]branch, len(cn.array))
+	for i, sub := range cn.array {
 		switch sub.(type) {
 		case *iNode:
 			inode := sub.(*iNode)
@@ -510,7 +508,7 @@ func toCompressed(cn *cNode, lev uint) *mainNode {
 		}
 	}
 
-	return toContracted(&cNode{bmp: bmp, array: tmpArray}, lev)
+	return toContracted(&cNode{bmp: cn.bmp, array: tmpArray}, lev)
 }
 
 func entomb(m *sNode) *mainNode {
