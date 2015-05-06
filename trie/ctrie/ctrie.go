@@ -105,9 +105,7 @@ func (c *cNode) inserted(pos, flag uint32, br branch) *cNode {
 	length := uint32(len(c.array))
 	bmp := c.bmp
 	array := make([]branch, length+1)
-	for i := uint32(0); i < pos; i++ {
-		array[i] = c.array[i]
-	}
+	copy(array, c.array)
 	array[pos] = br
 	for i, x := pos, uint32(0); x < length-pos; i++ {
 		array[i+1] = c.array[i]
@@ -121,9 +119,7 @@ func (c *cNode) inserted(pos, flag uint32, br branch) *cNode {
 // updated.
 func (c *cNode) updated(pos uint32, br branch) *cNode {
 	array := make([]branch, len(c.array))
-	for i, branch := range c.array {
-		array[i] = branch
-	}
+	copy(array, c.array)
 	array[pos] = br
 	ncn := &cNode{bmp: c.bmp, array: array}
 	return ncn
