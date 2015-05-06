@@ -29,7 +29,7 @@ import (
 
 func TestCtrie(t *testing.T) {
 	assert := assert.New(t)
-	ctrie := New()
+	ctrie := New(nil)
 
 	_, ok := ctrie.Lookup([]byte("foo"))
 	assert.False(ok)
@@ -88,10 +88,13 @@ func (m *mockHash32) Sum32() uint32 {
 	return 0
 }
 
+func mockHashFactory() hash.Hash32 {
+	return &mockHash32{fnv.New32a()}
+}
+
 func TestInsertLNode(t *testing.T) {
 	assert := assert.New(t)
-	ctrie := New()
-	ctrie.SetHash(&mockHash32{fnv.New32a()})
+	ctrie := New(mockHashFactory)
 
 	for i := 0; i < 10; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
@@ -114,7 +117,7 @@ func TestInsertLNode(t *testing.T) {
 
 func TestInsertTNode(t *testing.T) {
 	assert := assert.New(t)
-	ctrie := New()
+	ctrie := New(nil)
 
 	for i := 0; i < 100000; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
@@ -137,7 +140,7 @@ func TestInsertTNode(t *testing.T) {
 
 func TestConcurrency(t *testing.T) {
 	assert := assert.New(t)
-	ctrie := New()
+	ctrie := New(nil)
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -167,7 +170,7 @@ func TestConcurrency(t *testing.T) {
 }
 
 func BenchmarkInsert(b *testing.B) {
-	ctrie := New()
+	ctrie := New(nil)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ctrie.Insert([]byte("foo"), 0)
@@ -176,7 +179,7 @@ func BenchmarkInsert(b *testing.B) {
 
 func BenchmarkLookup(b *testing.B) {
 	numItems := 1000
-	ctrie := New()
+	ctrie := New(nil)
 	for i := 0; i < numItems; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
 	}
@@ -190,7 +193,7 @@ func BenchmarkLookup(b *testing.B) {
 
 func BenchmarkRemove(b *testing.B) {
 	numItems := 1000
-	ctrie := New()
+	ctrie := New(nil)
 	for i := 0; i < numItems; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
 	}

@@ -29,11 +29,11 @@ import (
 	"bytes"
 	"hash"
 	"hash/fnv"
-	"sync"
 	"sync/atomic"
 	"unsafe"
 
 	"github.com/Workiva/go-datastructures/list"
+	"github.com/Workiva/go-datastructures/queue"
 )
 
 const (
@@ -42,14 +42,23 @@ const (
 
 	// exp2 is 2^w, which is the hashcode space.
 	exp2 = 32
+
+	// hasherPoolSize is the number of hashers to buffer.
+	hasherPoolSize = 16
 )
 
+// HashFactory returns a new Hash32 used to hash keys.
+type HashFactory func() hash.Hash32
+
+func defaultHashFactory() hash.Hash32 {
+	return fnv.New32a()
+}
+
 // Ctrie is a concurrent, lock-free hash trie. By default, keys are hashed
-// using FNV-1a, but the hashing function used can be set with SetHash.
+// using FNV-1a unless a HashFactory is provided to New.
 type Ctrie struct {
-	root *iNode
-	h    hash.Hash32
-	hMu  sync.Mutex
+	root       *iNode
+	hasherPool *queue.RingBuffer
 }
 
 // iNode is an indirection node. I-nodes remain present in the Ctrie even as
@@ -215,20 +224,19 @@ type sNode struct {
 	*entry
 }
 
-// New creates an empty Ctrie, defaulting to FNV-1a for key hashing. Use
-// SetHash to change the hash function.
-func New() *Ctrie {
+// New creates an empty Ctrie which uses the provided HashFactory for key
+// hashing. If nil is passed in, it will default to FNV-1a hashing.
+func New(hashFactory HashFactory) *Ctrie {
+	if hashFactory == nil {
+		hashFactory = defaultHashFactory
+	}
 	root := &iNode{main: &mainNode{cNode: &cNode{}}}
-	return &Ctrie{root: root, h: fnv.New32a()}
-}
+	hasherPool := queue.NewRingBuffer(hasherPoolSize)
+	for i := 0; i < hasherPoolSize; i++ {
+		hasherPool.Put(hashFactory())
+	}
 
-// SetHash sets the hash function used by the Ctrie. Existing entries are not
-// rehashed when this is set, so this should be called on a newly created
-// Ctrie.
-func (c *Ctrie) SetHash(hash hash.Hash32) {
-	c.hMu.Lock()
-	c.h = hash
-	c.hMu.Unlock()
+	return &Ctrie{root: root, hasherPool: hasherPool}
 }
 
 // Insert adds the key-value pair to the Ctrie, replacing the existing value if
@@ -282,11 +290,12 @@ func (c *Ctrie) remove(entry *entry) (interface{}, bool) {
 }
 
 func (c *Ctrie) hash(k []byte) uint32 {
-	c.hMu.Lock()
-	c.h.Write(k)
-	hash := c.h.Sum32()
-	c.h.Reset()
-	c.hMu.Unlock()
+	hasher, _ := c.hasherPool.Get()
+	h := hasher.(hash.Hash32)
+	h.Write(k)
+	hash := h.Sum32()
+	h.Reset()
+	c.hasherPool.Put(h)
 	return hash
 }
 
