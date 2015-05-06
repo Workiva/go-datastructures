@@ -494,11 +494,9 @@ func toContracted(cn *cNode, lev uint) *mainNode {
 // toCompressed compacts the C-node as a performance optimization.
 func toCompressed(cn *cNode, lev uint) *mainNode {
 	bmp := cn.bmp
-	i := 0
 	arr := cn.array
 	tmpArray := make([]branch, len(arr))
-	for i < len(arr) {
-		sub := arr[i]
+	for i, sub := range arr {
 		switch sub.(type) {
 		case *iNode:
 			inode := sub.(*iNode)
@@ -510,7 +508,6 @@ func toCompressed(cn *cNode, lev uint) *mainNode {
 		default:
 			panic("Ctrie is in an invalid state")
 		}
-		i++
 	}
 
 	return toContracted(&cNode{bmp: bmp, array: tmpArray}, lev)
