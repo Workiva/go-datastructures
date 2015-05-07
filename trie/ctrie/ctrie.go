@@ -68,9 +68,8 @@ type generation struct{}
 // nodes above and below change. Thread-safety is achieved in part by
 // performing CAS operations on the I-node instead of the internal node array.
 type iNode struct {
-	main            *mainNode
-	gen             *generation
-	rdcssDescriptor *rdcssDescriptor
+	main *mainNode
+	gen  *generation
 }
 
 // copyToGen returns a copy of this I-node copied to the given generation.
@@ -651,54 +650,59 @@ type rdcssDescriptor struct {
 	expectedMain *mainNode
 	nv           *iNode
 	committed    bool
+	token        int8
 }
+
+const rdcssToken int8 = -1
 
 func (c *Ctrie) readRoot() *iNode {
 	return c.rdcssReadRoot(false)
 }
 
 func (c *Ctrie) rdcssReadRoot(abort bool) *iNode {
-	r := (*iNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root))))
-	if r.rdcssDescriptor != nil {
+	r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
+	desc := (*rdcssDescriptor)(r)
+	// This is an awful and unsafe hack. Is there a better way to determine the
+	// type of a pointer?
+	if desc.token == rdcssToken {
 		return c.rdcssComplete(abort)
 	}
-	return r
+	return (*iNode)(r)
 }
 
 func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 	for {
-		r := (interface{})(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root))))
-		switch r.(type) {
-		case *iNode:
-			return r.(*iNode)
-		case *rdcssDescriptor:
-			var (
-				desc = r.(*rdcssDescriptor)
-				ov   = desc.old
-				exp  = desc.expectedMain
-				nv   = desc.nv
-			)
+		r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
+		desc := (*rdcssDescriptor)(r)
+		if desc.token != rdcssToken {
+			return (*iNode)(r)
+		}
 
-			if abort {
-				if c.casRoot(desc, ov) {
-					return ov
-				}
-				continue
-			}
+		var (
+			ov  = desc.old
+			exp = desc.expectedMain
+			nv  = desc.nv
+		)
 
-			oldeMain := ov.gcasRead(c)
-			if oldeMain == exp {
-				if c.casRoot(desc, nv) {
-					desc.committed = true
-					return nv
-				}
-				continue
-			}
+		if abort {
 			if c.casRoot(desc, ov) {
 				return ov
 			}
 			continue
 		}
+
+		oldeMain := ov.gcasRead(c)
+		if oldeMain == exp {
+			if c.casRoot(desc, nv) {
+				desc.committed = true
+				return nv
+			}
+			continue
+		}
+		if c.casRoot(desc, ov) {
+			return ov
+		}
+		continue
 	}
 }
 
