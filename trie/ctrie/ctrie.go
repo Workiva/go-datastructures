@@ -58,21 +58,40 @@ func defaultHashFactory() hash.Hash32 {
 // using FNV-1a unless a HashFactory is provided to New.
 type Ctrie struct {
 	root       *iNode
+	readOnly   bool
 	hasherPool *queue.RingBuffer
 }
+
+type generation struct{}
 
 // iNode is an indirection node. I-nodes remain present in the Ctrie even as
 // nodes above and below change. Thread-safety is achieved in part by
 // performing CAS operations on the I-node instead of the internal node array.
 type iNode struct {
-	main *mainNode
+	main            *mainNode
+	gen             *generation
+	rdcssDescriptor *rdcssDescriptor
+}
+
+// copyToGen returns a copy of this I-node copied to the given generation.
+func (i *iNode) copyToGen(gen *generation, ctrie *Ctrie) *iNode {
+	nin := &iNode{gen: gen}
+	main := i.gcasRead(ctrie)
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&nin.main)), unsafe.Pointer(main))
+	return nin
 }
 
 // mainNode is either a cNode, tNode, or lNode which makes up an I-node.
 type mainNode struct {
-	cNode *cNode
-	tNode *tNode
-	lNode *lNode
+	cNode  *cNode
+	tNode  *tNode
+	lNode  *lNode
+	failed *mainNode
+	prev   *mainNode
+}
+
+type failedNode struct {
+	*mainNode
 }
 
 // cNode is an internal main node containing a bitmap and the array with
@@ -81,13 +100,14 @@ type mainNode struct {
 type cNode struct {
 	bmp   uint32
 	array []branch
+	gen   *generation
 }
 
 // newMainNode is a recursive constructor which creates a new mainNode. This
 // mainNode will consist of cNodes as long as the hashcode chunks of the two
 // keys are equal at the given level. If the level exceeds 2^w, an lNode is
 // created.
-func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint) *mainNode {
+func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint, gen *generation) *mainNode {
 	if lev < exp2 {
 		xidx := (xhc >> lev) & 0x1f
 		yidx := (yhc >> lev) & 0x1f
@@ -95,14 +115,14 @@ func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint) *mainNode
 
 		if xidx == yidx {
 			// Recurse when indexes are equal.
-			main := newMainNode(x, xhc, y, yhc, lev+w)
-			iNode := &iNode{main}
-			return &mainNode{cNode: &cNode{bmp, []branch{iNode}}}
+			main := newMainNode(x, xhc, y, yhc, lev+w, gen)
+			iNode := &iNode{main: main, gen: gen}
+			return &mainNode{cNode: &cNode{bmp, []branch{iNode}, gen}}
 		}
 		if xidx < yidx {
-			return &mainNode{cNode: &cNode{bmp, []branch{x, y}}}
+			return &mainNode{cNode: &cNode{bmp, []branch{x, y}, gen}}
 		}
-		return &mainNode{cNode: &cNode{bmp, []branch{y, x}}}
+		return &mainNode{cNode: &cNode{bmp, []branch{y, x}, gen}}
 	}
 	l := list.Empty.Add(x).Add(y)
 	return &mainNode{lNode: &lNode{l}}
@@ -110,7 +130,7 @@ func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint) *mainNode
 
 // inserted returns a copy of this cNode with the new entry at the given
 // position.
-func (c *cNode) inserted(pos, flag uint32, br branch) *cNode {
+func (c *cNode) inserted(pos, flag uint32, br branch, gen *generation) *cNode {
 	length := uint32(len(c.array))
 	bmp := c.bmp
 	array := make([]branch, length+1)
@@ -120,23 +140,23 @@ func (c *cNode) inserted(pos, flag uint32, br branch) *cNode {
 		array[i+1] = c.array[i]
 		x++
 	}
-	ncn := &cNode{bmp: bmp | flag, array: array}
+	ncn := &cNode{bmp: bmp | flag, array: array, gen: gen}
 	return ncn
 }
 
 // updated returns a copy of this cNode with the entry at the given index
 // updated.
-func (c *cNode) updated(pos uint32, br branch) *cNode {
+func (c *cNode) updated(pos uint32, br branch, gen *generation) *cNode {
 	array := make([]branch, len(c.array))
 	copy(array, c.array)
 	array[pos] = br
-	ncn := &cNode{bmp: c.bmp, array: array}
+	ncn := &cNode{bmp: c.bmp, array: array, gen: gen}
 	return ncn
 }
 
 // removed returns a copy of this cNode with the entry at the given index
 // removed.
-func (c *cNode) removed(pos, flag uint32) *cNode {
+func (c *cNode) removed(pos, flag uint32, gen *generation) *cNode {
 	length := uint32(len(c.array))
 	bmp := c.bmp
 	array := make([]branch, length-1)
@@ -147,8 +167,23 @@ func (c *cNode) removed(pos, flag uint32) *cNode {
 		array[i] = c.array[i+1]
 		x++
 	}
-	ncn := &cNode{bmp: bmp ^ flag, array: array}
+	ncn := &cNode{bmp: bmp ^ flag, array: array, gen: gen}
 	return ncn
+}
+
+// renewed returns a copy of this cNode with the I-nodes below it copied to the
+// given generation.
+func (c *cNode) renewed(gen *generation, ctrie *Ctrie) *cNode {
+	array := make([]branch, len(c.array))
+	for i, br := range c.array {
+		switch br.(type) {
+		case *iNode:
+			array[i] = br.(*iNode).copyToGen(gen, ctrie)
+		default:
+			array[i] = br
+		}
+	}
+	return &cNode{bmp: c.bmp, array: array, gen: gen}
 }
 
 // tNode is tomb node which is a special node used to ensure proper ordering
@@ -262,17 +297,15 @@ func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
 }
 
 func (c *Ctrie) insert(entry *entry) {
-	rootPtr := (*unsafe.Pointer)(unsafe.Pointer(&c.root))
-	root := (*iNode)(atomic.LoadPointer(rootPtr))
-	if !iinsert(root, entry, 0, nil) {
+	root := c.readRoot()
+	if !c.iinsert(root, entry, 0, nil, root.gen) {
 		c.insert(entry)
 	}
 }
 
 func (c *Ctrie) lookup(entry *entry) (interface{}, bool) {
-	rootPtr := (*unsafe.Pointer)(unsafe.Pointer(&c.root))
-	root := (*iNode)(atomic.LoadPointer(rootPtr))
-	result, exists, ok := ilookup(root, entry, 0, nil)
+	root := c.readRoot()
+	result, exists, ok := c.ilookup(root, entry, 0, nil, root.gen)
 	for !ok {
 		return c.lookup(entry)
 	}
@@ -280,9 +313,8 @@ func (c *Ctrie) lookup(entry *entry) (interface{}, bool) {
 }
 
 func (c *Ctrie) remove(entry *entry) (interface{}, bool) {
-	rootPtr := (*unsafe.Pointer)(unsafe.Pointer(&c.root))
-	root := (*iNode)(atomic.LoadPointer(rootPtr))
-	result, exists, ok := iremove(root, entry, 0, nil)
+	root := c.readRoot()
+	result, exists, ok := c.iremove(root, entry, 0, nil, root.gen)
 	for !ok {
 		return c.remove(entry)
 	}
@@ -299,9 +331,9 @@ func (c *Ctrie) hash(k []byte) uint32 {
 	return hash
 }
 
-func iinsert(i *iNode, entry *entry, lev uint, parent *iNode) bool {
-	mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&i.main))
-	main := (*mainNode)(atomic.LoadPointer(mainPtr))
+func (c *Ctrie) iinsert(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) bool {
+	// Linearization point.
+	main := i.gcasRead(c)
 	switch {
 	case main.cNode != nil:
 		cn := main.cNode
@@ -310,9 +342,12 @@ func iinsert(i *iNode, entry *entry, lev uint, parent *iNode) bool {
 			// If the relevant bit is not in the bitmap, then a copy of the
 			// cNode with the new entry is created. The linearization point is
 			// a successful CAS.
-			ncn := &mainNode{cNode: cn.inserted(pos, flag, &sNode{entry})}
-			return atomic.CompareAndSwapPointer(
-				mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
+			rn := cn
+			if cn.gen != i.gen {
+				rn = cn.renewed(i.gen, c)
+			}
+			ncn := &mainNode{cNode: rn.inserted(pos, flag, &sNode{entry}, i.gen)}
+			return gcas(i, main, ncn, c)
 		}
 		// If the relevant bit is present in the bitmap, then its corresponding
 		// branch is read from the array.
@@ -320,7 +355,14 @@ func iinsert(i *iNode, entry *entry, lev uint, parent *iNode) bool {
 		switch branch.(type) {
 		case *iNode:
 			// If the branch is an I-node, then iinsert is called recursively.
-			return iinsert(branch.(*iNode), entry, lev+w, i)
+			in := branch.(*iNode)
+			if startGen == in.gen {
+				return c.iinsert(in, entry, lev+w, i, i.gen)
+			}
+			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
+				return c.iinsert(i, entry, lev, parent, startGen)
+			}
+			return false
 		case *sNode:
 			sn := branch.(*sNode)
 			if !bytes.Equal(sn.key, entry.key) {
@@ -331,37 +373,37 @@ func iinsert(i *iNode, entry *entry, lev uint, parent *iNode) bool {
 				// I-node at the respective position. The new Inode has its
 				// main node pointing to a C-node with both keys. The
 				// linearization point is a successful CAS.
+				rn := cn
+				if cn.gen != i.gen {
+					rn = cn.renewed(i.gen, c)
+				}
 				nsn := &sNode{entry}
-				nin := &iNode{newMainNode(sn, sn.hash, nsn, nsn.hash, lev+w)}
-				ncn := &mainNode{cNode: cn.updated(pos, nin)}
-				return atomic.CompareAndSwapPointer(
-					mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
+				nin := &iNode{main: newMainNode(sn, sn.hash, nsn, nsn.hash, lev+w, i.gen), gen: i.gen}
+				ncn := &mainNode{cNode: rn.updated(pos, nin, i.gen)}
+				return gcas(i, main, ncn, c)
 			}
 			// If the key in the S-node is equal to the key being inserted,
 			// then the C-node is replaced with its updated version with a new
 			// S-node. The linearization point is a successful CAS.
-			ncn := &mainNode{cNode: cn.updated(pos, &sNode{entry})}
-			return atomic.CompareAndSwapPointer(
-				mainPtr, unsafe.Pointer(main), unsafe.Pointer(ncn))
+			ncn := &mainNode{cNode: cn.updated(pos, &sNode{entry}, i.gen)}
+			return gcas(i, main, ncn, c)
 		default:
 			panic("Ctrie is in an invalid state")
 		}
 	case main.tNode != nil:
-		clean(parent, lev-w)
+		clean(parent, lev-w, c)
 		return false
 	case main.lNode != nil:
 		nln := &mainNode{lNode: main.lNode.inserted(entry)}
-		return atomic.CompareAndSwapPointer(
-			mainPtr, unsafe.Pointer(main), unsafe.Pointer(nln))
+		return gcas(i, main, nln, c)
 	default:
 		panic("Ctrie is in an invalid state")
 	}
 }
 
-func ilookup(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool, bool) {
-	mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&i.main))
+func (c *Ctrie) ilookup(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
 	// Linearization point.
-	main := (*mainNode)(atomic.LoadPointer(mainPtr))
+	main := i.gcasRead(c)
 	switch {
 	case main.cNode != nil:
 		cn := main.cNode
@@ -377,7 +419,14 @@ func ilookup(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 		case *iNode:
 			// If the branch is an I-node, the ilookup procedure is called
 			// recursively at the next level.
-			return ilookup(branch.(*iNode), entry, lev+w, i)
+			in := branch.(*iNode)
+			if c.readOnly || startGen == in.gen {
+				return c.ilookup(in, entry, lev+w, i, startGen)
+			}
+			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
+				return c.ilookup(i, entry, lev, parent, startGen)
+			}
+			return nil, false, false
 		case *sNode:
 			// If the branch is an S-node, then the key within the S-node is
 			// compared with the key being searched – these two keys have the
@@ -393,8 +442,7 @@ func ilookup(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 			panic("Ctrie is in an invalid state")
 		}
 	case main.tNode != nil:
-		clean(parent, lev-w)
-		return nil, false, false
+		return cleanReadOnly(main.tNode, lev, parent, c, entry)
 	case main.lNode != nil:
 		// Hash collisions are handled using L-nodes, which are essentially
 		// persistent linked lists.
@@ -405,10 +453,9 @@ func ilookup(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 	}
 }
 
-func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool, bool) {
-	mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&i.main))
+func (c *Ctrie) iremove(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
 	// Linearization point.
-	main := (*mainNode)(atomic.LoadPointer(mainPtr))
+	main := i.gcasRead(c)
 	switch {
 	case main.cNode != nil:
 		cn := main.cNode
@@ -424,7 +471,14 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 		case *iNode:
 			// If the branch is an I-node, the iremove procedure is called
 			// recursively at the next level.
-			return iremove(branch.(*iNode), entry, lev+w, i)
+			in := branch.(*iNode)
+			if startGen == in.gen {
+				return c.iremove(in, entry, lev+w, i, startGen)
+			}
+			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
+				return c.iremove(i, entry, lev, parent, startGen)
+			}
+			return nil, false, false
 		case *sNode:
 			// If the branch is an S-node, its key is compared against the key
 			// being removed.
@@ -439,14 +493,13 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 			//  substitute the old C-node with the copied C-node, thus removing
 			//  the S-node with the given key from the trie – this is the
 			//  linearization point
-			ncn := cn.removed(pos, flag)
+			ncn := cn.removed(pos, flag, i.gen)
 			cntr := toContracted(ncn, lev)
-			if atomic.CompareAndSwapPointer(
-				mainPtr, unsafe.Pointer(main), unsafe.Pointer(cntr)) {
+			if gcas(i, main, cntr, c) {
 				if parent != nil {
-					main = (*mainNode)(atomic.LoadPointer(mainPtr))
+					main = i.gcasRead(c)
 					if main.tNode != nil {
-						cleanParent(parent, i, entry.hash, lev-w)
+						cleanParent(parent, i, entry.hash, lev-w, c, startGen)
 					}
 				}
 				return sn.value, true, true
@@ -456,15 +509,14 @@ func iremove(i *iNode, entry *entry, lev uint, parent *iNode) (interface{}, bool
 			panic("Ctrie is in an invalid state")
 		}
 	case main.tNode != nil:
-		clean(parent, lev-w)
+		clean(parent, lev-w, c)
 		return nil, false, false
 	case main.lNode != nil:
 		nln := &mainNode{lNode: main.lNode.removed(entry)}
 		if nln.lNode.length() == 1 {
 			nln = entomb(nln.lNode.entry())
 		}
-		if atomic.CompareAndSwapPointer(
-			mainPtr, unsafe.Pointer(main), unsafe.Pointer(nln)) {
+		if gcas(i, main, nln, c) {
 			val, ok := main.lNode.lookup(entry)
 			return val, ok, true
 		}
@@ -522,17 +574,26 @@ func resurrect(iNode *iNode, main *mainNode) branch {
 	return iNode
 }
 
-func clean(i *iNode, lev uint) bool {
-	mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&i.main))
-	main := (*mainNode)(atomic.LoadPointer(mainPtr))
+func clean(i *iNode, lev uint, ctrie *Ctrie) bool {
+	main := i.gcasRead(ctrie)
 	if main.cNode != nil {
-		return atomic.CompareAndSwapPointer(mainPtr, unsafe.Pointer(main),
-			unsafe.Pointer(toCompressed(main.cNode, lev)))
+		return gcas(i, main, toCompressed(main.cNode, lev), ctrie)
 	}
 	return true
 }
 
-func cleanParent(p, i *iNode, hc uint32, lev uint) {
+func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *entry) (interface{}, bool, bool) {
+	if !ctrie.readOnly {
+		clean(p, lev-5, ctrie)
+		return nil, false, false
+	}
+	if tn.hash == entry.hash && bytes.Equal(tn.key, entry.key) {
+		return tn.value, true, true
+	}
+	return nil, false, true
+}
+
+func cleanParent(p, i *iNode, hc uint32, lev uint, ctrie *Ctrie, startGen *generation) {
 	var (
 		mainPtr  = (*unsafe.Pointer)(unsafe.Pointer(&i.main))
 		main     = (*mainNode)(atomic.LoadPointer(mainPtr))
@@ -544,10 +605,9 @@ func cleanParent(p, i *iNode, hc uint32, lev uint) {
 		if pMain.cNode.bmp&flag != 0 {
 			sub := pMain.cNode.array[pos]
 			if sub == i && main.tNode != nil {
-				ncn := pMain.cNode.updated(pos, resurrect(i, main))
-				if !atomic.CompareAndSwapPointer(pMainPtr, unsafe.Pointer(pMain),
-					unsafe.Pointer(toContracted(ncn, lev))) {
-					cleanParent(p, i, hc, lev)
+				ncn := pMain.cNode.updated(pos, resurrect(i, main), i.gen)
+				if !gcas(p, pMain, toContracted(ncn, lev), ctrie) && ctrie.readRoot().gen == startGen {
+					cleanParent(p, i, hc, lev, ctrie, startGen)
 				}
 			}
 		}
@@ -568,4 +628,134 @@ func bitCount(x uint32) uint32 {
 	x = ((x >> 4) & 0x0f0f0f0f) + (x & 0x0f0f0f0f)
 	x = ((x >> 8) & 0x00ff00ff) + (x & 0x00ff00ff)
 	return ((x >> 16) & 0x0000ffff) + (x & 0x0000ffff)
+}
+
+// gcas is a generation-compare-and-swap which has semantics similar to RDCSS,
+// but it does not create the intermediate object except in the case of
+// failures that occur due to the snapshot being taken. This ensures that the
+// write occurs only if the Ctrie root generation has remained the same in
+// addition to the iNode having the expected value.
+func gcas(in *iNode, old, n *mainNode, ct *Ctrie) bool {
+	prevPtr := (*unsafe.Pointer)(unsafe.Pointer(&n.prev))
+	atomic.StorePointer(prevPtr, unsafe.Pointer(old))
+	if atomic.CompareAndSwapPointer(
+		(*unsafe.Pointer)(unsafe.Pointer(&in.main)), unsafe.Pointer(old), unsafe.Pointer(n)) {
+		gcasComplete(in, n, ct)
+		return atomic.LoadPointer(prevPtr) == nil
+	}
+	return false
+}
+
+type rdcssDescriptor struct {
+	old          *iNode
+	expectedMain *mainNode
+	nv           *iNode
+	committed    bool
+}
+
+func (c *Ctrie) readRoot() *iNode {
+	return c.rdcssReadRoot(false)
+}
+
+func (c *Ctrie) rdcssReadRoot(abort bool) *iNode {
+	r := (*iNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root))))
+	if r.rdcssDescriptor != nil {
+		return c.rdcssComplete(abort)
+	}
+	return r
+}
+
+func (c *Ctrie) rdcssComplete(abort bool) *iNode {
+	for {
+		r := (interface{})(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root))))
+		switch r.(type) {
+		case *iNode:
+			return r.(*iNode)
+		case *rdcssDescriptor:
+			var (
+				desc = r.(*rdcssDescriptor)
+				ov   = desc.old
+				exp  = desc.expectedMain
+				nv   = desc.nv
+			)
+
+			if abort {
+				if c.casRoot(desc, ov) {
+					return ov
+				}
+				continue
+			}
+
+			oldeMain := ov.gcasRead(c)
+			if oldeMain == exp {
+				if c.casRoot(desc, nv) {
+					desc.committed = true
+					return nv
+				}
+				continue
+			}
+			if c.casRoot(desc, ov) {
+				return ov
+			}
+			continue
+		}
+	}
+}
+
+func (c *Ctrie) casRoot(ov, nv interface{}) bool {
+	if c.readOnly {
+		panic("Cannot modify read-only snapshot")
+	}
+	return atomic.CompareAndSwapPointer(
+		(*unsafe.Pointer)(unsafe.Pointer(&c.root)),
+		unsafe.Pointer(ov.(unsafe.Pointer)),
+		unsafe.Pointer(nv.(unsafe.Pointer)))
+}
+
+func (i *iNode) gcasRead(ctrie *Ctrie) *mainNode {
+	m := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
+	prev := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&m.prev))))
+	if prev == nil {
+		return m
+	}
+	return gcasComplete(i, m, ctrie)
+}
+
+func gcasComplete(i *iNode, m *mainNode, ctrie *Ctrie) *mainNode {
+	for {
+		if m == nil {
+			return nil
+		}
+		prev := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&m.prev))))
+		root := ctrie.rdcssReadRoot(true)
+		if prev == nil {
+			return m
+		}
+
+		if prev.failed != nil {
+			fn := prev.failed
+			if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main)),
+				unsafe.Pointer(m), unsafe.Pointer(fn.prev)) {
+				return fn.prev
+			}
+			m = (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
+			continue
+		}
+
+		if root.gen == i.gen && !ctrie.readOnly {
+			if atomic.CompareAndSwapPointer(
+				(*unsafe.Pointer)(unsafe.Pointer(&m.prev)), unsafe.Pointer(prev), nil) {
+				return m
+			}
+			continue
+		}
+
+		// Abort.
+		atomic.CompareAndSwapPointer(
+			(*unsafe.Pointer)(unsafe.Pointer(&m.prev)),
+			unsafe.Pointer(prev),
+			unsafe.Pointer(&mainNode{failed: prev}))
+		m = (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
+		return gcasComplete(i, m, ctrie)
+	}
 }
