@@ -274,3 +274,29 @@ func BenchmarkRemove(b *testing.B) {
 		ctrie.Remove(key)
 	}
 }
+
+func BenchmarkSnapshot(b *testing.B) {
+	numItems := 1000
+	ctrie := New(nil)
+	for i := 0; i < numItems; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ctrie.Snapshot()
+	}
+}
+
+func BenchmarkReadOnlySnapshot(b *testing.B) {
+	numItems := 1000
+	ctrie := New(nil)
+	for i := 0; i < numItems; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ctrie.ReadOnlySnapshot()
+	}
+}
