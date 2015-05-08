@@ -97,10 +97,6 @@ type mainNode struct {
 	prev *mainNode
 }
 
-type failedNode struct {
-	*mainNode
-}
-
 // cNode is an internal main node containing a bitmap and the array with
 // references to branch nodes. A branch node is either another I-node or a
 // singleton S-node.
