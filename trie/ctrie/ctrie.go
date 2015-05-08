@@ -20,8 +20,6 @@ a concurrent, lock-free hash trie. This data structure was originally presented
 in the paper Concurrent Tries with Efficient Non-Blocking Snapshots:
 
 https://axel22.github.io/resources/docs/ctries-snapshot.pdf
-
-TODO: Add snapshot support.
 */
 package ctrie
 
@@ -285,6 +283,7 @@ func newCtrie(root *iNode, hashFactory HashFactory, readOnly bool) *Ctrie {
 // Insert adds the key-value pair to the Ctrie, replacing the existing value if
 // the key already exists.
 func (c *Ctrie) Insert(key []byte, value interface{}) {
+	c.assertReadWrite()
 	c.insert(&entry{
 		key:   key,
 		hash:  c.hash(key),
@@ -301,6 +300,7 @@ func (c *Ctrie) Lookup(key []byte) (interface{}, bool) {
 // Remove deletes the value for the associated key, returning true if it was
 // removed or false if the entry doesn't exist.
 func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
+	c.assertReadWrite()
 	return c.remove(&entry{key: key, hash: c.hash(key)})
 }
 
@@ -312,6 +312,27 @@ func (c *Ctrie) Snapshot() *Ctrie {
 		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
 			return newCtrie(root.copyToGen(&generation{}, c), c.hashFactory, c.readOnly)
 		}
+	}
+}
+
+// ReadOnlySnapshot returns a stable, point-in-time snapshot of the Ctrie which
+// is read-only. Write operations on a read-only snapshot will panic.
+func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
+	if c.readOnly {
+		return c
+	}
+	for {
+		root := c.readRoot()
+		main := root.gcasRead(c)
+		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
+			return newCtrie(root.copyToGen(&generation{}, c), c.hashFactory, true)
+		}
+	}
+}
+
+func (c *Ctrie) assertReadWrite() {
+	if c.readOnly {
+		panic("Cannot modify read-only snapshot")
 	}
 }
 
@@ -742,9 +763,7 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 }
 
 func (c *Ctrie) casRoot(ov, nv unsafe.Pointer) bool {
-	if c.readOnly {
-		panic("Cannot modify read-only snapshot")
-	}
+	c.assertReadWrite()
 	return atomic.CompareAndSwapPointer(
 		(*unsafe.Pointer)(unsafe.Pointer(&c.root)), ov, nv)
 }

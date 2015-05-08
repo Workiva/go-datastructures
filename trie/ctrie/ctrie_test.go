@@ -224,6 +224,19 @@ func TestSnapshot(t *testing.T) {
 	}
 	_, ok = ctrie.Lookup([]byte("bat"))
 	assert.False(ok)
+
+	snapshot = ctrie.ReadOnlySnapshot()
+	for i := 0; i < 100; i++ {
+		val, ok := snapshot.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+
+	// Ensure read-only snapshots panic on writes.
+	defer func() {
+		assert.NotNil(recover())
+	}()
+	snapshot.Remove([]byte("blah"))
 }
 
 func BenchmarkInsert(b *testing.B) {
