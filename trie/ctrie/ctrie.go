@@ -61,6 +61,8 @@ type Ctrie struct {
 	hasherPool  *queue.RingBuffer
 }
 
+// generation demarcates Ctrie snapshots. We use a heap-allocated reference
+// instead of an integer to avoid integer overflows.
 type generation struct{}
 
 // iNode is an indirection node. I-nodes remain present in the Ctrie even as
@@ -74,18 +76,25 @@ type iNode struct {
 // copyToGen returns a copy of this I-node copied to the given generation.
 func (i *iNode) copyToGen(gen *generation, ctrie *Ctrie) *iNode {
 	nin := &iNode{gen: gen}
-	main := i.gcasRead(ctrie)
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&nin.main)), unsafe.Pointer(main))
+	main := gcasRead(i, ctrie)
+	atomic.StorePointer(
+		(*unsafe.Pointer)(unsafe.Pointer(&nin.main)), unsafe.Pointer(main))
 	return nin
 }
 
-// mainNode is either a cNode, tNode, or lNode which makes up an I-node.
+// mainNode is either a cNode, tNode, lNode, or failed node which makes up an
+// I-node.
 type mainNode struct {
 	cNode  *cNode
 	tNode  *tNode
 	lNode  *lNode
 	failed *mainNode
-	prev   *mainNode
+
+	// prev is set as a failed main node when we attempt to CAS and the
+	// I-node's generation does not match the root generation. This signals
+	// that the GCAS failed and the I-node's main node must be set back to the
+	// previous value.
+	prev *mainNode
 }
 
 type failedNode struct {
@@ -308,7 +317,7 @@ func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
 func (c *Ctrie) Snapshot() *Ctrie {
 	for {
 		root := c.readRoot()
-		main := root.gcasRead(c)
+		main := gcasRead(root, c)
 		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
 			return newCtrie(root.copyToGen(&generation{}, c), c.hashFactory, c.readOnly)
 		}
@@ -323,7 +332,7 @@ func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
 	}
 	for {
 		root := c.readRoot()
-		main := root.gcasRead(c)
+		main := gcasRead(root, c)
 		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
 			return newCtrie(root.copyToGen(&generation{}, c), c.hashFactory, true)
 		}
@@ -371,9 +380,11 @@ func (c *Ctrie) hash(k []byte) uint32 {
 	return hash
 }
 
+// iinsert attempts to insert the entry into the Ctrie. If false is returned,
+// the operation should be retried.
 func (c *Ctrie) iinsert(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) bool {
 	// Linearization point.
-	main := i.gcasRead(c)
+	main := gcasRead(i, c)
 	switch {
 	case main.cNode != nil:
 		cn := main.cNode
@@ -441,9 +452,13 @@ func (c *Ctrie) iinsert(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 	}
 }
 
+// ilookup attempts to fetch the entry from the Ctrie. The first two return
+// values are the entry value and whether or not the entry was contained in the
+// Ctrie. The last bool indicates if the operation succeeded. False means it
+// should be retried.
 func (c *Ctrie) ilookup(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
 	// Linearization point.
-	main := i.gcasRead(c)
+	main := gcasRead(i, c)
 	switch {
 	case main.cNode != nil:
 		cn := main.cNode
@@ -493,9 +508,13 @@ func (c *Ctrie) ilookup(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 	}
 }
 
+// iremove attempts to remove the entry from the Ctrie. The first two return
+// values are the entry value and whether or not the entry was contained in the
+// Ctrie. The last bool indicates if the operation succeeded. False means it
+// should be retried.
 func (c *Ctrie) iremove(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
 	// Linearization point.
-	main := i.gcasRead(c)
+	main := gcasRead(i, c)
 	switch {
 	case main.cNode != nil:
 		cn := main.cNode
@@ -537,7 +556,7 @@ func (c *Ctrie) iremove(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 			cntr := toContracted(ncn, lev)
 			if gcas(i, main, cntr, c) {
 				if parent != nil {
-					main = i.gcasRead(c)
+					main = gcasRead(i, c)
 					if main.tNode != nil {
 						cleanParent(parent, i, entry.hash, lev-w, c, startGen)
 					}
@@ -615,7 +634,7 @@ func resurrect(iNode *iNode, main *mainNode) branch {
 }
 
 func clean(i *iNode, lev uint, ctrie *Ctrie) bool {
-	main := i.gcasRead(ctrie)
+	main := gcasRead(i, ctrie)
 	if main.cNode != nil {
 		return gcas(i, main, toCompressed(main.cNode, lev), ctrie)
 	}
@@ -674,18 +693,77 @@ func bitCount(x uint32) uint32 {
 // but it does not create the intermediate object except in the case of
 // failures that occur due to the snapshot being taken. This ensures that the
 // write occurs only if the Ctrie root generation has remained the same in
-// addition to the iNode having the expected value.
+// addition to the I-node having the expected value.
 func gcas(in *iNode, old, n *mainNode, ct *Ctrie) bool {
 	prevPtr := (*unsafe.Pointer)(unsafe.Pointer(&n.prev))
 	atomic.StorePointer(prevPtr, unsafe.Pointer(old))
 	if atomic.CompareAndSwapPointer(
-		(*unsafe.Pointer)(unsafe.Pointer(&in.main)), unsafe.Pointer(old), unsafe.Pointer(n)) {
+		(*unsafe.Pointer)(unsafe.Pointer(&in.main)),
+		unsafe.Pointer(old), unsafe.Pointer(n)) {
 		gcasComplete(in, n, ct)
 		return atomic.LoadPointer(prevPtr) == nil
 	}
 	return false
 }
 
+// gcasRead performs a GCAS-linearizable read of the I-node's main node.
+func gcasRead(in *iNode, ctrie *Ctrie) *mainNode {
+	m := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&in.main))))
+	prev := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&m.prev))))
+	if prev == nil {
+		return m
+	}
+	return gcasComplete(in, m, ctrie)
+}
+
+// gcasComplete commits the GCAS operation.
+func gcasComplete(i *iNode, m *mainNode, ctrie *Ctrie) *mainNode {
+	for {
+		if m == nil {
+			return nil
+		}
+		prev := (*mainNode)(atomic.LoadPointer(
+			(*unsafe.Pointer)(unsafe.Pointer(&m.prev))))
+		root := ctrie.rdcssReadRoot(true)
+		if prev == nil {
+			return m
+		}
+
+		if prev.failed != nil {
+			// Signals GCAS failure. Swap old value back into I-node.
+			fn := prev.failed
+			if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main)),
+				unsafe.Pointer(m), unsafe.Pointer(fn.prev)) {
+				return fn.prev
+			}
+			m = (*mainNode)(atomic.LoadPointer(
+				(*unsafe.Pointer)(unsafe.Pointer(&i.main))))
+			continue
+		}
+
+		if root.gen == i.gen && !ctrie.readOnly {
+			// Commit GCAS.
+			if atomic.CompareAndSwapPointer(
+				(*unsafe.Pointer)(unsafe.Pointer(&m.prev)), unsafe.Pointer(prev), nil) {
+				return m
+			}
+			continue
+		}
+
+		// Generations did not match. Store failed node on prev to signal
+		// I-node's main node must be set back to the previous value.
+		atomic.CompareAndSwapPointer(
+			(*unsafe.Pointer)(unsafe.Pointer(&m.prev)),
+			unsafe.Pointer(prev),
+			unsafe.Pointer(&mainNode{failed: prev}))
+		m = (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
+		return gcasComplete(i, m, ctrie)
+	}
+}
+
+// rdcssDescriptor is an intermediate struct which communicates the intent to
+// replace the value in an I-node and check that the root's generation has not
+// changed before committing to the new value.
 type rdcssDescriptor struct {
 	old       *iNode
 	expected  *mainNode
@@ -694,12 +772,32 @@ type rdcssDescriptor struct {
 	token     int8
 }
 
+// HACK: see note in rdcssReadRoot.
 const rdcssToken int8 = -1
 
+// readRoot performs a linearizable read of the Ctrie root. This operation is
+// prioritized so that if another thread performs a GCAS on the root, a
+// deadlock does not occur.
 func (c *Ctrie) readRoot() *iNode {
 	return c.rdcssReadRoot(false)
 }
 
+// rdcssReadRoot performs a RDCSS-linearizable read of the Ctrie root with the
+// given priority.
+func (c *Ctrie) rdcssReadRoot(abort bool) *iNode {
+	r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
+	desc := (*rdcssDescriptor)(r)
+	// This is an awful and unsafe hack. Is there a better way to determine the
+	// type of a pointer?
+	if desc.token == rdcssToken {
+		return c.rdcssComplete(abort)
+	}
+	return (*iNode)(r)
+}
+
+// rdcssRoot performs a RDCSS on the Ctrie root. This is used to create a
+// snapshot of the Ctrie by copying the root I-node and setting it to a new
+// generation.
 func (c *Ctrie) rdcssRoot(old *iNode, expected *mainNode, nv *iNode) bool {
 	desc := &rdcssDescriptor{
 		old:      old,
@@ -715,17 +813,7 @@ func (c *Ctrie) rdcssRoot(old *iNode, expected *mainNode, nv *iNode) bool {
 	return false
 }
 
-func (c *Ctrie) rdcssReadRoot(abort bool) *iNode {
-	r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
-	desc := (*rdcssDescriptor)(r)
-	// This is an awful and unsafe hack. Is there a better way to determine the
-	// type of a pointer?
-	if desc.token == rdcssToken {
-		return c.rdcssComplete(abort)
-	}
-	return (*iNode)(r)
-}
-
+// rdcssComplete commits the RDCSS operation.
 func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 	for {
 		r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
@@ -747,8 +835,9 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 			continue
 		}
 
-		oldeMain := ov.gcasRead(c)
+		oldeMain := gcasRead(ov, c)
 		if oldeMain == exp {
+			// Commit the RDCSS.
 			if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(nv)) {
 				desc.committed = true
 				return nv
@@ -762,56 +851,10 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 	}
 }
 
+// casRoot performs a CAS on the Ctrie root. The given pointers should either
+// be rdcssDescriptors or iNodes.
 func (c *Ctrie) casRoot(ov, nv unsafe.Pointer) bool {
 	c.assertReadWrite()
 	return atomic.CompareAndSwapPointer(
 		(*unsafe.Pointer)(unsafe.Pointer(&c.root)), ov, nv)
-}
-
-func (i *iNode) gcasRead(ctrie *Ctrie) *mainNode {
-	m := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
-	prev := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&m.prev))))
-	if prev == nil {
-		return m
-	}
-	return gcasComplete(i, m, ctrie)
-}
-
-func gcasComplete(i *iNode, m *mainNode, ctrie *Ctrie) *mainNode {
-	for {
-		if m == nil {
-			return nil
-		}
-		prev := (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&m.prev))))
-		root := ctrie.rdcssReadRoot(true)
-		if prev == nil {
-			return m
-		}
-
-		if prev.failed != nil {
-			fn := prev.failed
-			if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main)),
-				unsafe.Pointer(m), unsafe.Pointer(fn.prev)) {
-				return fn.prev
-			}
-			m = (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
-			continue
-		}
-
-		if root.gen == i.gen && !ctrie.readOnly {
-			if atomic.CompareAndSwapPointer(
-				(*unsafe.Pointer)(unsafe.Pointer(&m.prev)), unsafe.Pointer(prev), nil) {
-				return m
-			}
-			continue
-		}
-
-		// Abort.
-		atomic.CompareAndSwapPointer(
-			(*unsafe.Pointer)(unsafe.Pointer(&m.prev)),
-			unsafe.Pointer(prev),
-			unsafe.Pointer(&mainNode{failed: prev}))
-		m = (*mainNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main))))
-		return gcasComplete(i, m, ctrie)
-	}
 }
