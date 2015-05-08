@@ -330,7 +330,7 @@ func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
 		root := c.readRoot()
 		main := gcasRead(root, c)
 		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
-			return newCtrie(root.copyToGen(&generation{}, c), c.hashFactory, true)
+			return newCtrie(root, c.hashFactory, true)
 		}
 	}
 }
