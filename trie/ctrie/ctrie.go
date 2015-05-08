@@ -57,9 +57,10 @@ func defaultHashFactory() hash.Hash32 {
 // Ctrie is a concurrent, lock-free hash trie. By default, keys are hashed
 // using FNV-1a unless a HashFactory is provided to New.
 type Ctrie struct {
-	root       *iNode
-	readOnly   bool
-	hasherPool *queue.RingBuffer
+	root        *iNode
+	readOnly    bool
+	hashFactory HashFactory
+	hasherPool  *queue.RingBuffer
 }
 
 type generation struct{}
@@ -265,12 +266,20 @@ func New(hashFactory HashFactory) *Ctrie {
 		hashFactory = defaultHashFactory
 	}
 	root := &iNode{main: &mainNode{cNode: &cNode{}}}
+	return newCtrie(root, hashFactory, false)
+}
+
+func newCtrie(root *iNode, hashFactory HashFactory, readOnly bool) *Ctrie {
 	hasherPool := queue.NewRingBuffer(hasherPoolSize)
 	for i := 0; i < hasherPoolSize; i++ {
 		hasherPool.Put(hashFactory())
 	}
-
-	return &Ctrie{root: root, hasherPool: hasherPool}
+	return &Ctrie{
+		root:        root,
+		hashFactory: hashFactory,
+		hasherPool:  hasherPool,
+		readOnly:    readOnly,
+	}
 }
 
 // Insert adds the key-value pair to the Ctrie, replacing the existing value if
@@ -293,6 +302,17 @@ func (c *Ctrie) Lookup(key []byte) (interface{}, bool) {
 // removed or false if the entry doesn't exist.
 func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
 	return c.remove(&entry{key: key, hash: c.hash(key)})
+}
+
+// Snapshot returns a stable, point-in-time snapshot of the Ctrie.
+func (c *Ctrie) Snapshot() *Ctrie {
+	for {
+		root := c.readRoot()
+		main := root.gcasRead(c)
+		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
+			return newCtrie(root.copyToGen(&generation{}, c), c.hashFactory, c.readOnly)
+		}
+	}
 }
 
 func (c *Ctrie) insert(entry *entry) {
@@ -646,17 +666,32 @@ func gcas(in *iNode, old, n *mainNode, ct *Ctrie) bool {
 }
 
 type rdcssDescriptor struct {
-	old          *iNode
-	expectedMain *mainNode
-	nv           *iNode
-	committed    bool
-	token        int8
+	old       *iNode
+	expected  *mainNode
+	nv        *iNode
+	committed bool
+	token     int8
 }
 
 const rdcssToken int8 = -1
 
 func (c *Ctrie) readRoot() *iNode {
 	return c.rdcssReadRoot(false)
+}
+
+func (c *Ctrie) rdcssRoot(old *iNode, expected *mainNode, nv *iNode) bool {
+	desc := &rdcssDescriptor{
+		old:      old,
+		expected: expected,
+		nv:       nv,
+		token:    rdcssToken,
+	}
+	if c.casRoot(unsafe.Pointer(old), unsafe.Pointer(desc)) {
+		c.rdcssComplete(false)
+		return *(*bool)(atomic.LoadPointer(
+			(*unsafe.Pointer)(unsafe.Pointer(&desc.committed))))
+	}
+	return false
 }
 
 func (c *Ctrie) rdcssReadRoot(abort bool) *iNode {
@@ -680,12 +715,12 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 
 		var (
 			ov  = desc.old
-			exp = desc.expectedMain
+			exp = desc.expected
 			nv  = desc.nv
 		)
 
 		if abort {
-			if c.casRoot(desc, ov) {
+			if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(ov)) {
 				return ov
 			}
 			continue
@@ -693,27 +728,25 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 
 		oldeMain := ov.gcasRead(c)
 		if oldeMain == exp {
-			if c.casRoot(desc, nv) {
+			if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(nv)) {
 				desc.committed = true
 				return nv
 			}
 			continue
 		}
-		if c.casRoot(desc, ov) {
+		if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(ov)) {
 			return ov
 		}
 		continue
 	}
 }
 
-func (c *Ctrie) casRoot(ov, nv interface{}) bool {
+func (c *Ctrie) casRoot(ov, nv unsafe.Pointer) bool {
 	if c.readOnly {
 		panic("Cannot modify read-only snapshot")
 	}
 	return atomic.CompareAndSwapPointer(
-		(*unsafe.Pointer)(unsafe.Pointer(&c.root)),
-		unsafe.Pointer(ov.(unsafe.Pointer)),
-		unsafe.Pointer(nv.(unsafe.Pointer)))
+		(*unsafe.Pointer)(unsafe.Pointer(&c.root)), ov, nv)
 }
 
 func (i *iNode) gcasRead(ctrie *Ctrie) *mainNode {

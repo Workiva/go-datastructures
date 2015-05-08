@@ -169,6 +169,63 @@ func TestConcurrency(t *testing.T) {
 	wg.Wait()
 }
 
+func TestSnapshot(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	for i := 0; i < 100; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+
+	snapshot := ctrie.Snapshot()
+
+	// Ensure snapshot contains expected keys.
+	for i := 0; i < 100; i++ {
+		val, ok := snapshot.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+
+	for i := 0; i < 100; i++ {
+		ctrie.Remove([]byte(strconv.Itoa(i)))
+	}
+
+	// Ensure snapshot was unaffected by removals.
+	for i := 0; i < 100; i++ {
+		val, ok := snapshot.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+
+	ctrie = New(nil)
+	for i := 0; i < 100; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	snapshot = ctrie.Snapshot()
+
+	// Ensure snapshot is mutable.
+	for i := 0; i < 100; i++ {
+		snapshot.Remove([]byte(strconv.Itoa(i)))
+	}
+	snapshot.Insert([]byte("bat"), "man")
+
+	for i := 0; i < 100; i++ {
+		_, ok := snapshot.Lookup([]byte(strconv.Itoa(i)))
+		assert.False(ok)
+	}
+	val, ok := snapshot.Lookup([]byte("bat"))
+	assert.True(ok)
+	assert.Equal("man", val)
+
+	// Ensure original Ctrie was unaffected.
+	for i := 0; i < 100; i++ {
+		val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+	_, ok = ctrie.Lookup([]byte("bat"))
+	assert.False(ok)
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New(nil)
 	b.ResetTimer()
