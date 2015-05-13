@@ -237,6 +237,20 @@ func TestSnapshot(t *testing.T) {
 		assert.NotNil(recover())
 	}()
 	snapshot.Remove([]byte("blah"))
+
+	// Ensure snapshots-of-snapshots work as expected.
+	snapshot2 := snapshot.Snapshot()
+	for i := 0; i < 100; i++ {
+		val, ok := snapshot2.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+	snapshot2.Remove([]byte("0"))
+	_, ok = snapshot2.Lookup([]byte("0"))
+	assert.False(ok)
+	val, ok = snapshot.Lookup([]byte("0"))
+	assert.True(ok)
+	assert.Equal(0, val)
 }
 
 func BenchmarkInsert(b *testing.B) {
