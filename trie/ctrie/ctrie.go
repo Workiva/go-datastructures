@@ -184,9 +184,9 @@ func (c *cNode) removed(pos, flag uint32, gen *generation) *cNode {
 func (c *cNode) renewed(gen *generation, ctrie *Ctrie) *cNode {
 	array := make([]branch, len(c.array))
 	for i, br := range c.array {
-		switch br.(type) {
+		switch t := br.(type) {
 		case *iNode:
-			array[i] = br.(*iNode).copyToGen(gen, ctrie)
+			array[i] = t.copyToGen(gen, ctrie)
 		default:
 			array[i] = br
 		}
