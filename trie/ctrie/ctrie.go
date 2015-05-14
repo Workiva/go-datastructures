@@ -71,6 +71,11 @@ type generation struct{}
 type iNode struct {
 	main *mainNode
 	gen  *generation
+
+	// rdcss is set during an RDCSS operation. The I-node is actually a wrapper
+	// around the descriptor in this case so that a single type is used during
+	// CAS operations on the root.
+	rdcss *rdcssDescriptor
 }
 
 // copyToGen returns a copy of this I-node copied to the given generation.
@@ -765,11 +770,7 @@ type rdcssDescriptor struct {
 	expected  *mainNode
 	nv        *iNode
 	committed bool
-	token     int8
 }
-
-// HACK: see note in rdcssReadRoot.
-const rdcssToken int8 = -1
 
 // readRoot performs a linearizable read of the Ctrie root. This operation is
 // prioritized so that if another thread performs a GCAS on the root, a
@@ -781,30 +782,27 @@ func (c *Ctrie) readRoot() *iNode {
 // rdcssReadRoot performs a RDCSS-linearizable read of the Ctrie root with the
 // given priority.
 func (c *Ctrie) rdcssReadRoot(abort bool) *iNode {
-	r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
-	desc := (*rdcssDescriptor)(r)
-	// This is an awful and unsafe hack. Is there a better way to determine the
-	// type of a pointer?
-	if desc.token == rdcssToken {
+	r := (*iNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root))))
+	if r.rdcss != nil {
 		return c.rdcssComplete(abort)
 	}
-	return (*iNode)(r)
+	return r
 }
 
 // rdcssRoot performs a RDCSS on the Ctrie root. This is used to create a
 // snapshot of the Ctrie by copying the root I-node and setting it to a new
 // generation.
 func (c *Ctrie) rdcssRoot(old *iNode, expected *mainNode, nv *iNode) bool {
-	desc := &rdcssDescriptor{
-		old:      old,
-		expected: expected,
-		nv:       nv,
-		token:    rdcssToken,
+	desc := &iNode{
+		rdcss: &rdcssDescriptor{
+			old:      old,
+			expected: expected,
+			nv:       nv,
+		},
 	}
-	if c.casRoot(unsafe.Pointer(old), unsafe.Pointer(desc)) {
+	if c.casRoot(old, desc) {
 		c.rdcssComplete(false)
-		return *(*bool)(atomic.LoadPointer(
-			(*unsafe.Pointer)(unsafe.Pointer(&desc.committed))))
+		return desc.rdcss.committed
 	}
 	return false
 }
@@ -812,20 +810,20 @@ func (c *Ctrie) rdcssRoot(old *iNode, expected *mainNode, nv *iNode) bool {
 // rdcssComplete commits the RDCSS operation.
 func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 	for {
-		r := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root)))
-		desc := (*rdcssDescriptor)(r)
-		if desc.token != rdcssToken {
-			return (*iNode)(r)
+		r := (*iNode)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&c.root))))
+		if r.rdcss == nil {
+			return r
 		}
 
 		var (
-			ov  = desc.old
-			exp = desc.expected
-			nv  = desc.nv
+			desc = r.rdcss
+			ov   = desc.old
+			exp  = desc.expected
+			nv   = desc.nv
 		)
 
 		if abort {
-			if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(ov)) {
+			if c.casRoot(r, ov) {
 				return ov
 			}
 			continue
@@ -834,23 +832,22 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 		oldeMain := gcasRead(ov, c)
 		if oldeMain == exp {
 			// Commit the RDCSS.
-			if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(nv)) {
+			if c.casRoot(r, nv) {
 				desc.committed = true
 				return nv
 			}
 			continue
 		}
-		if c.casRoot(unsafe.Pointer(desc), unsafe.Pointer(ov)) {
+		if c.casRoot(r, ov) {
 			return ov
 		}
 		continue
 	}
 }
 
-// casRoot performs a CAS on the Ctrie root. The given pointers should either
-// be rdcssDescriptors or iNodes.
-func (c *Ctrie) casRoot(ov, nv unsafe.Pointer) bool {
+// casRoot performs a CAS on the Ctrie root.
+func (c *Ctrie) casRoot(ov, nv *iNode) bool {
 	c.assertReadWrite()
 	return atomic.CompareAndSwapPointer(
-		(*unsafe.Pointer)(unsafe.Pointer(&c.root)), ov, nv)
+		(*unsafe.Pointer)(unsafe.Pointer(&c.root)), unsafe.Pointer(ov), unsafe.Pointer(nv))
 }
