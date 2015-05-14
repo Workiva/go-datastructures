@@ -642,7 +642,7 @@ func clean(i *iNode, lev uint, ctrie *Ctrie) bool {
 	return true
 }
 
-func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *entry) (interface{}, bool, bool) {
+func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *entry) (val interface{}, exists bool, ok bool) {
 	if !ctrie.readOnly {
 		clean(p, lev-5, ctrie)
 		return nil, false, false
