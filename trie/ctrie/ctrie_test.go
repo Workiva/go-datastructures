@@ -253,6 +253,36 @@ func TestSnapshot(t *testing.T) {
 	assert.Equal(0, val)
 }
 
+func TestIterator(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	expected := map[string]int{
+		"0": 0,
+		"1": 1,
+		"2": 2,
+		"3": 3,
+		"4": 4,
+		"5": 5,
+		"6": 6,
+		"7": 7,
+		"8": 8,
+		"9": 9,
+	}
+
+	count := 0
+	for entry := range ctrie.Iterator() {
+		exp, ok := expected[string(entry.Key)]
+		if assert.True(ok) {
+			assert.Equal(exp, entry.Value)
+		}
+		count++
+	}
+	assert.Equal(len(expected), count)
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New(nil)
 	b.ResetTimer()

@@ -339,7 +339,36 @@ func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
 	}
 }
 
-//func (c *Ctrie) Iterator()
+// Iterator returns a channel which yields the Entries of the Ctrie.
+func (c *Ctrie) Iterator() <-chan *Entry {
+	ch := make(chan *Entry)
+	snapshot := c.ReadOnlySnapshot()
+	go func() {
+		traverse(snapshot.root, ch)
+		close(ch)
+	}()
+	return ch
+}
+
+func traverse(i *iNode, ch chan<- *Entry) {
+	switch {
+	case i.main.cNode != nil:
+		for _, br := range i.main.cNode.array {
+			switch b := br.(type) {
+			case *iNode:
+				traverse(b, ch)
+			case *sNode:
+				ch <- b.Entry
+			}
+		}
+	case i.main.lNode != nil:
+		for _, e := range i.main.lNode.Map(func(sn interface{}) interface{} {
+			return sn.(*sNode).Entry
+		}) {
+			ch <- e.(*Entry)
+		}
+	}
+}
 
 func (c *Ctrie) assertReadWrite() {
 	if c.readOnly {
