@@ -69,6 +69,10 @@ type PersistentList interface {
 	// FindIndex applies the predicate function to the list and returns the
 	// index of the first item which matches or -1 if there is no match.
 	FindIndex(func(interface{}) bool) int
+
+	// Map applies the function to each entry in the list and returns the
+	// resulting slice.
+	Map(func(interface{}) interface{}) []interface{}
 }
 
 type emptyList struct{}
@@ -131,6 +135,12 @@ func (e *emptyList) Find(func(interface{}) bool) (interface{}, bool) {
 // of the first item which matches or -1 if there is no match.
 func (e *emptyList) FindIndex(func(interface{}) bool) int {
 	return -1
+}
+
+// Map applies the function to each entry in the list and returns the resulting
+// slice.
+func (e *emptyList) Map(func(interface{}) interface{}) []interface{} {
+	return nil
 }
 
 type list struct {
@@ -236,4 +246,10 @@ func (l *list) FindIndex(pred func(interface{}) bool) int {
 		curr = tail.(*list)
 		idx += 1
 	}
+}
+
+// Map applies the function to each entry in the list and returns the resulting
+// slice.
+func (l *list) Map(f func(interface{}) interface{}) []interface{} {
+	return append(l.tail.Map(f), f(l.head))
 }
