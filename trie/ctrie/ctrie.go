@@ -350,6 +350,15 @@ func (c *Ctrie) Iterator() <-chan *Entry {
 	return ch
 }
 
+// Size returns the number of keys in the Ctrie.
+func (c *Ctrie) Size() uint {
+	size := uint(0)
+	for _ = range c.Iterator() {
+		size++
+	}
+	return size
+}
+
 func traverse(i *iNode, ch chan<- *Entry) {
 	switch {
 	case i.main.cNode != nil:

@@ -283,6 +283,14 @@ func TestIterator(t *testing.T) {
 	assert.Equal(len(expected), count)
 }
 
+func TestSize(t *testing.T) {
+	ctrie := New(nil)
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	assert.Equal(t, uint(10), ctrie.Size())
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New(nil)
 	b.ResetTimer()
