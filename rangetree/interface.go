@@ -49,13 +49,16 @@ type Interval interface {
 type RangeTree interface {
 	// Add will add the provided entries to the tree.  Any entries that
 	// were overwritten will be returned in the order in which they
-	// were overwritten.  If a cell's addition does not overwrite, a nil
-	// is returned for that cell for its index in the provided cells.
+	// were overwritten.  If an entry's addition does not overwrite, a nil
+	// is returned for that entry's index in the provided cells.
 	Add(entries ...Entry) Entries
 	// Len returns the number of entries in the tree.
 	Len() uint64
 	// Delete will remove the provided entries from the tree.
-	Delete(entries ...Entry)
+	// Any entries that were deleted will be returned in the order in
+	// which they were deleted.  If an entry does not exist to be deleted,
+	// a nil is returned for that entry's index in the provided cells.
+	Delete(entries ...Entry) Entries
 	// Query will return a list of entries that fall within
 	// the provided interval.
 	Query(interval Interval) Entries

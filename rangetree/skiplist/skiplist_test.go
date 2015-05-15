@@ -103,7 +103,8 @@ func TestRTSingleDimensionDelete(t *testing.T) {
 	m2 := newMockEntry(2)
 	rt.Add(m1, m2)
 
-	rt.Delete(m1, m2)
+	deleted := rt.Delete(m1, newMockEntry(10), m2)
+	assert.Equal(t, rangetree.Entries{m1, nil, m2}, deleted)
 	assert.Equal(t, uint64(0), rt.Len())
 	assert.Equal(t, rangetree.Entries{nil, nil}, rt.Get(m1, m2))
 }
@@ -114,7 +115,8 @@ func TestRTMultiDimensionDelete(t *testing.T) {
 	m2 := newMockEntry(4, 6)
 	rt.Add(m1, m2)
 
-	rt.Delete(m1, m2)
+	deleted := rt.Delete(m1, newMockEntry(10, 10), m2)
+	assert.Equal(t, rangetree.Entries{m1, nil, m2}, deleted)
 	assert.Equal(t, uint64(0), rt.Len())
 	assert.Equal(t, rangetree.Entries{nil, nil}, rt.Get(m1, m2))
 }
