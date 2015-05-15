@@ -56,24 +56,26 @@ func (nodes *orderedNodes) add(node *node) *node {
 	return nodes.addAt(i, node)
 }
 
-func (nodes *orderedNodes) deleteAt(i int) {
+func (nodes *orderedNodes) deleteAt(i int) *node {
 	if i >= len(*nodes) { // no matching found
-		return
+		return nil
 	}
 
+	deleted := (*nodes)[i]
 	copy((*nodes)[i:], (*nodes)[i+1:])
 	(*nodes)[len(*nodes)-1] = nil
 	*nodes = (*nodes)[:len(*nodes)-1]
+	return deleted
 }
 
-func (nodes *orderedNodes) delete(value int64) {
+func (nodes *orderedNodes) delete(value int64) *node {
 	i := nodes.search(value)
 
 	if (*nodes)[i].value != value || i == len(*nodes) {
-		return
+		return nil
 	}
 
-	nodes.deleteAt(i)
+	return nodes.deleteAt(i)
 }
 
 func (nodes orderedNodes) apply(low, high int64, fn func(*node) bool) bool {

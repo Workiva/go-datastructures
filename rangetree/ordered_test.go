@@ -28,10 +28,20 @@ func TestOrderedAdd(t *testing.T) {
 	n1 := newNode(4, constructMockEntry(1, 4), false)
 	n2 := newNode(1, constructMockEntry(2, 1), false)
 
-	nodes.add(n1)
-	nodes.add(n2)
+	overwritten := nodes.add(n1)
+	assert.Nil(t, overwritten)
+
+	overwritten = nodes.add(n2)
+	assert.Nil(t, overwritten)
 
 	assert.Equal(t, orderedNodes{n2, n1}, nodes)
+
+	n3 := newNode(4, constructMockEntry(1, 4), false)
+
+	overwritten = nodes.add(n3)
+
+	assert.True(t, n1 == overwritten)
+	assert.Equal(t, orderedNodes{n2, n3}, nodes)
 }
 
 func TestOrderedDelete(t *testing.T) {
@@ -43,13 +53,21 @@ func TestOrderedDelete(t *testing.T) {
 	nodes.add(n1)
 	nodes.add(n2)
 
-	nodes.delete(n2.value)
+	deleted := nodes.delete(n2.value)
 
 	assert.Equal(t, orderedNodes{n1}, nodes)
+	assert.Equal(t, n2, deleted)
 
-	nodes.delete(n1.value)
+	missingValue := int64(3)
+	deleted = nodes.delete(missingValue)
 
-	assert.Len(t, nodes, 0)
+	assert.Equal(t, orderedNodes{n1}, nodes)
+	assert.Nil(t, deleted)
+
+	deleted = nodes.delete(n1.value)
+
+	assert.Empty(t, nodes)
+	assert.Equal(t, n1, deleted)
 }
 
 func TestApply(t *testing.T) {

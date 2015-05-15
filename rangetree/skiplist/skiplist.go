@@ -192,14 +192,15 @@ func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 	panic(`Ran out of dimensions before for loop completed.`)
 }
 
-// Add will add the provided entries to the tree.  Any entries that
-// were overwritten will be returned in the order in which they
-// were overwritten.  If an entry's addition does not overwrite, a nil
-// is returned for that cell for its index in the provided entries.
+// Add will add the provided entries to the tree.  This method
+// returns a list of entries that were overwritten in the order
+// in which entries were received.  If an entry doesn't overwrite
+// anything, a nil will be returned for that entry in the returned
+// slice.
 func (rt *skipListRT) Add(entries ...rangetree.Entry) rangetree.Entries {
-	overwritten := make(rangetree.Entries, 0, len(entries))
-	for _, e := range entries {
-		overwritten = append(overwritten, rt.add(e))
+	overwritten := make(rangetree.Entries, len(entries))
+	for i, e := range entries {
+		overwritten[i] = rt.add(e)
 	}
 
 	return overwritten
@@ -284,10 +285,16 @@ func (rt *skipListRT) delete(entry rangetree.Entry) rangetree.Entry {
 }
 
 // Delete will remove the provided entries from the tree.
-func (rt *skipListRT) Delete(entries ...rangetree.Entry) {
-	for _, e := range entries {
-		rt.delete(e)
+// Any entries that were deleted will be returned in the order in
+// which they were deleted.  If an entry does not exist to be deleted,
+// a nil is returned for that entry's index in the provided cells.
+func (rt *skipListRT) Delete(entries ...rangetree.Entry) rangetree.Entries {
+	deletedEntries := make(rangetree.Entries, len(entries))
+	for i, e := range entries {
+		deletedEntries[i] = rt.delete(e)
 	}
+
+	return deletedEntries
 }
 
 func (rt *skipListRT) apply(sl *skip.SkipList, dimension uint64,
