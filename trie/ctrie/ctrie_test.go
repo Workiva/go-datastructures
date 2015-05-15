@@ -291,6 +291,21 @@ func TestSize(t *testing.T) {
 	assert.Equal(t, uint(10), ctrie.Size())
 }
 
+func TestClear(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	assert.Equal(uint(10), ctrie.Size())
+	snapshot := ctrie.Snapshot()
+
+	ctrie.Clear()
+
+	assert.Equal(uint(0), ctrie.Size())
+	assert.Equal(uint(10), snapshot.Size())
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New(nil)
 	b.ResetTimer()

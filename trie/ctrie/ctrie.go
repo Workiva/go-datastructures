@@ -339,6 +339,21 @@ func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
 	}
 }
 
+// Clear removes all keys from the Ctrie.
+func (c *Ctrie) Clear() {
+	for {
+		root := c.readRoot()
+		gen := &generation{}
+		newRoot := &iNode{
+			main: &mainNode{cNode: &cNode{array: make([]branch, 0), gen: gen}},
+			gen:  gen,
+		}
+		if c.rdcssRoot(root, gcasRead(root, c), newRoot) {
+			return
+		}
+	}
+}
+
 // Iterator returns a channel which yields the Entries of the Ctrie.
 func (c *Ctrie) Iterator() <-chan *Entry {
 	ch := make(chan *Entry)
@@ -352,6 +367,11 @@ func (c *Ctrie) Iterator() <-chan *Entry {
 
 // Size returns the number of keys in the Ctrie.
 func (c *Ctrie) Size() uint {
+	// TODO: The size operation can be optimized further by caching the size
+	// information in main nodes of a read-only Ctrie – this reduces the
+	// amortized complexity of the size operation to O(1) because the size
+	// computation is amortized across the update operations that occurred
+	// since the last snapshot.
 	size := uint(0)
 	for _ = range c.Iterator() {
 		size++
