@@ -25,6 +25,7 @@ package ctrie
 
 import (
 	"bytes"
+	"errors"
 	"hash"
 	"hash/fnv"
 	"sync/atomic"
@@ -354,12 +355,15 @@ func (c *Ctrie) Clear() {
 	}
 }
 
-// Iterator returns a channel which yields the Entries of the Ctrie.
-func (c *Ctrie) Iterator() <-chan *Entry {
+// Iterator returns a channel which yields the Entries of the Ctrie. If a
+// cancel channel is provided, closing it will terminate and close the iterator
+// channel. Note that if a cancel channel is not used and not every entry is
+// read from the iterator, a goroutine will leak.
+func (c *Ctrie) Iterator(cancel <-chan struct{}) <-chan *Entry {
 	ch := make(chan *Entry)
 	snapshot := c.ReadOnlySnapshot()
 	go func() {
-		traverse(snapshot.root, ch)
+		traverse(snapshot.root, ch, cancel)
 		close(ch)
 	}()
 	return ch
@@ -373,30 +377,43 @@ func (c *Ctrie) Size() uint {
 	// computation is amortized across the update operations that occurred
 	// since the last snapshot.
 	size := uint(0)
-	for _ = range c.Iterator() {
+	for _ = range c.Iterator(nil) {
 		size++
 	}
 	return size
 }
 
-func traverse(i *iNode, ch chan<- *Entry) {
+var errCanceled = errors.New("canceled")
+
+func traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) error {
 	switch {
 	case i.main.cNode != nil:
 		for _, br := range i.main.cNode.array {
 			switch b := br.(type) {
 			case *iNode:
-				traverse(b, ch)
+				if err := traverse(b, ch, cancel); err != nil {
+					return err
+				}
 			case *sNode:
-				ch <- b.Entry
+				select {
+				case ch <- b.Entry:
+				case <-cancel:
+					return errCanceled
+				}
 			}
 		}
 	case i.main.lNode != nil:
 		for _, e := range i.main.lNode.Map(func(sn interface{}) interface{} {
 			return sn.(*sNode).Entry
 		}) {
-			ch <- e.(*Entry)
+			select {
+			case ch <- e.(*Entry):
+			case <-cancel:
+				return errCanceled
+			}
 		}
 	}
+	return nil
 }
 
 func (c *Ctrie) assertReadWrite() {

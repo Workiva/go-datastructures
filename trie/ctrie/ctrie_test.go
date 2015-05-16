@@ -273,7 +273,7 @@ func TestIterator(t *testing.T) {
 	}
 
 	count := 0
-	for entry := range ctrie.Iterator() {
+	for entry := range ctrie.Iterator(nil) {
 		exp, ok := expected[string(entry.Key)]
 		if assert.True(ok) {
 			assert.Equal(exp, entry.Value)
@@ -281,6 +281,18 @@ func TestIterator(t *testing.T) {
 		count++
 	}
 	assert.Equal(len(expected), count)
+
+	// Closing cancel channel should close iterator channel.
+	cancel := make(chan struct{})
+	iter := ctrie.Iterator(cancel)
+	entry := <-iter
+	exp, ok := expected[string(entry.Key)]
+	if assert.True(ok) {
+		assert.Equal(exp, entry.Value)
+	}
+	close(cancel)
+	_, ok = <-iter
+	assert.False(ok)
 }
 
 func TestSize(t *testing.T) {
