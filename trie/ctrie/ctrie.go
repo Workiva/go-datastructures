@@ -25,6 +25,7 @@ package ctrie
 
 import (
 	"bytes"
+	"errors"
 	"hash"
 	"hash/fnv"
 	"sync/atomic"
@@ -202,7 +203,7 @@ type tNode struct {
 
 // untombed returns the S-node contained by the T-node.
 func (t *tNode) untombed() *sNode {
-	return &sNode{&entry{key: t.key, hash: t.hash, value: t.value}}
+	return &sNode{&Entry{Key: t.Key, hash: t.hash, Value: t.Value}}
 }
 
 // lNode is a list node which is a leaf node used to handle hashcode
@@ -219,25 +220,25 @@ func (l *lNode) entry() *sNode {
 
 // lookup returns the value at the given entry in the L-node or returns false
 // if it's not contained.
-func (l *lNode) lookup(e *entry) (interface{}, bool) {
+func (l *lNode) lookup(e *Entry) (interface{}, bool) {
 	found, ok := l.Find(func(sn interface{}) bool {
-		return bytes.Equal(e.key, sn.(*sNode).key)
+		return bytes.Equal(e.Key, sn.(*sNode).Key)
 	})
 	if !ok {
 		return nil, false
 	}
-	return found.(*sNode).value, true
+	return found.(*sNode).Value, true
 }
 
 // inserted creates a new L-node with the added entry.
-func (l *lNode) inserted(entry *entry) *lNode {
+func (l *lNode) inserted(entry *Entry) *lNode {
 	return &lNode{l.Add(&sNode{entry})}
 }
 
 // removed creates a new L-node with the entry removed.
-func (l *lNode) removed(e *entry) *lNode {
+func (l *lNode) removed(e *Entry) *lNode {
 	idx := l.FindIndex(func(sn interface{}) bool {
-		return bytes.Equal(e.key, sn.(*sNode).key)
+		return bytes.Equal(e.Key, sn.(*sNode).Key)
 	})
 	if idx < 0 {
 		return l
@@ -254,17 +255,16 @@ func (l *lNode) length() uint {
 // branch is either an iNode or sNode.
 type branch interface{}
 
-// entry contains a Ctrie entry, which is also a technique used to cache the
-// hashcode of the key.
-type entry struct {
-	key   []byte
+// Entry contains a Ctrie key-value pair.
+type Entry struct {
+	Key   []byte
+	Value interface{}
 	hash  uint32
-	value interface{}
 }
 
 // sNode is a singleton node which contains a single key and value.
 type sNode struct {
-	*entry
+	*Entry
 }
 
 // New creates an empty Ctrie which uses the provided HashFactory for key
@@ -294,24 +294,24 @@ func newCtrie(root *iNode, hashFactory HashFactory, readOnly bool) *Ctrie {
 // the key already exists.
 func (c *Ctrie) Insert(key []byte, value interface{}) {
 	c.assertReadWrite()
-	c.insert(&entry{
-		key:   key,
+	c.insert(&Entry{
+		Key:   key,
+		Value: value,
 		hash:  c.hash(key),
-		value: value,
 	})
 }
 
 // Lookup returns the value for the associated key or returns false if the key
 // doesn't exist.
 func (c *Ctrie) Lookup(key []byte) (interface{}, bool) {
-	return c.lookup(&entry{key: key, hash: c.hash(key)})
+	return c.lookup(&Entry{Key: key, hash: c.hash(key)})
 }
 
 // Remove deletes the value for the associated key, returning true if it was
 // removed or false if the entry doesn't exist.
 func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
 	c.assertReadWrite()
-	return c.remove(&entry{key: key, hash: c.hash(key)})
+	return c.remove(&Entry{Key: key, hash: c.hash(key)})
 }
 
 // Snapshot returns a stable, point-in-time snapshot of the Ctrie.
@@ -340,20 +340,96 @@ func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
 	}
 }
 
+// Clear removes all keys from the Ctrie.
+func (c *Ctrie) Clear() {
+	for {
+		root := c.readRoot()
+		gen := &generation{}
+		newRoot := &iNode{
+			main: &mainNode{cNode: &cNode{array: make([]branch, 0), gen: gen}},
+			gen:  gen,
+		}
+		if c.rdcssRoot(root, gcasRead(root, c), newRoot) {
+			return
+		}
+	}
+}
+
+// Iterator returns a channel which yields the Entries of the Ctrie. If a
+// cancel channel is provided, closing it will terminate and close the iterator
+// channel. Note that if a cancel channel is not used and not every entry is
+// read from the iterator, a goroutine will leak.
+func (c *Ctrie) Iterator(cancel <-chan struct{}) <-chan *Entry {
+	ch := make(chan *Entry)
+	snapshot := c.ReadOnlySnapshot()
+	go func() {
+		traverse(snapshot.root, ch, cancel)
+		close(ch)
+	}()
+	return ch
+}
+
+// Size returns the number of keys in the Ctrie.
+func (c *Ctrie) Size() uint {
+	// TODO: The size operation can be optimized further by caching the size
+	// information in main nodes of a read-only Ctrie – this reduces the
+	// amortized complexity of the size operation to O(1) because the size
+	// computation is amortized across the update operations that occurred
+	// since the last snapshot.
+	size := uint(0)
+	for _ = range c.Iterator(nil) {
+		size++
+	}
+	return size
+}
+
+var errCanceled = errors.New("canceled")
+
+func traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) error {
+	switch {
+	case i.main.cNode != nil:
+		for _, br := range i.main.cNode.array {
+			switch b := br.(type) {
+			case *iNode:
+				if err := traverse(b, ch, cancel); err != nil {
+					return err
+				}
+			case *sNode:
+				select {
+				case ch <- b.Entry:
+				case <-cancel:
+					return errCanceled
+				}
+			}
+		}
+	case i.main.lNode != nil:
+		for _, e := range i.main.lNode.Map(func(sn interface{}) interface{} {
+			return sn.(*sNode).Entry
+		}) {
+			select {
+			case ch <- e.(*Entry):
+			case <-cancel:
+				return errCanceled
+			}
+		}
+	}
+	return nil
+}
+
 func (c *Ctrie) assertReadWrite() {
 	if c.readOnly {
 		panic("Cannot modify read-only snapshot")
 	}
 }
 
-func (c *Ctrie) insert(entry *entry) {
+func (c *Ctrie) insert(entry *Entry) {
 	root := c.readRoot()
 	if !c.iinsert(root, entry, 0, nil, root.gen) {
 		c.insert(entry)
 	}
 }
 
-func (c *Ctrie) lookup(entry *entry) (interface{}, bool) {
+func (c *Ctrie) lookup(entry *Entry) (interface{}, bool) {
 	root := c.readRoot()
 	result, exists, ok := c.ilookup(root, entry, 0, nil, root.gen)
 	for !ok {
@@ -362,7 +438,7 @@ func (c *Ctrie) lookup(entry *entry) (interface{}, bool) {
 	return result, exists
 }
 
-func (c *Ctrie) remove(entry *entry) (interface{}, bool) {
+func (c *Ctrie) remove(entry *Entry) (interface{}, bool) {
 	root := c.readRoot()
 	result, exists, ok := c.iremove(root, entry, 0, nil, root.gen)
 	for !ok {
@@ -383,7 +459,7 @@ func (c *Ctrie) hash(k []byte) uint32 {
 
 // iinsert attempts to insert the entry into the Ctrie. If false is returned,
 // the operation should be retried.
-func (c *Ctrie) iinsert(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) bool {
+func (c *Ctrie) iinsert(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) bool {
 	// Linearization point.
 	main := gcasRead(i, c)
 	switch {
@@ -417,7 +493,7 @@ func (c *Ctrie) iinsert(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 			return false
 		case *sNode:
 			sn := branch.(*sNode)
-			if !bytes.Equal(sn.key, entry.key) {
+			if !bytes.Equal(sn.Key, entry.Key) {
 				// If the branch is an S-node and its key is not equal to the
 				// key being inserted, then the Ctrie has to be extended with
 				// an additional level. The C-node is replaced with its updated
@@ -457,7 +533,7 @@ func (c *Ctrie) iinsert(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 // values are the entry value and whether or not the entry was contained in the
 // Ctrie. The last bool indicates if the operation succeeded. False means it
 // should be retried.
-func (c *Ctrie) ilookup(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
+func (c *Ctrie) ilookup(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
 	// Linearization point.
 	main := gcasRead(i, c)
 	switch {
@@ -490,8 +566,8 @@ func (c *Ctrie) ilookup(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 			// equal, the corresponding value from the S-node is
 			// returned and a NOTFOUND value otherwise.
 			sn := branch.(*sNode)
-			if bytes.Equal(sn.key, entry.key) {
-				return sn.value, true, true
+			if bytes.Equal(sn.Key, entry.Key) {
+				return sn.Value, true, true
 			}
 			return nil, false, true
 		default:
@@ -513,7 +589,7 @@ func (c *Ctrie) ilookup(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 // values are the entry value and whether or not the entry was contained in the
 // Ctrie. The last bool indicates if the operation succeeded. False means it
 // should be retried.
-func (c *Ctrie) iremove(i *iNode, entry *entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
+func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
 	// Linearization point.
 	main := gcasRead(i, c)
 	switch {
@@ -543,7 +619,7 @@ func (c *Ctrie) iremove(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 			// If the branch is an S-node, its key is compared against the key
 			// being removed.
 			sn := branch.(*sNode)
-			if !bytes.Equal(sn.key, entry.key) {
+			if !bytes.Equal(sn.Key, entry.Key) {
 				// If the keys are not equal, the NOTFOUND value is returned.
 				return nil, false, true
 			}
@@ -562,7 +638,7 @@ func (c *Ctrie) iremove(i *iNode, entry *entry, lev uint, parent *iNode, startGe
 						cleanParent(parent, i, entry.hash, lev-w, c, startGen)
 					}
 				}
-				return sn.value, true, true
+				return sn.Value, true, true
 			}
 			return nil, false, false
 		default:
@@ -642,13 +718,13 @@ func clean(i *iNode, lev uint, ctrie *Ctrie) bool {
 	return true
 }
 
-func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *entry) (val interface{}, exists bool, ok bool) {
+func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *Entry) (val interface{}, exists bool, ok bool) {
 	if !ctrie.readOnly {
 		clean(p, lev-5, ctrie)
 		return nil, false, false
 	}
-	if tn.hash == entry.hash && bytes.Equal(tn.key, entry.key) {
-		return tn.value, true, true
+	if tn.hash == entry.hash && bytes.Equal(tn.Key, entry.Key) {
+		return tn.Value, true, true
 	}
 	return nil, false, true
 }

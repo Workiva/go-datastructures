@@ -141,6 +141,28 @@ immutable version.  Unfortunately, to make the B-tree generic we require an
 interface and the most expensive operation in CPU profiling is the interface
 method which in turn calls into runtime.assertI2T.  We need generics.
 
+#### Ctrie
+
+A concurrent, lock-free hash array mapped trie with efficient non-blocking
+snapshots. For lookups, Ctries have comparable performance to concurrent skip
+lists and concurrent hashmaps. One key advantage of Ctries is they are
+dynamically allocated. Memory consumption is always proportional to the number
+of keys in the Ctrie, while hashmaps typically have to grow and shrink. Lookups,
+inserts, and removes are O(logn).
+
+One interesting advantage Ctries have over traditional concurrent data
+structures is support for lock-free, linearizable, constant-time snapshots.
+Most concurrent data structures do not support snapshots, instead opting for
+locks or requiring a quiescent state. This allows Ctries to have O(1) iterator
+creation and clear operations and O(logn) size retrieval.
+
+#### Persistent List
+
+A persistent, immutable linked list. All write operations yield a new, updated
+structure which preserve and reuse previous versions. This uses a very
+functional, cons-style of list manipulation. Insert, get, remove, and size
+operations are O(n) as you would expect.
+
 ### Installation
 
  1. Install Go 1.3 or higher.

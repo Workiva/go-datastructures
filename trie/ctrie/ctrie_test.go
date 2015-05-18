@@ -253,6 +253,71 @@ func TestSnapshot(t *testing.T) {
 	assert.Equal(0, val)
 }
 
+func TestIterator(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	expected := map[string]int{
+		"0": 0,
+		"1": 1,
+		"2": 2,
+		"3": 3,
+		"4": 4,
+		"5": 5,
+		"6": 6,
+		"7": 7,
+		"8": 8,
+		"9": 9,
+	}
+
+	count := 0
+	for entry := range ctrie.Iterator(nil) {
+		exp, ok := expected[string(entry.Key)]
+		if assert.True(ok) {
+			assert.Equal(exp, entry.Value)
+		}
+		count++
+	}
+	assert.Equal(len(expected), count)
+
+	// Closing cancel channel should close iterator channel.
+	cancel := make(chan struct{})
+	iter := ctrie.Iterator(cancel)
+	entry := <-iter
+	exp, ok := expected[string(entry.Key)]
+	if assert.True(ok) {
+		assert.Equal(exp, entry.Value)
+	}
+	close(cancel)
+	_, ok = <-iter
+	assert.False(ok)
+}
+
+func TestSize(t *testing.T) {
+	ctrie := New(nil)
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	assert.Equal(t, uint(10), ctrie.Size())
+}
+
+func TestClear(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	for i := 0; i < 10; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+	assert.Equal(uint(10), ctrie.Size())
+	snapshot := ctrie.Snapshot()
+
+	ctrie.Clear()
+
+	assert.Equal(uint(0), ctrie.Size())
+	assert.Equal(uint(10), snapshot.Size())
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New(nil)
 	b.ResetTimer()

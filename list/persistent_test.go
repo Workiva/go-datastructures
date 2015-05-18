@@ -276,3 +276,14 @@ func TestLength(t *testing.T) {
 	l = l.Add("bar").Add("baz")
 	assert.Equal(uint(3), l.Length())
 }
+
+func TestMap(t *testing.T) {
+	assert := assert.New(t)
+	f := func(x interface{}) interface{} {
+		return x.(int) * x.(int)
+	}
+	assert.Nil(Empty.Map(f))
+
+	l := Empty.Add(1).Add(2).Add(3).Add(4)
+	assert.Equal([]interface{}{1, 4, 9, 16}, l.Map(f))
+}
