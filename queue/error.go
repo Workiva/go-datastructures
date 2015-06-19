@@ -18,4 +18,11 @@ package queue
 
 import "errors"
 
-var disposedError = errors.New(`Queue has been disposed.`)
+var (
+	// ErrDisposed is returned when an operation is performed on a disposed
+	// queue.
+	ErrDisposed = errors.New(`Queue has been disposed.`)
+
+	// ErrTimeout is returned when an applicable queue operation times out.
+	ErrTimeout = errors.New(`Poll timed out.`)
+)

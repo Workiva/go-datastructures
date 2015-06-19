@@ -193,7 +193,7 @@ func TestEmptyPriorityGetWithDispose(t *testing.T) {
 
 	wg.Wait()
 
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func TestPriorityGetPutDisposed(t *testing.T) {
@@ -201,10 +201,10 @@ func TestPriorityGetPutDisposed(t *testing.T) {
 	q.Dispose()
 
 	_, err := q.Get(1)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 
 	err = q.Put(mockItem(1))
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func BenchmarkPriorityQueue(b *testing.B) {

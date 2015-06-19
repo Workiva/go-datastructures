@@ -189,7 +189,7 @@ func TestEmptyGetWithDispose(t *testing.T) {
 
 	wg.Wait()
 
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func TestGetPutDisposed(t *testing.T) {
@@ -198,10 +198,10 @@ func TestGetPutDisposed(t *testing.T) {
 	q.Dispose()
 
 	_, err := q.Get(1)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 
 	err = q.Put(`a`)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func BenchmarkQueue(b *testing.B) {
@@ -289,7 +289,7 @@ func TestTakeUntilOnDisposedQueue(t *testing.T) {
 	})
 
 	assert.Nil(t, result)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func TestExecuteInParallel(t *testing.T) {

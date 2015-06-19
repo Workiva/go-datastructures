@@ -78,7 +78,7 @@ func (rb *RingBuffer) Put(item interface{}) error {
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
-			return disposedError
+			return ErrDisposed
 		}
 
 		n = rb.nodes[pos&rb.mask]
@@ -118,7 +118,7 @@ func (rb *RingBuffer) Get() (interface{}, error) {
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
-			return nil, disposedError
+			return nil, ErrDisposed
 		}
 
 		n = rb.nodes[pos&rb.mask]

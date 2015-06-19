@@ -108,7 +108,7 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 	pq.lock.Lock()
 	if pq.disposed {
 		pq.lock.Unlock()
-		return disposedError
+		return ErrDisposed
 	}
 
 	for _, item := range items {
@@ -122,7 +122,7 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 		}
 
 		sema.response.Add(1)
-		sema.wg.Done()
+		sema.ready <- true
 		sema.response.Wait()
 		if len(pq.items) == 0 {
 			break
@@ -145,7 +145,7 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 
 	if pq.disposed {
 		pq.lock.Unlock()
-		return nil, disposedError
+		return nil, ErrDisposed
 	}
 
 	var items []Item
@@ -153,14 +153,13 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 	if len(pq.items) == 0 {
 		sema := newSema()
 		pq.waiters.put(sema)
-		sema.wg.Add(1)
 		pq.lock.Unlock()
 
-		sema.wg.Wait()
+		<-sema.ready
 		pq.disposeLock.Lock()
 		if pq.disposed {
 			pq.disposeLock.Unlock()
-			return nil, disposedError
+			return nil, ErrDisposed
 		}
 		pq.disposeLock.Unlock()
 
@@ -221,7 +220,7 @@ func (pq *PriorityQueue) Dispose() {
 	pq.disposed = true
 	for _, waiter := range pq.waiters {
 		waiter.response.Add(1)
-		waiter.wg.Done()
+		waiter.ready <- true
 	}
 
 	pq.items = nil
