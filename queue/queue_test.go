@@ -399,6 +399,29 @@ func BenchmarkQueueGet(b *testing.B) {
 	}
 }
 
+func BenchmarkQueuePoll(b *testing.B) {
+	numItems := int64(1000)
+
+	qs := make([]*Queue, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		q := New(numItems)
+		for j := int64(0); j < numItems; j++ {
+			q.Put(j)
+		}
+		qs = append(qs, q)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		q := qs[i]
+		for j := int64(0); j < numItems; j++ {
+			q.Poll(1, time.Millisecond)
+		}
+	}
+}
+
 func BenchmarkExecuteInParallel(b *testing.B) {
 	numItems := int64(1000)
 
