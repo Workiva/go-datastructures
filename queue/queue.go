@@ -165,7 +165,6 @@ func (q *Queue) Put(items ...interface{}) error {
 			sema.response.Wait()
 		default:
 			// This semaphore timed out.
-			sema.response.Done()
 		}
 		if len(q.items) == 0 {
 			break
