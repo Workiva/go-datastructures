@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -79,6 +80,44 @@ func TestGet(t *testing.T) {
 	}
 
 	assert.Equal(t, `2`, result[0])
+}
+
+func TestPoll(t *testing.T) {
+	q := New(10)
+
+	q.Put(`test`)
+	result, err := q.Poll(2, 0)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, `test`, result[0])
+	assert.Equal(t, int64(0), q.Len())
+
+	q.Put(`1`)
+	q.Put(`2`)
+
+	result, err = q.Poll(1, time.Millisecond)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, `1`, result[0])
+	assert.Equal(t, int64(1), q.Len())
+
+	result, err = q.Poll(2, time.Millisecond)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Equal(t, `2`, result[0])
+
+	before := time.Now()
+	_, err = q.Poll(1, 5*time.Millisecond)
+	assert.InDelta(t, 5, time.Since(before).Seconds()*1000, 2)
+	assert.Equal(t, ErrTimeout, err)
 }
 
 func TestAddEmptyPut(t *testing.T) {
