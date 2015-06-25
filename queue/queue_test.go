@@ -414,8 +414,7 @@ func BenchmarkQueuePoll(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		q := qs[i]
+	for _, q := range qs {
 		for j := int64(0); j < numItems; j++ {
 			q.Poll(1, time.Millisecond)
 		}
