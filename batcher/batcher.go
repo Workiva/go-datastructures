@@ -90,20 +90,18 @@ func (b *basicBatcher) Get() ([]interface{}, error) {
 		b.lock.RUnlock()
 		return nil, ErrDisposed
 	}
+	b.lock.RUnlock()
 
 	var timeout <-chan time.Time
 	if b.maxTime > 0 {
 		timeout = time.After(b.maxTime)
 	}
-	b.lock.RUnlock()
 
 	select {
-	case items := <-b.batchChan:
-		b.lock.RLock()
-		if b.disposed {
+	case items, ok := <-b.batchChan:
+		if !ok {
 			return nil, ErrDisposed
 		}
-		b.lock.RUnlock()
 		return items, nil
 	case <-timeout:
 		b.lock.Lock()
@@ -125,7 +123,7 @@ func (b *basicBatcher) Dispose() {
 	b.lock.Lock()
 	b.disposed = true
 	b.items = nil
-	b.batchChan = nil
+	close(b.batchChan)
 	b.lock.Unlock()
 }
 
