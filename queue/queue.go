@@ -126,7 +126,7 @@ type sema struct {
 
 func newSema() *sema {
 	return &sema{
-		ready:    make(chan bool),
+		ready:    make(chan bool, 1),
 		response: &sync.WaitGroup{},
 	}
 }
