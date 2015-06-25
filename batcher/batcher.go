@@ -64,9 +64,6 @@ func New(maxTime time.Duration, maxItems, maxBytes, queueLen uint, calculate Cal
 
 // Put adds items to the batcher.
 func (b *basicBatcher) Put(item interface{}) error {
-	// TODO make this non-blocking and drop if batchChan is full?
-	// TODO Should there be a length check here and return an error if that happens without trying to add?
-
 	b.lock.Lock()
 	if b.disposed {
 		b.lock.Unlock()
