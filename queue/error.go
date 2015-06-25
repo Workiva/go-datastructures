@@ -21,8 +21,8 @@ import "errors"
 var (
 	// ErrDisposed is returned when an operation is performed on a disposed
 	// queue.
-	ErrDisposed = errors.New(`Queue has been disposed.`)
+	ErrDisposed = errors.New(`queue: disposed`)
 
 	// ErrTimeout is returned when an applicable queue operation times out.
-	ErrTimeout = errors.New(`Poll timed out.`)
+	ErrTimeout = errors.New(`queue: poll timed out`)
 )
