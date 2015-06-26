@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -79,6 +80,44 @@ func TestGet(t *testing.T) {
 	}
 
 	assert.Equal(t, `2`, result[0])
+}
+
+func TestPoll(t *testing.T) {
+	q := New(10)
+
+	q.Put(`test`)
+	result, err := q.Poll(2, 0)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, `test`, result[0])
+	assert.Equal(t, int64(0), q.Len())
+
+	q.Put(`1`)
+	q.Put(`2`)
+
+	result, err = q.Poll(1, time.Millisecond)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, `1`, result[0])
+	assert.Equal(t, int64(1), q.Len())
+
+	result, err = q.Poll(2, time.Millisecond)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Equal(t, `2`, result[0])
+
+	before := time.Now()
+	_, err = q.Poll(1, 5*time.Millisecond)
+	assert.InDelta(t, 5, time.Since(before).Seconds()*1000, 2)
+	assert.Equal(t, ErrTimeout, err)
 }
 
 func TestAddEmptyPut(t *testing.T) {
@@ -189,7 +228,7 @@ func TestEmptyGetWithDispose(t *testing.T) {
 
 	wg.Wait()
 
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func TestGetPutDisposed(t *testing.T) {
@@ -198,10 +237,10 @@ func TestGetPutDisposed(t *testing.T) {
 	q.Dispose()
 
 	_, err := q.Get(1)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 
 	err = q.Put(`a`)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func BenchmarkQueue(b *testing.B) {
@@ -289,7 +328,7 @@ func TestTakeUntilOnDisposedQueue(t *testing.T) {
 	})
 
 	assert.Nil(t, result)
-	assert.IsType(t, disposedError, err)
+	assert.IsType(t, ErrDisposed, err)
 }
 
 func TestExecuteInParallel(t *testing.T) {
@@ -356,6 +395,28 @@ func BenchmarkQueueGet(b *testing.B) {
 		q := qs[i]
 		for j := int64(0); j < numItems; j++ {
 			q.Get(1)
+		}
+	}
+}
+
+func BenchmarkQueuePoll(b *testing.B) {
+	numItems := int64(1000)
+
+	qs := make([]*Queue, 0, b.N)
+
+	for i := 0; i < b.N; i++ {
+		q := New(numItems)
+		for j := int64(0); j < numItems; j++ {
+			q.Put(j)
+		}
+		qs = append(qs, q)
+	}
+
+	b.ResetTimer()
+
+	for _, q := range qs {
+		for j := int64(0); j < numItems; j++ {
+			q.Poll(1, time.Millisecond)
 		}
 	}
 }
