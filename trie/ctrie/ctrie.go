@@ -26,7 +26,6 @@ package ctrie
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"hash"
 	"hash/fnv"
 	"sync/atomic"
@@ -363,7 +362,6 @@ func (c *Ctrie) Clear() {
 func (c *Ctrie) Iterator(cancel <-chan struct{}) <-chan *Entry {
 	ch := make(chan *Entry)
 	snapshot := c.ReadOnlySnapshot()
-	fmt.Printf("%+v\n", snapshot.root)
 	go func() {
 		traverse(snapshot.root, ch, cancel)
 		close(ch)
