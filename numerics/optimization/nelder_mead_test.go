@@ -139,8 +139,8 @@ func TestNelderMeadConstrainedBadGuess(t *testing.T) {
 	}
 
 	result := NelderMead(config)
-	assert.Equal(t, 0, result[0])
-	assert.Equal(t, 3, result[1])
+	assert.Equal(t, float64(0), result[0])
+	assert.Equal(t, float64(3), result[1])
 }
 
 // Commenting this function out for now as it's entirely

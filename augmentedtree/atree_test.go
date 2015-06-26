@@ -609,8 +609,8 @@ func TestInsertSingleAtDimension(t *testing.T) {
 	assert.Equal(t, ivs[1:], result)
 	checkRedBlack(t, tree.root, 1)
 
-	assert.Equal(t, 0, tree.root.min)
-	assert.Equal(t, 13, tree.root.max)
+	assert.Equal(t, int64(0), tree.root.min)
+	assert.Equal(t, int64(13), tree.root.max)
 }
 
 func TestInsertMultipleAtDimension(t *testing.T) {
@@ -624,8 +624,8 @@ func TestInsertMultipleAtDimension(t *testing.T) {
 	assert.Equal(t, ivs[1:], result)
 	checkRedBlack(t, tree.root, 1)
 
-	assert.Equal(t, 0, tree.root.min)
-	assert.Equal(t, 14, tree.root.max)
+	assert.Equal(t, int64(0), tree.root.min)
+	assert.Equal(t, int64(14), tree.root.max)
 }
 
 func TestInsertAtLowestIndex(t *testing.T) {
@@ -643,8 +643,8 @@ func TestInsertAtLowestIndex(t *testing.T) {
 
 	checkRedBlack(t, tree.root, 1)
 
-	assert.Equal(t, 1, tree.root.min)
-	assert.Equal(t, 13, tree.root.max)
+	assert.Equal(t, int64(1), tree.root.min)
+	assert.Equal(t, int64(13), tree.root.max)
 }
 
 func TestDeleteSingleAtDimension(t *testing.T) {
@@ -662,8 +662,8 @@ func TestDeleteSingleAtDimension(t *testing.T) {
 
 	checkRedBlack(t, tree.root, 1)
 
-	assert.Equal(t, 0, tree.root.min)
-	assert.Equal(t, 11, tree.root.max)
+	assert.Equal(t, int64(0), tree.root.min)
+	assert.Equal(t, int64(11), tree.root.max)
 }
 
 func TestDeleteBelowLowestIndex(t *testing.T) {
@@ -688,8 +688,8 @@ func TestDeleteBelowLowestIndex(t *testing.T) {
 	assert.Equal(t, ivs, result)
 
 	checkRedBlack(t, tree.root, 1)
-	assert.Equal(t, 0, tree.root.min)
-	assert.Equal(t, 12, tree.root.max)
+	assert.Equal(t, int64(0), tree.root.min)
+	assert.Equal(t, int64(12), tree.root.max)
 }
 
 func TestInsertDeletesInterval(t *testing.T) {
@@ -707,8 +707,8 @@ func TestInsertDeletesInterval(t *testing.T) {
 
 	checkRedBlack(t, tree.root, 1)
 	assert.Equal(t, uint64(2), tree.Len())
-	assert.Equal(t, 0, tree.root.min)
-	assert.Equal(t, 2, tree.root.max)
+	assert.Equal(t, int64(0), tree.root.min)
+	assert.Equal(t, int64(2), tree.root.max)
 }
 
 func TestDeleteMiddleOfRange(t *testing.T) {
@@ -719,8 +719,8 @@ func TestDeleteMiddleOfRange(t *testing.T) {
 	assert.Len(t, deleted, 0)
 
 	checkRedBlack(t, tree.root, 1)
-	assert.Equal(t, 0, tree.root.min)
-	assert.Equal(t, 5, tree.root.max)
+	assert.Equal(t, int64(0), tree.root.min)
+	assert.Equal(t, int64(5), tree.root.max)
 }
 
 func BenchmarkInsertPositive(b *testing.B) {

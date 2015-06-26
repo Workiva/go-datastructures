@@ -67,7 +67,7 @@ func TestMaxTime(t *testing.T) {
 
 	before := time.Now()
 	batch, err := b.Get()
-	assert.InDelta(200, time.Since(before).Seconds()*1000, 2)
+	assert.InDelta(200, time.Since(before).Seconds()*1000, 5)
 	assert.True(len(batch) > 0)
 	assert.Nil(err)
 }
