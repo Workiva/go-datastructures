@@ -128,6 +128,27 @@ func TestPutToFull(t *testing.T) {
 	wg.Wait()
 }
 
+func TestOffer(t *testing.T) {
+	rb := NewRingBuffer(2)
+
+	ok, err := rb.Offer("foo")
+	assert.True(t, ok)
+	assert.Nil(t, err)
+	ok, err = rb.Offer("bar")
+	assert.True(t, ok)
+	assert.Nil(t, err)
+	ok, err = rb.Offer("baz")
+	assert.False(t, ok)
+	assert.Nil(t, err)
+
+	item, err := rb.Get()
+	assert.Nil(t, err)
+	assert.Equal(t, "foo", item)
+	item, err = rb.Get()
+	assert.Nil(t, err)
+	assert.Equal(t, "bar", item)
+}
+
 func TestRingGetEmpty(t *testing.T) {
 	rb := NewRingBuffer(3)
 
