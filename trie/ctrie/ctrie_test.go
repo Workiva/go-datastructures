@@ -291,6 +291,7 @@ func TestIterator(t *testing.T) {
 		assert.Equal(exp, entry.Value)
 	}
 	close(cancel)
+	<-iter // Drain anything already put on the channel
 	_, ok = <-iter
 	assert.False(ok)
 }
