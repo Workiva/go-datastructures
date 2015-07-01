@@ -34,8 +34,9 @@ type Batcher interface {
 	// Flush forcibly completes the batch currently being built
 	Flush() error
 
-	// Dispose will dispose of the batcher. Any calls to Put or Get
-	// will return errors.
+	// Dispose will dispose of the batcher. Any calls to Put or Flush
+	// will return ErrDisposed, calls to Get will return an error iff
+	// there are no more ready batches.
 	Dispose()
 
 	// IsDisposed will determine if the batcher is disposed
@@ -145,8 +146,9 @@ func (b *basicBatcher) Flush() error {
 	return nil
 }
 
-// Dispose will dispose of the batcher. Any calls to Put or Get
-// will return errors.
+// Dispose will dispose of the batcher. Any calls to Put or Flush
+// will return ErrDisposed, calls to Get will return an error iff
+// there are no more ready batches.
 func (b *basicBatcher) Dispose() {
 	b.lock.Lock()
 	if b.disposed {
