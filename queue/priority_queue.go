@@ -166,11 +166,13 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 	}
 
 	var items []Item
-	defer func() {
+
+	// Remove references to popped items.
+	deleteItems := func(items []Item) {
 		for _, item := range items {
 			pq.itemMap[item] = false
 		}
-	}()
+	}
 
 	if len(pq.items) == 0 {
 		sema := newSema()
@@ -186,11 +188,13 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 		pq.disposeLock.Unlock()
 
 		items = pq.items.get(number)
+		deleteItems(items)
 		sema.response.Done()
 		return items, nil
 	}
 
 	items = pq.items.get(number)
+	deleteItems(items)
 	pq.lock.Unlock()
 	return items, nil
 }
