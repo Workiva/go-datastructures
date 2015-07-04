@@ -24,10 +24,7 @@ would be easier to solve.
 
 package queue
 
-import (
-	"sort"
-	"sync"
-)
+import "sync"
 
 // Item is an item that can be added to the priority queue.
 type Item interface {
@@ -42,50 +39,66 @@ type Item interface {
 
 type priorityItems []Item
 
+func (items *priorityItems) swap(i, j int) {
+	(*items)[i], (*items)[j] = (*items)[j], (*items)[i]
+}
+
+func (items *priorityItems) pop() Item {
+	size := len(*items)
+
+	// Move last leaf to root, and 'pop' the last item.
+	items.swap(size-1, 0)
+	item := (*items)[size-1] // Item to return.
+	*items = (*items)[:size-1]
+
+	// 'Bubble down' to restore heap property.
+	index := 0
+	childL, childR := 2*index+1, 2*index+2
+	for len(*items) > childL {
+		child := childL
+		if len(*items) > childR && (*items)[childR].Compare((*items)[childL]) < 0 {
+			child = childR
+		}
+
+		if (*items)[child].Compare((*items)[index]) < 0 {
+			items.swap(index, child)
+
+			index = child
+			childL, childR = 2*index+1, 2*index+2
+		} else {
+			break
+		}
+	}
+
+	return item
+}
+
 func (items *priorityItems) get(number int) []Item {
 	returnItems := make([]Item, 0, number)
-	index := 0
 	for i := 0; i < number; i++ {
 		if i >= len(*items) {
 			break
 		}
 
-		returnItems = append(returnItems, (*items)[i])
-		(*items)[i] = nil
-		index++
+		returnItems = append(returnItems, items.pop())
 	}
 
-	*items = (*items)[index:]
 	return returnItems
 }
 
-func (items *priorityItems) insert(item Item) {
-	if len(*items) == 0 {
-		*items = append(*items, item)
-		return
+func (items *priorityItems) push(item Item) {
+	// Stick the item as the end of the last level.
+	*items = append(*items, item)
+
+	// 'Bubble up' to restore heap property.
+	index := len(*items) - 1
+	parent := int((index - 1) / 2)
+	for parent >= 0 && (*items)[parent].Compare(item) > 0 {
+		items.swap(index, parent)
+
+		index = parent
+		parent = int((index - 1) / 2)
 	}
-
-	equalFound := false
-	i := sort.Search(len(*items), func(i int) bool {
-		result := (*items)[i].Compare(item)
-		if result == 0 {
-			equalFound = true
-		}
-		return result >= 0
-	})
-
-	if equalFound {
-		return
-	}
-
-	if i == len(*items) {
-		*items = append(*items, item)
-		return
-	}
-
-	*items = append(*items, nil)
-	copy((*items)[i+1:], (*items)[i:])
-	(*items)[i] = item
 }
 
 // PriorityQueue is similar to queue except that it takes
@@ -94,6 +107,7 @@ func (items *priorityItems) insert(item Item) {
 type PriorityQueue struct {
 	waiters     waiters
 	items       priorityItems
+	itemMap     map[Item]bool
 	lock        sync.Mutex
 	disposeLock sync.Mutex
 	disposed    bool
@@ -112,7 +126,10 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 	}
 
 	for _, item := range items {
-		pq.items.insert(item)
+		if ok := pq.itemMap[item]; !ok {
+			pq.itemMap[item] = true
+			pq.items.push(item)
+		}
 	}
 
 	for {
@@ -149,6 +166,11 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 	}
 
 	var items []Item
+	defer func() {
+		for _, item := range items {
+			pq.itemMap[item] = false
+		}
+	}()
 
 	if len(pq.items) == 0 {
 		sema := newSema()
@@ -230,6 +252,7 @@ func (pq *PriorityQueue) Dispose() {
 // NewPriorityQueue is the constructor for a priority queue.
 func NewPriorityQueue(hint int) *PriorityQueue {
 	return &PriorityQueue{
-		items: make(priorityItems, 0, hint),
+		items:   make(priorityItems, 0, hint),
+		itemMap: make(map[Item]bool, hint),
 	}
 }
