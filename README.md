@@ -43,7 +43,7 @@ slow currently and targeted for an update to a Fibonacci heap.
 Also included in the queue package is a MPMC threadsafe ring buffer. This is a
 block full/empty queue, but will return a blocked thread if the queue is
 disposed while a thread is blocked.  This can be used to synchronize goroutines
-and ensure goroutines quit so objects can be GC'd.  Threadsafety is acheived
+and ensure goroutines quit so objects can be GC'd.  Threadsafety is achieved
 using only CAS operations making this queue quite fast.  Benchmarks can be found
 in that package.
 
@@ -89,7 +89,7 @@ can be found in that package.
 
 An extension of the X-Fast trie in which an X-Fast trie is combined with some
 other ordered data structure to reduce space consumption and improve CRUD types
-of operations.  These secondary structures are often BSTs, but our implemention
+of operations.  These secondary structures are often BSTs, but our implementation
 uses a simple ordered list as I believe this improves cache locality.  We also
 use fixed size buckets to aid in parallelization of operations.  Exact time
 complexities are in that package.
@@ -98,7 +98,7 @@ complexities are in that package.
 
 A datastructure used for checking existence but without knowing the bounds of
 your data.  If you have a limited small bounds, the bitarray package might be a
-better choice.  This implementation uses a fairly simple hashing alogrithm
+better choice.  This implementation uses a fairly simple hashing algorithm
 combined with linear probing and a flat datastructure to provide optimal
 performance up to a few million integers (faster than the native Golang
 implementation).  Beyond that, the native implementation is faster (I believe
@@ -107,7 +107,7 @@ with a B-tree for scale.
 
 #### Skiplist
 
-An ordered structure that provides amoritized logarithmic operations but without
+An ordered structure that provides amortized logarithmic operations but without
 the complication of rotations that are required by BSTs.  In testing, however,
 the performance of the skip list is often far worse than the guaranteed log n
 time of a BBST.  Tall nodes tend to "cast shadows", especially when large
@@ -127,7 +127,7 @@ symmetrical decomposition.
 Early work on some nonlinear optimization problems.  The initial implementation
 allows a simple use case with either linear or nonlinear constraints.  You can
 find min/max or target an optimal value.  The package currently employs a
-probablistic global restart system in an attempt to avoid local critical points.
+probabilistic global restart system in an attempt to avoid local critical points.
 More details can be found in that package.
 
 #### B+ Tree
