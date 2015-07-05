@@ -107,7 +107,7 @@ func (items *priorityItems) push(item Item) {
 type PriorityQueue struct {
 	waiters     waiters
 	items       priorityItems
-	itemMap     map[Item]bool
+	itemMap     map[Item]struct{}
 	lock        sync.Mutex
 	disposeLock sync.Mutex
 	disposed    bool
@@ -126,8 +126,8 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 	}
 
 	for _, item := range items {
-		if ok := pq.itemMap[item]; !ok {
-			pq.itemMap[item] = true
+		if _, ok := pq.itemMap[item]; !ok {
+			pq.itemMap[item] = struct{}{}
 			pq.items.push(item)
 		}
 	}
@@ -170,7 +170,7 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 	// Remove references to popped items.
 	deleteItems := func(items []Item) {
 		for _, item := range items {
-			pq.itemMap[item] = false
+			delete(pq.itemMap, item)
 		}
 	}
 
@@ -257,6 +257,6 @@ func (pq *PriorityQueue) Dispose() {
 func NewPriorityQueue(hint int) *PriorityQueue {
 	return &PriorityQueue{
 		items:   make(priorityItems, 0, hint),
-		itemMap: make(map[Item]bool, hint),
+		itemMap: make(map[Item]struct{}, hint),
 	}
 }
