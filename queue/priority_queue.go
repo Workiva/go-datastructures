@@ -49,7 +49,7 @@ func (items *priorityItems) pop() Item {
 	// Move last leaf to root, and 'pop' the last item.
 	items.swap(size-1, 0)
 	item := (*items)[size-1] // Item to return.
-	*items = (*items)[:size-1]
+	(*items)[size-1], *items = nil, (*items)[:size-1]
 
 	// 'Bubble down' to restore heap property.
 	index := 0
