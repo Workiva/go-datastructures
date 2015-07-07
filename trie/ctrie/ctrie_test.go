@@ -291,7 +291,11 @@ func TestIterator(t *testing.T) {
 		assert.Equal(exp, entry.Value)
 	}
 	close(cancel)
-	<-iter // Drain anything already put on the channel
+	// Drain anything already put on the channel. Since select chooses a
+	// pseudo-random case, we must attempt to drain for every item.
+	for i := 0; i < 10; i++ {
+		<-iter
+	}
 	_, ok = <-iter
 	assert.False(ok)
 }
