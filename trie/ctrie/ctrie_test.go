@@ -119,19 +119,19 @@ func TestInsertTNode(t *testing.T) {
 	assert := assert.New(t)
 	ctrie := New(nil)
 
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 10000; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
 	}
 
-	for i := 0; i < 50000; i++ {
+	for i := 0; i < 5000; i++ {
 		ctrie.Remove([]byte(strconv.Itoa(i)))
 	}
 
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 10000; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
 	}
 
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 10000; i++ {
 		val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
 		assert.True(ok)
 		assert.Equal(i, val)
@@ -145,14 +145,14 @@ func TestConcurrency(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		for i := 0; i < 100000; i++ {
+		for i := 0; i < 10000; i++ {
 			ctrie.Insert([]byte(strconv.Itoa(i)), i)
 		}
 		wg.Done()
 	}()
 
 	go func() {
-		for i := 0; i < 100000; i++ {
+		for i := 0; i < 10000; i++ {
 			val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
 			if ok {
 				assert.Equal(i, val)
@@ -161,7 +161,7 @@ func TestConcurrency(t *testing.T) {
 		wg.Done()
 	}()
 
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 10000; i++ {
 		time.Sleep(5)
 		ctrie.Remove([]byte(strconv.Itoa(i)))
 	}
@@ -291,7 +291,11 @@ func TestIterator(t *testing.T) {
 		assert.Equal(exp, entry.Value)
 	}
 	close(cancel)
-	<-iter // Drain anything already put on the channel
+	// Drain anything already put on the channel. Since select chooses a
+	// pseudo-random case, we must attempt to drain for every item.
+	for _ = range expected {
+		<-iter
+	}
 	_, ok = <-iter
 	assert.False(ok)
 }

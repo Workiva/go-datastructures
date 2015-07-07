@@ -8,5 +8,8 @@ go:
 before_install: go get golang.org/x/tools/cmd/cover
 script: go test -race -cover ./...
 
+env:
+- GOMAXPROCS=8
+
 notifications:
   email: false
