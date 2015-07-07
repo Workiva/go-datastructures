@@ -116,7 +116,9 @@ func TestPoll(t *testing.T) {
 
 	before := time.Now()
 	_, err = q.Poll(1, 5*time.Millisecond)
-	assert.InDelta(t, 5, time.Since(before).Seconds()*1000, 2)
+	// This delta is normally 1-3 ms but running tests in CI with -race causes
+	// this to run much slower. For now, just bump up the threshold.
+	assert.InDelta(t, 5, time.Since(before).Seconds()*1000, 10)
 	assert.Equal(t, ErrTimeout, err)
 }
 
