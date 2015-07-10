@@ -245,3 +245,12 @@ func TestInsertDuplicate(t *testing.T) {
 
 	assert.Equal(t, 1, q.Len())
 }
+
+func TestAllowDuplicates(t *testing.T) {
+	q := NewPriorityQueue(2)
+	q.AllowDuplicates(true)
+	q.Put(mockItem(1))
+	q.Put(mockItem(1))
+
+	assert.Equal(t, 2, q.Len())
+}

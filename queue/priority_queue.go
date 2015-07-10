@@ -105,12 +105,13 @@ func (items *priorityItems) push(item Item) {
 // items that implement the Item interface and adds them
 // to the queue in priority order.
 type PriorityQueue struct {
-	waiters     waiters
-	items       priorityItems
-	itemMap     map[Item]struct{}
-	lock        sync.Mutex
-	disposeLock sync.Mutex
-	disposed    bool
+	waiters         waiters
+	items           priorityItems
+	itemMap         map[Item]struct{}
+	lock            sync.Mutex
+	disposeLock     sync.Mutex
+	disposed        bool
+	allowDuplicates bool
 }
 
 // Put adds items to the queue.
@@ -126,7 +127,9 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 	}
 
 	for _, item := range items {
-		if _, ok := pq.itemMap[item]; !ok {
+		if pq.allowDuplicates {
+			pq.items.push(item)
+		} else if _, ok := pq.itemMap[item]; !ok {
 			pq.itemMap[item] = struct{}{}
 			pq.items.push(item)
 		}
@@ -188,7 +191,9 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 		pq.disposeLock.Unlock()
 
 		items = pq.items.get(number)
-		deleteItems(items)
+		if !pq.allowDuplicates {
+			deleteItems(items)
+		}
 		sema.response.Done()
 		return items, nil
 	}
@@ -251,6 +256,12 @@ func (pq *PriorityQueue) Dispose() {
 
 	pq.items = nil
 	pq.waiters = nil
+}
+
+// AllowDuplicates determines whether the queue supports
+// duplicated items. This setting is false by default.
+func (pq *PriorityQueue) AllowDuplicates(allow bool) {
+	pq.allowDuplicates = allow
 }
 
 // NewPriorityQueue is the constructor for a priority queue.
