@@ -24,7 +24,7 @@ import (
 )
 
 func TestPriorityPut(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 
 	q.Put(mockItem(2))
 
@@ -41,7 +41,7 @@ func TestPriorityPut(t *testing.T) {
 }
 
 func TestPriorityGet(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 
 	q.Put(mockItem(2))
 	result, err := q.Get(2)
@@ -84,7 +84,7 @@ func TestPriorityGet(t *testing.T) {
 }
 
 func TestAddEmptyPriorityPut(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 
 	q.Put()
 
@@ -92,7 +92,7 @@ func TestAddEmptyPriorityPut(t *testing.T) {
 }
 
 func TestPriorityGetNonPositiveNumber(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 
 	q.Put(mockItem(1))
 
@@ -112,7 +112,7 @@ func TestPriorityGetNonPositiveNumber(t *testing.T) {
 }
 
 func TestPriorityEmpty(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 	assert.True(t, q.Empty())
 
 	q.Put(mockItem(1))
@@ -121,7 +121,7 @@ func TestPriorityEmpty(t *testing.T) {
 }
 
 func TestPriorityGetEmpty(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 
 	go func() {
 		q.Put(mockItem(1))
@@ -139,7 +139,7 @@ func TestPriorityGetEmpty(t *testing.T) {
 }
 
 func TestMultiplePriorityGetEmpty(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	results := make([][]Item, 2)
@@ -175,7 +175,7 @@ func TestMultiplePriorityGetEmpty(t *testing.T) {
 }
 
 func TestEmptyPriorityGetWithDispose(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -197,7 +197,7 @@ func TestEmptyPriorityGetWithDispose(t *testing.T) {
 }
 
 func TestPriorityGetPutDisposed(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 	q.Dispose()
 
 	_, err := q.Get(1)
@@ -208,7 +208,7 @@ func TestPriorityGetPutDisposed(t *testing.T) {
 }
 
 func BenchmarkPriorityQueue(b *testing.B) {
-	q := NewPriorityQueue(b.N)
+	q := NewPriorityQueue(b.N, false)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	i := 0
@@ -232,14 +232,14 @@ func BenchmarkPriorityQueue(b *testing.B) {
 }
 
 func TestPriorityPeek(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 	q.Put(mockItem(1))
 
 	assert.Equal(t, mockItem(1), q.Peek())
 }
 
 func TestInsertDuplicate(t *testing.T) {
-	q := NewPriorityQueue(1)
+	q := NewPriorityQueue(1, false)
 	q.Put(mockItem(1))
 	q.Put(mockItem(1))
 
@@ -247,8 +247,7 @@ func TestInsertDuplicate(t *testing.T) {
 }
 
 func TestAllowDuplicates(t *testing.T) {
-	q := NewPriorityQueue(2)
-	q.AllowDuplicates(true)
+	q := NewPriorityQueue(2, true)
 	q.Put(mockItem(1))
 	q.Put(mockItem(1))
 

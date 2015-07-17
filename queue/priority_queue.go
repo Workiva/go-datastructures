@@ -258,16 +258,11 @@ func (pq *PriorityQueue) Dispose() {
 	pq.waiters = nil
 }
 
-// AllowDuplicates determines whether the queue supports
-// duplicated items. This setting is false by default.
-func (pq *PriorityQueue) AllowDuplicates(allow bool) {
-	pq.allowDuplicates = allow
-}
-
 // NewPriorityQueue is the constructor for a priority queue.
-func NewPriorityQueue(hint int) *PriorityQueue {
+func NewPriorityQueue(hint int, allowDuplicates bool) *PriorityQueue {
 	return &PriorityQueue{
-		items:   make(priorityItems, 0, hint),
-		itemMap: make(map[Item]struct{}, hint),
+		items:           make(priorityItems, 0, hint),
+		itemMap:         make(map[Item]struct{}, hint),
+		allowDuplicates: allowDuplicates,
 	}
 }
