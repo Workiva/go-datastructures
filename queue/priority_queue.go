@@ -120,8 +120,9 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 	}
 
 	pq.lock.Lock()
+	defer pq.lock.Unlock()
+
 	if pq.disposed {
-		pq.lock.Unlock()
 		return ErrDisposed
 	}
 
@@ -146,7 +147,6 @@ func (pq *PriorityQueue) Put(items ...Item) error {
 		}
 	}
 
-	pq.lock.Unlock()
 	return nil
 }
 
@@ -180,12 +180,10 @@ func (pq *PriorityQueue) Get(number int) ([]Item, error) {
 		pq.lock.Unlock()
 
 		<-sema.ready
-		pq.disposeLock.Lock()
-		if pq.disposed {
-			pq.disposeLock.Unlock()
+
+		if pq.Disposed() {
 			return nil, ErrDisposed
 		}
-		pq.disposeLock.Unlock()
 
 		items = pq.items.get(number)
 		deleteItems(items)
@@ -228,8 +226,8 @@ func (pq *PriorityQueue) Len() int {
 
 // Disposed returns a bool indicating if this queue has been disposed.
 func (pq *PriorityQueue) Disposed() bool {
-	pq.lock.Lock()
-	defer pq.lock.Unlock()
+	pq.disposeLock.Lock()
+	defer pq.disposeLock.Unlock()
 
 	return pq.disposed
 }
