@@ -210,6 +210,26 @@ func TestMultipleGetEmpty(t *testing.T) {
 	}
 }
 
+func TestDispose(t *testing.T) {
+	// when the queue is empty
+	q := New(10)
+	itemsDisposed := q.Dispose()
+
+	assert.Empty(t, itemsDisposed)
+
+	// when the queue is not empty
+	q = New(10)
+	q.Put(`1`)
+	itemsDisposed = q.Dispose()
+
+	expected := []interface{}{`1`}
+	assert.Equal(t, expected, itemsDisposed)
+
+	// when the queue has been disposed
+	itemsDisposed = q.Dispose()
+	assert.Nil(t, itemsDisposed)
+}
+
 func TestEmptyGetWithDispose(t *testing.T) {
 	q := New(10)
 	var wg sync.WaitGroup
