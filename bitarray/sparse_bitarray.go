@@ -16,11 +16,7 @@ limitations under the License.
 
 package bitarray
 
-import (
-	"encoding/binary"
-	"io"
-	"sort"
-)
+import "sort"
 
 // uintSlice is an alias for a slice of ints.  Len, Swap, and Less
 // are exported to fulfill an interface needed for the search
@@ -112,6 +108,7 @@ type sparseBitArray struct {
 func (sba *sparseBitArray) SetBit(k uint64) error {
 	index, position := getIndexAndRemainder(k)
 	i, inserted := sba.indices.insert(index)
+
 	if inserted {
 		sba.blocks.insert(i)
 	}
@@ -298,67 +295,6 @@ func (sba *sparseBitArray) Intersects(other BitArray) bool {
 
 func (sba *sparseBitArray) IntersectsBetween(other BitArray, start, stop uint64) bool {
 	return true
-}
-
-// WriteSparse serializes the sparseBitArray and passes it to the writer.
-func WriteSparse(w io.Writer, ba *sparseBitArray) error {
-	blocksLen := uint64(len(ba.blocks))
-	indexLen := uint64(len(ba.indices))
-
-	err := binary.Write(w, binary.LittleEndian, blocksLen)
-	if err != nil {
-		return err
-	}
-
-	err = binary.Write(w, binary.LittleEndian, ba.blocks)
-	if err != nil {
-		return err
-	}
-
-	err = binary.Write(w, binary.LittleEndian, indexLen)
-	if err != nil {
-		return err
-	}
-
-	err = binary.Write(w, binary.LittleEndian, ba.indices)
-	return err
-}
-
-// ReadSparse takes a reader of a serialized sparseBitArray created by the
-// WriteSparse function, and returns a sparseBitArray object.
-func ReadSparse(r io.Reader) (*sparseBitArray, error) {
-	ret := &sparseBitArray{}
-
-	var intsToRead uint64
-	err := binary.Read(r, binary.LittleEndian, &intsToRead)
-	if err != nil {
-		return nil, err
-	}
-
-	var nextblock block
-	for i := intsToRead; i > uint64(0); i-- {
-		err = binary.Read(r, binary.LittleEndian, &nextblock)
-		if err != nil {
-			return nil, err
-		}
-		ret.blocks = append(ret.blocks, nextblock)
-	}
-
-	err = binary.Read(r, binary.LittleEndian, &intsToRead)
-	if err != nil {
-		return nil, err
-	}
-
-	var nextuint uint64
-	for i := intsToRead; i > uint64(0); i-- {
-		err = binary.Read(r, binary.LittleEndian, &nextuint)
-		if err != nil {
-			return nil, err
-		}
-		ret.indices = append(ret.indices, nextuint)
-	}
-
-	return ret, nil
 }
 
 func newSparseBitArray() *sparseBitArray {
