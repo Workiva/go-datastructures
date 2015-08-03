@@ -20,6 +20,11 @@ efficient way.  This is *NOT* a threadsafe package.
 */
 package bitarray
 
+import (
+	"encoding/binary"
+	"io"
+)
+
 // bitArray is a struct that maintains state of a bit array.
 type bitArray struct {
 	blocks  []block
@@ -263,6 +268,70 @@ func (ba *bitArray) copy() BitArray {
 		highest: ba.highest,
 		anyset:  ba.anyset,
 	}
+}
+
+// Write serializes the bitArray and its data and sends it to the writer.
+func Write(w io.Writer, ba *bitArray) error {
+	err := binary.Write(w, binary.LittleEndian, ba.lowest)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(w, binary.LittleEndian, ba.highest)
+	if err != nil {
+		return err
+	}
+
+	var encodedanyset uint8
+	if ba.anyset {
+		encodedanyset = 1
+	} else {
+		encodedanyset = 0
+	}
+	err = binary.Write(w, binary.LittleEndian, encodedanyset)
+	if err != nil {
+		return err
+	}
+
+	err = binary.Write(w, binary.LittleEndian, ba.blocks)
+	return err
+}
+
+// Read takes a reader of a serialized bitArray created by the Write function,
+// and returns a bitArray object.
+func Read(r io.Reader) (ret *bitArray, err error) {
+	ret = &bitArray{}
+
+	err = binary.Read(r, binary.LittleEndian, &ret.lowest)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Read(r, binary.LittleEndian, &ret.highest)
+	if err != nil {
+		return nil, err
+	}
+
+	var encodedanyset uint8
+	err = binary.Read(r, binary.LittleEndian, &encodedanyset)
+	if err != nil {
+		return nil, err
+	}
+
+	// anyset defaults to false so we don't need an else statement
+	if encodedanyset == 1 {
+		ret.anyset = true
+	}
+
+	var nextblock block
+	err = binary.Read(r, binary.LittleEndian, &nextblock)
+	for err == nil {
+		ret.blocks = append(ret.blocks, nextblock)
+		err = binary.Read(r, binary.LittleEndian, &nextblock)
+	}
+	if err != io.EOF {
+		return nil, err
+	}
+	return ret, nil
 }
 
 // newBitArray returns a new dense BitArray at the specified size. This is a
