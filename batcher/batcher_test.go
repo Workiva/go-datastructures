@@ -36,11 +36,9 @@ func TestMaxItems(t *testing.T) {
 	})
 	assert.Nil(err)
 
-	go func() {
-		for i := 0; i < 1000; i++ {
-			assert.Nil(b.Put("foo bar baz"))
-		}
-	}()
+	for i := 0; i < 1000; i++ {
+		assert.Nil(b.Put("foo bar baz"))
+	}
 
 	batch, err := b.Get()
 	assert.Len(batch, 100)
@@ -139,32 +137,29 @@ func TestMultiConsumer(t *testing.T) {
 
 func TestDispose(t *testing.T) {
 	assert := assert.New(t)
-	b, err := New(0, 2, 100000, 10, func(str interface{}) uint {
+	b, err := New(1, 2, 100000, 10, func(str interface{}) uint {
 		return uint(len(str.(string)))
 	})
 	assert.Nil(err)
 	b.Put("a")
 	b.Put("b")
 	b.Put("c")
-	wait := make(chan bool)
-	go func() {
-		batch1, err := b.Get()
-		assert.Equal([]interface{}{"a", "b"}, batch1)
-		assert.Nil(err)
-		batch2, err := b.Get()
-		assert.Equal([]interface{}{"c"}, batch2)
-		assert.Nil(err)
-		_, err = b.Get()
-		assert.Equal(ErrDisposed, err)
-		wait <- true
-	}()
+
+	batch1, err := b.Get()
+	assert.Equal([]interface{}{"a", "b"}, batch1)
+	assert.Nil(err)
+	batch2, err := b.Get()
+	assert.Equal([]interface{}{"c"}, batch2)
+	assert.Nil(err)
 
 	b.Dispose()
+
+	_, err = b.Get()
+	assert.Equal(ErrDisposed, err)
 
 	assert.Equal(ErrDisposed, b.Put("d"))
 	assert.Equal(ErrDisposed, b.Flush())
 
-	<-wait
 }
 
 func TestIsDisposed(t *testing.T) {
