@@ -50,3 +50,12 @@ func (m *RangeTree) InsertAtDimension(dimension uint64, index,
 func (m *RangeTree) Apply(interval rangetree.Interval, fn func(rangetree.Entry) bool) {
 	m.Called(interval, fn)
 }
+
+func (m *RangeTree) Get(entries ...rangetree.Entry) rangetree.Entries {
+	ifc := m.Called(entries).Get(0)
+	if ifc == nil {
+		return nil
+	}
+
+	return ifc.(rangetree.Entries)
+}
