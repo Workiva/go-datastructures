@@ -234,6 +234,35 @@ func (irt *immutableRangeTree) Query(interval Interval) Entries {
 	return entries
 }
 
+func (irt *immutableRangeTree) get(entry Entry) Entry {
+	on := irt.top
+	for i := uint64(1); i <= irt.dimensions; i++ {
+		n, _ := on.get(entry.ValueAtDimension(i))
+		if n == nil {
+			return nil
+		}
+		if i == irt.dimensions {
+			return n.entry
+		}
+		on = n.orderedNodes
+	}
+
+	return nil
+}
+
+// Get returns any entries that exist at the addresses provided by the
+// given entries.  Entries are returned in the order in which they are
+// received.  If an entry cannot be found, a nil is returned in its
+// place.
+func (irt *immutableRangeTree) Get(entries ...Entry) Entries {
+	result := make(Entries, 0, len(entries))
+	for _, entry := range entries {
+		result = append(result, irt.get(entry))
+	}
+
+	return result
+}
+
 // Len returns the number of items in this tree.
 func (irt *immutableRangeTree) Len() uint64 {
 	return irt.number

@@ -514,6 +514,16 @@ func TestImmutableInsertInvalidNumber(t *testing.T) {
 	assert.Equal(t, tree, tree1)
 }
 
+func TestImmutableGet(t *testing.T) {
+	tree, entries := constructMultiDimensionalImmutableTree(2)
+
+	result := tree.Get(entries...)
+	assert.Equal(t, entries, result)
+
+	result = tree.Get(constructMockEntry(10000, 5000, 5000))
+	assert.Equal(t, Entries{nil}, result)
+}
+
 func BenchmarkImmutableInsertFirstDimension(b *testing.B) {
 	numItems := int64(100000)
 

@@ -67,6 +67,11 @@ type RangeTree interface {
 	// cancel iteration.  Altering the entry in such a way that its location
 	// changes will result in undefined behavior.
 	Apply(interval Interval, fn func(Entry) bool)
+	// Get returns any entries that exist at the addresses provided by the
+	// given entries.  Entries are returned in the order in which they are
+	// received.  If an entry cannot be found, a nil is returned in its
+	// place.
+	Get(entries ...Entry) Entries
 	// InsertAtDimension will increment items at and above the given index
 	// by the number provided.  Provide a negative number to to decrement.
 	// Returned are two lists.  The first list is a list of entries that
