@@ -120,6 +120,35 @@ func (ot *orderedTree) delete(entry Entry) *node {
 	return node
 }
 
+func (ot *orderedTree) get(entry Entry) Entry {
+	on := ot.top
+	for i := uint64(1); i <= ot.dimensions; i++ {
+		n, _ := on.get(entry.ValueAtDimension(i))
+		if n == nil {
+			return nil
+		}
+		if i == ot.dimensions {
+			return n.entry
+		}
+		on = n.orderedNodes
+	}
+
+	return nil
+}
+
+// Get returns any entries that exist at the addresses provided by the
+// given entries.  Entries are returned in the order in which they are
+// received.  If an entry cannot be found, a nil is returned in its
+// place.
+func (ot *orderedTree) Get(entries ...Entry) Entries {
+	result := make(Entries, 0, len(entries))
+	for _, entry := range entries {
+		result = append(result, ot.get(entry))
+	}
+
+	return result
+}
+
 // Delete will remove the provided entries from the tree.
 // Any entries that were deleted will be returned in the order in
 // which they were deleted.  If an entry does not exist to be deleted,
