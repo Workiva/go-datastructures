@@ -108,6 +108,7 @@ type sparseBitArray struct {
 func (sba *sparseBitArray) SetBit(k uint64) error {
 	index, position := getIndexAndRemainder(k)
 	i, inserted := sba.indices.insert(index)
+
 	if inserted {
 		sba.blocks.insert(i)
 	}
