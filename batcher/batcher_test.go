@@ -145,19 +145,24 @@ func TestDispose(t *testing.T) {
 	b.Put("b")
 	b.Put("c")
 
+	possibleBatches := [][]interface{}{
+		[]interface{}{"a", "b"},
+		[]interface{}{"c"},
+	}
 	batch1, err := b.Get()
-	assert.Equal([]interface{}{"a", "b"}, batch1)
+	assert.Contains(possibleBatches, batch1)
 	assert.Nil(err)
 	batch2, err := b.Get()
-	assert.Equal([]interface{}{"c"}, batch2)
+	assert.Contains(possibleBatches, batch2)
 	assert.Nil(err)
 
+	b.Put("d")
 	b.Dispose()
 
 	_, err = b.Get()
 	assert.Equal(ErrDisposed, err)
 
-	assert.Equal(ErrDisposed, b.Put("d"))
+	assert.Equal(ErrDisposed, b.Put("e"))
 	assert.Equal(ErrDisposed, b.Flush())
 
 }
