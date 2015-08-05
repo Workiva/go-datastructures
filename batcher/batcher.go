@@ -23,6 +23,11 @@ import (
 	"time"
 )
 
+const (
+	batcherActive   = uint32(0)
+	batcherDisposed = uint32(1)
+)
+
 // Batcher provides an API for accumulating items into a batch for processing.
 type Batcher interface {
 	// Put adds items to the batcher.
@@ -55,10 +60,11 @@ type basicBatcher struct {
 	maxItems       uint
 	maxBytes       uint
 	calculateBytes CalculateBytes
-	disposed       bool
+	disposed       uint32
 	items          []interface{}
 	lock           sync.RWMutex
 	batchChan      chan []interface{}
+	disposeChan    chan struct{}
 	availableBytes uint
 	waiting        int32
 }
@@ -82,6 +88,7 @@ func New(maxTime time.Duration, maxItems, maxBytes, queueLen uint, calculate Cal
 		calculateBytes: calculate,
 		items:          make([]interface{}, 0, maxItems),
 		batchChan:      make(chan []interface{}, queueLen),
+		disposeChan:    make(chan struct{}),
 	}, nil
 }
 
@@ -89,12 +96,11 @@ func New(maxTime time.Duration, maxItems, maxBytes, queueLen uint, calculate Cal
 // Get, an unbounded number of go-routines will be generated.
 // Note: there is no order guarantee for items entering/leaving the batcher.
 func (b *basicBatcher) Put(item interface{}) error {
-	b.lock.Lock()
-	if b.disposed {
-		b.lock.Unlock()
+	// Check to see if disposed before putting
+	if b.IsDisposed() {
 		return ErrDisposed
 	}
-
+	b.lock.Lock()
 	b.items = append(b.items, item)
 	if b.calculateBytes != nil {
 		b.availableBytes += b.calculateBytes(item)
@@ -121,18 +127,25 @@ func (b *basicBatcher) Get() ([]interface{}, error) {
 		timeout = time.After(b.maxTime)
 	}
 
+	// Check to see if disposed before blocking
+	if b.IsDisposed() {
+		return nil, ErrDisposed
+	}
+
 	select {
-	case items, ok := <-b.batchChan:
+	case items := <-b.batchChan:
+		return items, nil
+	case _, ok := <-b.disposeChan:
 		if !ok {
 			return nil, ErrDisposed
 		}
-		return items, nil
+		return nil, nil
 	case <-timeout:
-		b.lock.Lock()
-		if b.disposed {
-			b.lock.Unlock()
+		// Check to see if disposed before getting lock
+		if b.IsDisposed() {
 			return nil, ErrDisposed
 		}
+		b.lock.Lock()
 		items := b.items
 		b.items = make([]interface{}, 0, b.maxItems)
 		b.availableBytes = 0
@@ -143,11 +156,10 @@ func (b *basicBatcher) Get() ([]interface{}, error) {
 
 // Flush forcibly completes the batch currently being built
 func (b *basicBatcher) Flush() error {
-	b.lock.Lock()
-	if b.disposed {
-		b.lock.Unlock()
+	if b.IsDisposed() {
 		return ErrDisposed
 	}
+	b.lock.Lock()
 	b.flush()
 	b.lock.Unlock()
 	return nil
@@ -157,14 +169,14 @@ func (b *basicBatcher) Flush() error {
 // will return ErrDisposed, calls to Get will return an error iff
 // there are no more ready batches.
 func (b *basicBatcher) Dispose() {
-	b.lock.Lock()
-	if b.disposed {
-		b.lock.Unlock()
+	// Check to see if disposed before attempting to dispose
+	if atomic.CompareAndSwapUint32(&b.disposed, batcherActive, batcherDisposed) {
 		return
 	}
+	b.lock.Lock()
 	b.flush()
-	b.disposed = true
 	b.items = nil
+	close(b.disposeChan)
 
 	// Drain the batch channel and all routines waiting to put on the channel
 	for len(b.batchChan) > 0 || atomic.LoadInt32(&b.waiting) > 0 {
@@ -176,10 +188,7 @@ func (b *basicBatcher) Dispose() {
 
 // IsDisposed will determine if the batcher is disposed
 func (b *basicBatcher) IsDisposed() bool {
-	b.lock.RLock()
-	disposed := b.disposed
-	b.lock.RUnlock()
-	return disposed
+	return atomic.LoadUint32(&b.disposed) == batcherDisposed
 }
 
 // flush adds the batch currently being built to the queue of completed batches.
