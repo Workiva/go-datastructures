@@ -149,9 +149,15 @@ func TestDispose(t *testing.T) {
 		[]interface{}{"a", "b"},
 		[]interface{}{"c"},
 	}
+
+	// Wait for items to get to the channel
+	for len(b.(*basicBatcher).batchChan) == 0 {
+		time.Sleep(1 * time.Millisecond)
+	}
 	batch1, err := b.Get()
 	assert.Contains(possibleBatches, batch1)
 	assert.Nil(err)
+
 	batch2, err := b.Get()
 	assert.Contains(possibleBatches, batch2)
 	assert.Nil(err)
