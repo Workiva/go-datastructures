@@ -81,6 +81,10 @@ func (b block) and(other block) block {
 	return b & other
 }
 
+func (b block) nand(other block) block {
+	return b &^ other
+}
+
 func (b block) get(position uint64) bool {
 	return b&block(1<<position) != 0
 }
