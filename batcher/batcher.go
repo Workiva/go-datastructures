@@ -167,7 +167,7 @@ func (b *basicBatcher) Dispose() {
 	b.items = nil
 
 	// Drain the batch channel and all routines waiting to put on the channel
-	for atomic.LoadInt32(&b.waiting) > 0 {
+	for len(b.batchChan) > 0 || atomic.LoadInt32(&b.waiting) > 0 {
 		<-b.batchChan
 	}
 	close(b.batchChan)

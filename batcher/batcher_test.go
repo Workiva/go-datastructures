@@ -137,7 +137,7 @@ func TestMultiConsumer(t *testing.T) {
 
 func TestDispose(t *testing.T) {
 	assert := assert.New(t)
-	b, err := New(1, 2, 100000, 10, func(str interface{}) uint {
+	b, err := New(1, 2, 100000, 2, func(str interface{}) uint {
 		return uint(len(str.(string)))
 	})
 	assert.Nil(err)
@@ -157,12 +157,18 @@ func TestDispose(t *testing.T) {
 	assert.Nil(err)
 
 	b.Put("d")
+	b.Put("e")
+	b.Put("f")
+	b.Put("g")
+	b.Put("h")
+	b.Put("i")
+
 	b.Dispose()
 
 	_, err = b.Get()
 	assert.Equal(ErrDisposed, err)
 
-	assert.Equal(ErrDisposed, b.Put("e"))
+	assert.Equal(ErrDisposed, b.Put("j"))
 	assert.Equal(ErrDisposed, b.Flush())
 
 }
