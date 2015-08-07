@@ -232,6 +232,10 @@ func (ba *bitArray) Blocks() Iterator {
 	return newBitArrayIterator(ba)
 }
 
+func (ba *bitArray) IsEmpty() bool {
+	return ba.anyset
+}
+
 // complement flips all bits in this array.
 func (ba *bitArray) complement() {
 	for i := uint64(0); i < uint64(len(ba.blocks)); i++ {

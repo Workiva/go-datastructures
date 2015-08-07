@@ -61,9 +61,14 @@ type BitArray interface {
 	// And will bitwise and the two bitarrays and return a new bitarray
 	// representing the result.
 	And(other BitArray) BitArray
+	// Nand will bitwise nand the two bitarrays and return a new bitarray
+	// representing the result.
+	Nand(other BitArray) BitArray
 	// ToNums converts this bit array to the list of numbers contained
 	// within it.
 	ToNums() []uint64
+	// IsEmpty checks to see if any values are set on the bitarray
+	IsEmpty() bool
 }
 
 // Iterator defines methods used to iterate over a bit array.

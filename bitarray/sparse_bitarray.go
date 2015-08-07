@@ -255,6 +255,12 @@ func (sba *sparseBitArray) Nand(other BitArray) BitArray {
 	return nandSparseWithDenseBitArray(sba, other.(*bitArray))
 }
 
+func (sba *sparseBitArray) IsEmpty() bool {
+	// This works because the and, nand and delete functions only
+	// keep values that have a non-zero block.
+	return len(sba.indices) == 0
+}
+
 func (sba *sparseBitArray) copy() *sparseBitArray {
 	blocks := make(blocks, len(sba.blocks))
 	copy(blocks, sba.blocks)
