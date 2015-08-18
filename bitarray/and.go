@@ -23,6 +23,7 @@ func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
 
 	selfIndex := 0
 	otherIndex := 0
+	var resultBlock block
 
 	// move through the array and compare the blocks if they happen to
 	// intersect
@@ -52,9 +53,12 @@ func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
 		default:
 			// Here, our indices match for both `sba` and `other`.
 			// Time to do the bitwise AND operation and add a block
-			// to our result list.
-			indices = append(indices, selfValue)
-			blocks = append(blocks, sba.blocks[selfIndex].and(other.blocks[otherIndex]))
+			// to our result list if the block has values in it.
+			resultBlock = sba.blocks[selfIndex].and(other.blocks[otherIndex])
+			if resultBlock > 0 {
+				indices = append(indices, selfValue)
+				blocks = append(blocks, resultBlock)
+			}
 			selfIndex++
 			otherIndex++
 		}
@@ -92,7 +96,6 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 			// We're ready to return
 			break
 		}
-
 		ba.blocks[selfIndex] = ba.blocks[selfIndex].and(
 			other.blocks[selfValue])
 	}

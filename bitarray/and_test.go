@@ -43,6 +43,8 @@ func TestAndSparseWithSparseBitArray(t *testing.T) {
 	sba.SetBit(280)
 	other.SetBit(9)
 	other.SetBit(100)
+	sba.SetBit(1000)
+	other.SetBit(1001)
 
 	// bits for which both arrays are set
 	sba.SetBit(1)
@@ -54,15 +56,23 @@ func TestAndSparseWithSparseBitArray(t *testing.T) {
 
 	ba := andSparseWithSparseBitArray(sba, other)
 
+	// Bits in both
 	checkBit(t, ba, 1, true)
 	checkBit(t, ba, 30, true)
 	checkBit(t, ba, 2680, true)
 
+	// Bits in sba but not other
 	checkBit(t, ba, 3, false)
+	checkBit(t, ba, 280, false)
+	checkBit(t, ba, 1000, false)
+
+	// Bits in other but not sba
 	checkBit(t, ba, 9, false)
 	checkBit(t, ba, 100, false)
 	checkBit(t, ba, 2, false)
-	checkBit(t, ba, 280, false)
+
+	nums := ba.ToNums()
+	assert.Equal(t, []uint64{1, 30, 2680}, nums)
 }
 
 func TestAndSparseWithDenseBitArray(t *testing.T) {
@@ -80,14 +90,20 @@ func TestAndSparseWithDenseBitArray(t *testing.T) {
 
 	ba := andSparseWithDenseBitArray(sba, other)
 
+	// Bits in both
 	checkBit(t, ba, 1, true)
 	checkBit(t, ba, 150, true)
-	checkBit(t, ba, 155, false)
-	checkBit(t, ba, 156, false)
 	checkBit(t, ba, 300, true)
+
+	// Bits in sba but not other
+	checkBit(t, ba, 155, false)
+
+	// Bits in other but not sba
+	checkBit(t, ba, 156, false)
+
 }
 
-// Maks sure that the sparse array is trimmed correctly if compared against a
+// Make sure that the sparse array is trimmed correctly if compared against a
 // smaller dense bit array.
 func TestAndSparseWithSmallerDenseBitArray(t *testing.T) {
 	sba := newSparseBitArray()
@@ -106,13 +122,18 @@ func TestAndSparseWithSmallerDenseBitArray(t *testing.T) {
 
 	ba := andSparseWithDenseBitArray(sba, other)
 
+	// Bits in both
 	checkBit(t, ba, 1, true)
 	checkBit(t, ba, 150, true)
+
+	// Bits in sba but not other
 	checkBit(t, ba, 155, false)
-	checkBit(t, ba, 128, false)
 	checkBit(t, ba, 500, false)
 	checkBit(t, ba, 1200, false)
 	checkBit(t, ba, 1500, false)
+
+	// Bits in other but not sba
+	checkBit(t, ba, 128, false)
 }
 
 func TestAndDenseWithDenseBitArray(t *testing.T) {
@@ -148,6 +169,7 @@ func TestAndSparseWithEmptySparse(t *testing.T) {
 	sba.SetBit(5)
 
 	ba := andSparseWithSparseBitArray(sba, other)
+
 	checkBit(t, ba, 0, false)
 	checkBit(t, ba, 5, false)
 	checkBit(t, ba, 100, false)

@@ -157,6 +157,16 @@ func (ba *bitArray) And(other BitArray) BitArray {
 	return andSparseWithDenseBitArray(other.(*sparseBitArray), ba)
 }
 
+// Nand will return the result of doing a bitwise and not of the bit array
+// with the other bit array on each block.
+func (ba *bitArray) Nand(other BitArray) BitArray {
+	if dba, ok := other.(*bitArray); ok {
+		return nandDenseWithDenseBitArray(ba, dba)
+	}
+
+	return nandDenseWithSparseBitArray(ba, other.(*sparseBitArray))
+}
+
 // Reset clears out the bit array.
 func (ba *bitArray) Reset() {
 	for i := uint64(0); i < uint64(len(ba.blocks)); i++ {
@@ -220,6 +230,10 @@ func (ba *bitArray) Intersects(other BitArray) bool {
 // Blocks will return an iterator over this bit array.
 func (ba *bitArray) Blocks() Iterator {
 	return newBitArrayIterator(ba)
+}
+
+func (ba *bitArray) IsEmpty() bool {
+	return ba.anyset
 }
 
 // complement flips all bits in this array.

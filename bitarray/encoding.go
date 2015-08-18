@@ -95,43 +95,64 @@ func (ba *sparseBitArray) Serialize() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
+// This function is a copy from the binary package, with some added error
+// checking to avoid panics. The function will return the value, and the number
+// of bytes read from the buffer. If the number of bytes is negative, then
+// not enough bytes were passed in and the return value will be zero.
+func Uint64FromBytes(b []byte) (uint64, int) {
+	if len(b) < 8 {
+		return 0, -1
+	}
+
+	val := uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+	return val, 8
+}
+
 // Deserialize takes the incoming byte slice, and populates the sparseBitArray
 // with data in the bytes. Note that this will overwrite any capacity
 // specified when creating the sparseBitArray. Also note that if an error
 // is returned, the sparseBitArray this is called on might be populated
 // with partial data.
 func (ret *sparseBitArray) Deserialize(incoming []byte) error {
-	r := bytes.NewReader(incoming[1:]) // Discard identifier
+	var intsize = uint64(s / 8)
+	var curLoc = uint64(1) // Ignore the identifier byte
 
 	var intsToRead uint64
-	err := binary.Read(r, binary.LittleEndian, &intsToRead)
-	if err != nil {
-		return err
+	var bytesRead int
+	intsToRead, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+	if bytesRead < 0 {
+		return errors.New("Invalid data for BitArray")
 	}
+	curLoc += intsize
 
-	var nextblock block
-	for i := intsToRead; i > uint64(0); i-- {
-		err = binary.Read(r, binary.LittleEndian, &nextblock)
-		if err != nil {
-			return err
+	var nextblock uint64
+	ret.blocks = make([]block, intsToRead)
+	for i := uint64(0); i < intsToRead; i++ {
+		nextblock, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+		if bytesRead < 0 {
+			return errors.New("Invalid data for BitArray")
 		}
-		ret.blocks = append(ret.blocks, nextblock)
+		ret.blocks[i] = block(nextblock)
+		curLoc += intsize
 	}
 
-	err = binary.Read(r, binary.LittleEndian, &intsToRead)
-	if err != nil {
-		return err
+	intsToRead, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+	if bytesRead < 0 {
+		return errors.New("Invalid data for BitArray")
 	}
+	curLoc += intsize
 
 	var nextuint uint64
-	for i := intsToRead; i > uint64(0); i-- {
-		err = binary.Read(r, binary.LittleEndian, &nextuint)
-		if err != nil {
-			return err
+	ret.indices = make(uintSlice, intsToRead)
+	for i := uint64(0); i < intsToRead; i++ {
+		nextuint, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+		if bytesRead < 0 {
+			return errors.New("Invalid data for BitArray")
 		}
-		ret.indices = append(ret.indices, nextuint)
+		ret.indices[i] = nextuint
+		curLoc += intsize
 	}
-
 	return nil
 }
 
