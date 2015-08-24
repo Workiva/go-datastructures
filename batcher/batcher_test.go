@@ -145,29 +145,17 @@ func TestDispose(t *testing.T) {
 	b.Put("b")
 	b.Put("c")
 
-	possibleBatches := [][]interface{}{
-		[]interface{}{"a", "b"},
-		[]interface{}{"c"},
-	}
-
-	// Wait for items to get to the channel
-	for len(b.(*basicBatcher).batchChan) == 0 {
-		time.Sleep(1 * time.Millisecond)
-	}
 	batch1, err := b.Get()
-	assert.Contains(possibleBatches, batch1)
+	assert.Equal([]interface{}{"a", "b"}, batch1)
 	assert.Nil(err)
 
 	batch2, err := b.Get()
-	assert.Contains(possibleBatches, batch2)
+	assert.Equal([]interface{}{"c"}, batch2)
 	assert.Nil(err)
 
 	b.Put("d")
 	b.Put("e")
 	b.Put("f")
-	b.Put("g")
-	b.Put("h")
-	b.Put("i")
 
 	b.Dispose()
 
