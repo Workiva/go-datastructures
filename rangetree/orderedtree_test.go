@@ -43,7 +43,7 @@ func TestOTRootAddMultipleDimensions(t *testing.T) {
 
 	assert.Equal(t, uint64(1), tree.Len())
 
-	result := tree.Query(constructMockInterval(dimension{0, 1}, dimension{0, 1}))
+	result := tree.Query(constructMockInterval(dimension{0, 0}, dimension{0, 0}))
 	assert.Equal(t, Entries{entries[0]}, result)
 }
 
@@ -52,7 +52,7 @@ func TestOTMultipleAddMultipleDimensions(t *testing.T) {
 
 	assert.Equal(t, uint64(4), tree.Len())
 
-	result := tree.Query(constructMockInterval(dimension{0, 1}, dimension{0, 1}))
+	result := tree.Query(constructMockInterval(dimension{0, 0}, dimension{0, 0}))
 	assert.Equal(t, Entries{entries[0]}, result)
 
 	result = tree.Query(constructMockInterval(dimension{3, 4}, dimension{3, 4}))
@@ -61,7 +61,7 @@ func TestOTMultipleAddMultipleDimensions(t *testing.T) {
 	result = tree.Query(constructMockInterval(dimension{0, 4}, dimension{0, 4}))
 	assert.Equal(t, entries, result)
 
-	result = tree.Query(constructMockInterval(dimension{1, 3}, dimension{1, 3}))
+	result = tree.Query(constructMockInterval(dimension{1, 2}, dimension{1, 2}))
 	assert.Equal(t, Entries{entries[1], entries[2]}, result)
 
 	result = tree.Query(constructMockInterval(dimension{0, 2}, dimension{10, 20}))
@@ -70,10 +70,10 @@ func TestOTMultipleAddMultipleDimensions(t *testing.T) {
 	result = tree.Query(constructMockInterval(dimension{10, 20}, dimension{0, 2}))
 	assert.Len(t, result, 0)
 
-	result = tree.Query(constructMockInterval(dimension{0, 2}, dimension{0, 1}))
+	result = tree.Query(constructMockInterval(dimension{0, 1}, dimension{0, 0}))
 	assert.Equal(t, Entries{entries[0]}, result)
 
-	result = tree.Query(constructMockInterval(dimension{0, 1}, dimension{0, 2}))
+	result = tree.Query(constructMockInterval(dimension{0, 0}, dimension{0, 1}))
 	assert.Equal(t, Entries{entries[0]}, result)
 }
 
@@ -218,7 +218,7 @@ func TestOTDeleteMultiDimensions(t *testing.T) {
 	result = tree.Query(constructMockInterval(dimension{3, 4}, dimension{3, 4}))
 	assert.Equal(t, Entries{entries[3]}, result)
 
-	result = tree.Query(constructMockInterval(dimension{0, 3}, dimension{0, 3}))
+	result = tree.Query(constructMockInterval(dimension{0, 2}, dimension{0, 2}))
 	assert.Equal(t, Entries{entries[0], entries[1]}, result)
 }
 
