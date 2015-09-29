@@ -222,6 +222,14 @@ func (q *Queue) Poll(number int64, timeout time.Duration) ([]interface{}, error)
 			sema.response.Done()
 			return items, nil
 		case <-timeoutC:
+			// cleanup the sema that was added to waiters
+			select {
+			case sema.ready <- true:
+				// we called this before Put() could
+			default:
+				// Put() got it already, we need to call Done() so Put() can move on
+				sema.response.Done()
+			}
 			return nil, ErrTimeout
 		}
 	}
