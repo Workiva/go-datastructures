@@ -85,6 +85,9 @@ func TestGet(t *testing.T) {
 func TestPoll(t *testing.T) {
 	q := New(10)
 
+	// should be able to Poll() before anything is present, without breaking future Puts
+	q.Poll(1, time.Millisecond)
+
 	q.Put(`test`)
 	result, err := q.Poll(2, 0)
 	if !assert.Nil(t, err) {
