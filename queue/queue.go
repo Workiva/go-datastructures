@@ -294,7 +294,12 @@ func (q *Queue) Dispose() []interface{} {
 	q.disposed = true
 	for _, waiter := range q.waiters {
 		waiter.response.Add(1)
-		waiter.ready <- true
+		select {
+		case waiter.ready <- true:
+			// release Poll immediately
+		default:
+			// ignore if it's a timeout or in the get
+		}
 	}
 
 	disposedItems := q.items

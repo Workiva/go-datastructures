@@ -256,6 +256,19 @@ func TestEmptyGetWithDispose(t *testing.T) {
 	assert.IsType(t, ErrDisposed, err)
 }
 
+func TestDisposeAfterEmptyPoll(t *testing.T) {
+	q := New(10)
+
+	_, err := q.Poll(1, time.Millisecond)
+	assert.IsType(t, ErrTimeout, err)
+
+	// it should not hang
+	q.Dispose()
+
+	_, err = q.Poll(1, time.Millisecond)
+	assert.IsType(t, ErrDisposed, err)
+}
+
 func TestGetPutDisposed(t *testing.T) {
 	q := New(10)
 
