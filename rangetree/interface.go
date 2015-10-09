@@ -35,7 +35,8 @@ type Entry interface {
 	ValueAtDimension(dimension uint64) int64
 }
 
-// Interval describes the methods required to query the rangetree.
+// Interval describes the methods required to query the rangetree.  Note that
+// all ranges are inclusive.
 type Interval interface {
 	// LowAtDimension returns an integer representing the lower bound
 	// at the requested dimension.
@@ -60,7 +61,7 @@ type RangeTree interface {
 	// a nil is returned for that entry's index in the provided cells.
 	Delete(entries ...Entry) Entries
 	// Query will return a list of entries that fall within
-	// the provided interval.
+	// the provided interval.  The values at dimensions are inclusive.
 	Query(interval Interval) Entries
 	// Apply will call the provided function with each entry that exists
 	// within the provided range, in order.  Return false at any time to

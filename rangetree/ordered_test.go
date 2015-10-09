@@ -81,7 +81,7 @@ func TestApply(t *testing.T) {
 
 	results := make(nodes, 0, 2)
 
-	ns.apply(1, 2, func(n *node) bool {
+	ns.apply(1, 1, func(n *node) bool {
 		results = append(results, n)
 		return true
 	})
@@ -90,7 +90,7 @@ func TestApply(t *testing.T) {
 
 	results = results[:0]
 
-	ns.apply(0, 1, func(n *node) bool {
+	ns.apply(0, 0, func(n *node) bool {
 		results = append(results, n)
 		return true
 	})
@@ -98,7 +98,7 @@ func TestApply(t *testing.T) {
 	assert.Len(t, results, 0)
 	results = results[:0]
 
-	ns.apply(2, 4, func(n *node) bool {
+	ns.apply(2, 3, func(n *node) bool {
 		results = append(results, n)
 		return true
 	})

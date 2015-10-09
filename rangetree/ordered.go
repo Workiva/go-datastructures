@@ -85,7 +85,7 @@ func (nodes orderedNodes) apply(low, high int64, fn func(*node) bool) bool {
 	}
 
 	for ; index < len(nodes); index++ {
-		if nodes[index].value >= high {
+		if nodes[index].value > high {
 			break
 		}
 
