@@ -35,7 +35,8 @@ type Entry interface {
 	ValueAtDimension(dimension uint64) int64
 }
 
-// Interval describes the methods required to query the rangetree.
+// Interval describes the methods required to query the rangetree.  Note that
+// all ranges are inclusive.
 type Interval interface {
 	// LowAtDimension returns an integer representing the lower bound
 	// at the requested dimension.
