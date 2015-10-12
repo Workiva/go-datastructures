@@ -6,12 +6,11 @@ go:
   - tip
 
 before_install: go get golang.org/x/tools/cmd/cover
-script: 
-  - export GORACE="halt_on_error=1"
-  - go test -race -v -cover ./...
+script: go test -race -v -cover ./...
 
 env:
 - GOMAXPROCS=8
+- GORACE="halt_on_error=1"
 
 notifications:
   email: false
