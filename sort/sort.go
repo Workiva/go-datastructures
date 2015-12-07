@@ -70,3 +70,22 @@ func chunk(comparators Comparators, numParts int64) []Comparators {
 	}
 	return parts
 }
+
+func returnInts() []int {
+	numCalls := 10
+	var wg sync.WaitGroup
+	wg.Add(numCalls)
+	ints := make([]int, numCalls)
+
+	for i := 0; i < numCalls; i++ {
+		go func(i int) {
+			result := someRandomDatastoreCall()
+			ints[i] = result
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+
+	return ints
+}

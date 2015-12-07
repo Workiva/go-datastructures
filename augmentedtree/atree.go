@@ -37,7 +37,7 @@ func intervalOverlaps(n *node, low, high int64, interval Interval, maxDimension 
 }
 
 func overlaps(high, otherHigh, low, otherLow int64) bool {
-	return high > otherLow && low < otherHigh
+	return high >= otherLow && low <= otherHigh
 }
 
 // compare returns an int indicating which direction the node
