@@ -498,7 +498,7 @@ func TestInsertPositiveMultipleDimensions(t *testing.T) {
 func TestInsertNegativeMultipleDimensions(t *testing.T) {
 	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
 
-	modified, deleted := it.Insert(2, 4, -1)
+	modified, deleted := it.Insert(2, 4, -2)
 	assert.Equal(t, Intervals{iv1, iv3}, modified)
 	assert.Equal(t, Intervals{iv2}, deleted)
 

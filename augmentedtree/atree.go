@@ -16,7 +16,10 @@ limitations under the License.
 
 package augmentedtree
 
-import "math"
+import (
+	"log"
+	"math"
+)
 
 func intervalOverlaps(n *node, low, high int64, interval Interval, maxDimension uint64) bool {
 	if !overlaps(n.high, high, n.low, low) {
@@ -306,7 +309,7 @@ func insertInterval(dimension uint64, interval Interval, index, count int64) int
 		return 1
 	}
 
-	if index <= low && count*-1 >= high-index {
+	if index <= low && low-index+high+count < low {
 		return -1
 	}
 
@@ -331,6 +334,7 @@ func (tree *tree) Insert(dimension uint64,
 	modified, deleted := intervalsPool.Get().(Intervals), intervalsPool.Get().(Intervals)
 
 	tree.root.query(math.MinInt64, math.MaxInt64, nil, tree.maxDimension, func(n *node) {
+		log.Printf(`N: %+v`, n)
 		if dimension > 1 {
 			action := insertInterval(dimension, n.interval, index, count)
 			switch action {
@@ -348,6 +352,10 @@ func (tree *tree) Insert(dimension uint64,
 
 		needsDeletion := false
 
+		if n.low >= index && n.low-index+n.high+count < n.low {
+			needsDeletion = true
+		}
+
 		n.max += count
 		if n.min >= index {
 			n.min += count
@@ -358,15 +366,13 @@ func (tree *tree) Insert(dimension uint64,
 			if n.low < index {
 				n.low = index
 			}
-			//mod = true
 		}
+
+		log.Printf(`N before check: %+v`, n)
 
 		//mod := false
 		if n.high > index {
 			n.high += count
-			if n.high < n.low {
-				needsDeletion = true
-			}
 			if n.high < index {
 				n.high = index
 			}
