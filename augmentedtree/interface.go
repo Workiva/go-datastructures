@@ -32,7 +32,10 @@ range handling.
 package augmentedtree
 
 // Interval is the interface that must be implemented by any
-// item added to the interval tree.
+// item added to the interval tree.  This interface is similar to the
+// interval found in the rangetree package and it should be possible
+// for the same struct to implement both interfaces.  Note that ranges
+// here are inclusive.
 type Interval interface {
 	// LowAtDimension returns an integer representing the lower bound
 	// at the requested dimension.
