@@ -364,7 +364,6 @@ func (tree *tree) Insert(dimension uint64,
 			}
 		}
 
-		//mod := false
 		if n.high > index {
 			n.high += count
 			if n.high < index {
