@@ -140,10 +140,9 @@ func TestInsertAtMax(t *testing.T) {
 	assert.Empty(t, deleted)
 	assert.Len(t, modified, 1)
 
-	/*
-		modified, deleted = it.Insert(2, 0, 1)
-		assert.Empty(t, deleted)
-		assert.Len(t, modified, 1)*/
+	modified, deleted = it.Insert(2, 0, 1)
+	assert.Empty(t, deleted)
+	assert.Len(t, modified, 1)
 }
 
 func TestAddRebalanceReverseOrderMultiDimensions(t *testing.T) {
