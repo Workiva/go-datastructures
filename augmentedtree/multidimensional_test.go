@@ -130,6 +130,21 @@ func TestAddRebalanceInOrderMultiDimensions(t *testing.T) {
 	assert.Equal(t, uint64(10), it.Len())
 }
 
+func TestInsertAtMax(t *testing.T) {
+	it := newTree(2)
+	iv := constructMultiDimensionInterval(0, &dimension{0, 0}, &dimension{0, 0})
+
+	it.Add(iv)
+
+	modified, deleted := it.Insert(1, 0, 1)
+	assert.Empty(t, deleted)
+	assert.Len(t, modified, 1)
+
+	modified, deleted = it.Insert(2, 0, 1)
+	assert.Empty(t, deleted)
+	assert.Len(t, modified, 1)
+}
+
 func TestAddRebalanceReverseOrderMultiDimensions(t *testing.T) {
 	it := newTree(2)
 
@@ -482,7 +497,7 @@ func TestInsertPositiveMultipleDimensions(t *testing.T) {
 func TestInsertNegativeMultipleDimensions(t *testing.T) {
 	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
 
-	modified, deleted := it.Insert(2, 4, -1)
+	modified, deleted := it.Insert(2, 4, -2)
 	assert.Equal(t, Intervals{iv1, iv3}, modified)
 	assert.Equal(t, Intervals{iv2}, deleted)
 

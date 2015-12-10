@@ -305,7 +305,7 @@ func constructSingleDimensionQueryTestTree() (
 
 	it := newTree(1)
 
-	iv1 := constructSingleDimensionInterval(5, 10, 0)
+	iv1 := constructSingleDimensionInterval(6, 10, 0)
 	it.Add(iv1)
 
 	iv2 := constructSingleDimensionInterval(4, 5, 1)
@@ -329,7 +329,7 @@ func TestSimpleQuery(t *testing.T) {
 func TestRightQuery(t *testing.T) {
 	it, iv1, _, iv3 := constructSingleDimensionQueryTestTree()
 
-	result := it.Query(constructSingleDimensionInterval(5, 8, 0))
+	result := it.Query(constructSingleDimensionInterval(6, 8, 0))
 
 	expected := Intervals{iv1, iv3}
 	assert.Equal(t, expected, result)
@@ -356,7 +356,7 @@ func TestMatchingQuery(t *testing.T) {
 func TestNoMatchLeft(t *testing.T) {
 	it, _, _, _ := constructSingleDimensionQueryTestTree()
 
-	result := it.Query(constructSingleDimensionInterval(1, 4, 0))
+	result := it.Query(constructSingleDimensionInterval(1, 3, 0))
 
 	expected := Intervals{}
 	assert.Equal(t, expected, result)
@@ -365,7 +365,7 @@ func TestNoMatchLeft(t *testing.T) {
 func TestNoMatchRight(t *testing.T) {
 	it, _, _, _ := constructSingleDimensionQueryTestTree()
 
-	result := it.Query(constructSingleDimensionInterval(12, 13, 0))
+	result := it.Query(constructSingleDimensionInterval(13, 13, 0))
 
 	expected := Intervals{}
 	assert.Equal(t, expected, result)
@@ -601,11 +601,11 @@ func TestAddDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
 func TestInsertSingleAtDimension(t *testing.T) {
 	tree, ivs := constructSingleDimensionTestTree(3)
 
-	modified, deleted := tree.Insert(1, 10, 1)
+	modified, deleted := tree.Insert(1, 11, 1)
 	assert.Len(t, deleted, 0)
 	assert.Equal(t, ivs[1:], modified)
 
-	result := tree.Query(constructSingleDimensionInterval(10, 20, 0))
+	result := tree.Query(constructSingleDimensionInterval(11, 20, 0))
 	assert.Equal(t, ivs[1:], result)
 	checkRedBlack(t, tree.root, 1)
 
@@ -616,7 +616,7 @@ func TestInsertSingleAtDimension(t *testing.T) {
 func TestInsertMultipleAtDimension(t *testing.T) {
 	tree, ivs := constructSingleDimensionTestTree(3)
 
-	modified, deleted := tree.Insert(1, 10, 2)
+	modified, deleted := tree.Insert(1, 11, 2)
 	assert.Len(t, deleted, 0)
 	assert.Equal(t, ivs[1:], modified)
 
@@ -635,7 +635,7 @@ func TestInsertAtLowestIndex(t *testing.T) {
 	assert.Equal(t, ivs[0:], modified)
 	assert.Len(t, deleted, 0)
 
-	result := tree.Query(constructSingleDimensionInterval(0, 1, 0))
+	result := tree.Query(constructSingleDimensionInterval(0, 0, 0))
 	assert.Len(t, result, 0)
 
 	result = tree.Query(constructSingleDimensionInterval(1, 4, 0))
@@ -650,12 +650,12 @@ func TestInsertAtLowestIndex(t *testing.T) {
 func TestDeleteSingleAtDimension(t *testing.T) {
 	tree, ivs := constructSingleDimensionTestTree(3)
 
-	modified, deleted := tree.Insert(1, 10, -1)
+	modified, deleted := tree.Insert(1, 11, -1)
 	assert.Equal(t, ivs[1:], modified)
 	assert.Len(t, deleted, 0)
 
-	result := tree.Query(constructSingleDimensionInterval(10, 20, 0))
-	assert.Equal(t, ivs[2:], result)
+	result := tree.Query(constructSingleDimensionInterval(11, 20, 0))
+	assert.Equal(t, ivs[1:], result)
 
 	result = tree.Query(constructSingleDimensionInterval(9, 20, 0))
 	assert.Equal(t, ivs, result)
@@ -681,7 +681,7 @@ func TestDeleteBelowLowestIndex(t *testing.T) {
 	assert.Equal(t, ivs, modified)
 	assert.Len(t, deleted, 0)
 
-	result := tree.Query(constructSingleDimensionInterval(0, 1, 0))
+	result := tree.Query(constructSingleDimensionInterval(0, 0, 0))
 	assert.Equal(t, ivs[:1], result)
 
 	result = tree.Query(constructSingleDimensionInterval(0, 10, 0))
@@ -695,11 +695,11 @@ func TestDeleteBelowLowestIndex(t *testing.T) {
 func TestInsertDeletesInterval(t *testing.T) {
 	tree, ivs := constructSingleDimensionTestTree(3)
 
-	modified, deleted := tree.Insert(1, 0, -10)
+	modified, deleted := tree.Insert(1, 0, -11)
 	assert.Equal(t, ivs[1:], modified)
 	assert.Equal(t, ivs[:1], deleted)
 
-	result := tree.Query(constructSingleDimensionInterval(2, 10, 0))
+	result := tree.Query(constructSingleDimensionInterval(3, 10, 0))
 	assert.Len(t, result, 0)
 
 	result = tree.Query(constructSingleDimensionInterval(0, 2, 0))
@@ -708,7 +708,7 @@ func TestInsertDeletesInterval(t *testing.T) {
 	checkRedBlack(t, tree.root, 1)
 	assert.Equal(t, uint64(2), tree.Len())
 	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(2), tree.root.max)
+	assert.Equal(t, int64(1), tree.root.max)
 }
 
 func TestDeleteMiddleOfRange(t *testing.T) {

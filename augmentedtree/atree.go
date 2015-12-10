@@ -37,7 +37,7 @@ func intervalOverlaps(n *node, low, high int64, interval Interval, maxDimension 
 }
 
 func overlaps(high, otherHigh, low, otherLow int64) bool {
-	return high > otherLow && low < otherHigh
+	return high >= otherLow && low <= otherHigh
 }
 
 // compare returns an int indicating which direction the node
@@ -298,7 +298,7 @@ func (tree *tree) delete(iv Interval) {
 // be deleted.  A 0 indicates this interval requires no action.
 func insertInterval(dimension uint64, interval Interval, index, count int64) int {
 	low, high := interval.LowAtDimension(dimension), interval.HighAtDimension(dimension)
-	if index >= high {
+	if index > high {
 		return 0
 	}
 
@@ -306,7 +306,7 @@ func insertInterval(dimension uint64, interval Interval, index, count int64) int
 		return 1
 	}
 
-	if index <= low && count*-1 >= high-index {
+	if index <= low && low-index+high+count < low {
 		return -1
 	}
 
@@ -342,8 +342,14 @@ func (tree *tree) Insert(dimension uint64,
 			return
 		}
 
-		if n.max <= index { // won't change min or max in this case
+		if n.max < index { // won't change min or max in this case
 			return
+		}
+
+		needsDeletion := false
+
+		if n.low >= index && n.low-index+n.high+count < n.low {
+			needsDeletion = true
 		}
 
 		n.max += count
@@ -351,25 +357,23 @@ func (tree *tree) Insert(dimension uint64,
 			n.min += count
 		}
 
-		mod := false
-		if n.high > index {
-			n.high += count
-			if n.high < index {
-				n.high = index
-			}
-			mod = true
-		}
 		if n.low > index {
 			n.low += count
 			if n.low < index {
 				n.low = index
 			}
-			mod = true
 		}
 
-		if n.low >= n.high {
+		if n.high > index {
+			n.high += count
+			if n.high < index {
+				n.high = index
+			}
+		}
+
+		if needsDeletion {
 			deleted = append(deleted, n.interval)
-		} else if mod {
+		} else {
 			modified = append(modified, n.interval)
 		}
 	})
