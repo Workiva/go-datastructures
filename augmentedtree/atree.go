@@ -321,15 +321,6 @@ func (tree *tree) Query(interval Interval) Intervals {
 	return Intervals
 }
 
-func (tree *tree) apply(interval Interval, fn func(*node)) {
-	if tree.root == nil {
-		return
-	}
-
-	low, high := interval.LowAtDimension(1), interval.HighAtDimension(1)
-	tree.root.query(low, high, interval, tree.maxDimension, fn)
-}
-
 func isRed(node *node) bool {
 	return node != nil && node.red
 }
