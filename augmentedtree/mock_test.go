@@ -50,23 +50,6 @@ func (mi mockInterval) ID() uint64 {
 	return mi.id
 }
 
-func (mi *mockInterval) InsertAtDimension(dimension int, index, count int64) {
-	d := mi.dimensions[dimension-1]
-	if index <= d.low {
-		d.low += count
-		if d.low < index {
-			d.low = index
-		}
-	}
-
-	if index <= d.high {
-		d.high += count
-		if d.high < index {
-			d.high = index
-		}
-	}
-}
-
 func constructSingleDimensionInterval(low, high int64, id uint64) *mockInterval {
 	return &mockInterval{[]*dimension{&dimension{low: low, high: high}}, id}
 }

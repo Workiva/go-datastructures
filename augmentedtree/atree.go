@@ -105,8 +105,6 @@ func newNode(interval Interval, min, max int64, dimension uint64) *node {
 	}
 	if interval != nil {
 		itn.id = interval.ID()
-		//itn.low = interval.LowAtDimension(dimension)
-		//itn.high = interval.HighAtDimension(dimension)
 	}
 
 	return itn
