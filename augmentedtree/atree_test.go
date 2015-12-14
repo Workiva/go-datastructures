@@ -82,18 +82,18 @@ func checkRedBlack(tb testing.TB, node *node, dimension int) (int64, int64, int6
 	fn(minR, maxR)
 
 	min := min(minL, minR)
-	if min == -1 && node.min != node.low {
+	if min == -1 && node.min != node.interval.LowAtDimension(1) {
 		tb.Errorf(`Min not set correctly, node: %+v`, node)
 	} else if min != -1 && node.children[0] != nil && node.children[0].min != node.min {
 		tb.Errorf(`Min not set correctly: node: %+v, child: %+v`, node, node.children[0])
-	} else if min != -1 && node.children[0] == nil && node.min != node.low {
+	} else if min != -1 && node.children[0] == nil && node.min != node.interval.LowAtDimension(1) {
 		tb.Errorf(`Min not set correctly: %+v`, node)
 	}
 
 	max := max(maxL, maxR)
-	if max == -1 && node.max != node.high {
+	if max == -1 && node.max != node.interval.HighAtDimension(1) {
 		tb.Errorf(`Max not set correctly, node: %+v`, node)
-	} else if max > node.high && max != node.max {
+	} else if max > node.interval.HighAtDimension(1) && max != node.max {
 		tb.Errorf(`Max not set correctly, max: %+v, node: %+v`, max, node)
 	}
 
@@ -598,155 +598,6 @@ func TestAddDeleteDuplicatesRebalanceRandomOrder(t *testing.T) {
 	assert.Equal(t, uint64(0), it.Len())
 }
 
-func TestInsertSingleAtDimension(t *testing.T) {
-	tree, ivs := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(1, 11, 1)
-	assert.Len(t, deleted, 0)
-	assert.Equal(t, ivs[1:], modified)
-
-	result := tree.Query(constructSingleDimensionInterval(11, 20, 0))
-	assert.Equal(t, ivs[1:], result)
-	checkRedBlack(t, tree.root, 1)
-
-	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(13), tree.root.max)
-}
-
-func TestInsertMultipleAtDimension(t *testing.T) {
-	tree, ivs := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(1, 11, 2)
-	assert.Len(t, deleted, 0)
-	assert.Equal(t, ivs[1:], modified)
-
-	result := tree.Query(constructSingleDimensionInterval(11, 20, 0))
-	assert.Equal(t, ivs[1:], result)
-	checkRedBlack(t, tree.root, 1)
-
-	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(14), tree.root.max)
-}
-
-func TestInsertAtLowestIndex(t *testing.T) {
-	tree, ivs := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(1, -1, 1)
-	assert.Equal(t, ivs[0:], modified)
-	assert.Len(t, deleted, 0)
-
-	result := tree.Query(constructSingleDimensionInterval(0, 0, 0))
-	assert.Len(t, result, 0)
-
-	result = tree.Query(constructSingleDimensionInterval(1, 4, 0))
-	assert.Equal(t, ivs, result)
-
-	checkRedBlack(t, tree.root, 1)
-
-	assert.Equal(t, int64(1), tree.root.min)
-	assert.Equal(t, int64(13), tree.root.max)
-}
-
-func TestDeleteSingleAtDimension(t *testing.T) {
-	tree, ivs := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(1, 11, -1)
-	assert.Equal(t, ivs[1:], modified)
-	assert.Len(t, deleted, 0)
-
-	result := tree.Query(constructSingleDimensionInterval(11, 20, 0))
-	assert.Equal(t, ivs[1:], result)
-
-	result = tree.Query(constructSingleDimensionInterval(9, 20, 0))
-	assert.Equal(t, ivs, result)
-
-	checkRedBlack(t, tree.root, 1)
-
-	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(11), tree.root.max)
-}
-
-func TestDeleteBelowLowestIndex(t *testing.T) {
-	tree := newTree(1)
-
-	ivs := make(Intervals, 0, 3)
-	for i := int64(0); i < 3; i++ {
-		iv := constructSingleDimensionInterval(i+1, i+11, uint64(i))
-		ivs = append(ivs, iv)
-	}
-
-	tree.Add(ivs...)
-
-	modified, deleted := tree.Insert(1, 0, -1)
-	assert.Equal(t, ivs, modified)
-	assert.Len(t, deleted, 0)
-
-	result := tree.Query(constructSingleDimensionInterval(0, 0, 0))
-	assert.Equal(t, ivs[:1], result)
-
-	result = tree.Query(constructSingleDimensionInterval(0, 10, 0))
-	assert.Equal(t, ivs, result)
-
-	checkRedBlack(t, tree.root, 1)
-	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(12), tree.root.max)
-}
-
-func TestInsertDeletesInterval(t *testing.T) {
-	tree, ivs := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(1, 0, -11)
-	assert.Equal(t, ivs[1:], modified)
-	assert.Equal(t, ivs[:1], deleted)
-
-	result := tree.Query(constructSingleDimensionInterval(3, 10, 0))
-	assert.Len(t, result, 0)
-
-	result = tree.Query(constructSingleDimensionInterval(0, 2, 0))
-	assert.Equal(t, ivs[1:], result)
-
-	checkRedBlack(t, tree.root, 1)
-	assert.Equal(t, uint64(2), tree.Len())
-	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(1), tree.root.max)
-}
-
-func TestDeleteMiddleOfRange(t *testing.T) {
-	tree, ivs := constructSingleDimensionTestTree(3)
-
-	modified, deleted := tree.Insert(1, 5, -10)
-	assert.Equal(t, ivs, modified)
-	assert.Len(t, deleted, 0)
-
-	checkRedBlack(t, tree.root, 1)
-	assert.Equal(t, int64(0), tree.root.min)
-	assert.Equal(t, int64(5), tree.root.max)
-}
-
-func BenchmarkInsertPositive(b *testing.B) {
-	numItems := 1000
-
-	tree, _ := constructSingleDimensionTestTree(numItems)
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		tree.Insert(1, 0, 1)
-	}
-}
-
-func BenchmarkInsertNegative(b *testing.B) {
-	numItems := 1000
-
-	tree, _ := constructSingleDimensionTestTree(numItems)
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		tree.Insert(1, 0, int64(numItems))
-	}
-}
-
 func TestInsertDuplicateIntervalsToRoot(t *testing.T) {
 	tree := newTree(1)
 	iv1 := constructSingleDimensionInterval(0, 10, 1)
@@ -770,15 +621,4 @@ func TestInsertDuplicateIntervalChildren(t *testing.T) {
 
 	result := tree.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Contains(t, result, iv1)
-}
-
-func TestDeleteAtDimensionalSinglePositionReference(t *testing.T) {
-	tree := newTree(2)
-	iv := constructMultiDimensionInterval(
-		0, &dimension{low: 0, high: 1}, &dimension{low: 4, high: 5},
-	)
-	tree.Add(iv)
-	modified, deleted := tree.Insert(2, 1, -1)
-	assert.Equal(t, Intervals{iv}, modified)
-	assert.Len(t, deleted, 0)
 }
