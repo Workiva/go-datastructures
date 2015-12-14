@@ -84,7 +84,7 @@ func TestMaxTime(t *testing.T) {
 
 	// This delta is normally 1-3 ms but running tests in CI with -race causes
 	// this to run much slower. For now, just bump up the threshold.
-	assert.InDelta(200, time.Since(before).Seconds()*1000, 50)
+	assert.InDelta(200, time.Since(before).Seconds()*1000, 100)
 	assert.True(len(batch) > 0)
 	assert.Nil(err)
 }
