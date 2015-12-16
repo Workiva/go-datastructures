@@ -130,21 +130,6 @@ func TestAddRebalanceInOrderMultiDimensions(t *testing.T) {
 	assert.Equal(t, uint64(10), it.Len())
 }
 
-func TestInsertAtMax(t *testing.T) {
-	it := newTree(2)
-	iv := constructMultiDimensionInterval(0, &dimension{0, 0}, &dimension{0, 0})
-
-	it.Add(iv)
-
-	modified, deleted := it.Insert(1, 0, 1)
-	assert.Empty(t, deleted)
-	assert.Len(t, modified, 1)
-
-	modified, deleted = it.Insert(2, 0, 1)
-	assert.Empty(t, deleted)
-	assert.Len(t, modified, 1)
-}
-
 func TestAddRebalanceReverseOrderMultiDimensions(t *testing.T) {
 	it := newTree(2)
 
@@ -482,24 +467,4 @@ func TestAddDeleteDuplicatesRebalanceRandomOrderMultiDimensions(t *testing.T) {
 	it.Add(intervals...)
 	it.Delete(intervals...)
 	assert.Equal(t, uint64(0), it.Len())
-}
-
-func TestInsertPositiveMultipleDimensions(t *testing.T) {
-	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
-
-	modified, deleted := it.Insert(2, 0, 1)
-	assert.Len(t, deleted, 0)
-	assert.Equal(t, Intervals{iv2, iv1, iv3}, modified)
-
-	checkRedBlack(t, it.root, 1)
-}
-
-func TestInsertNegativeMultipleDimensions(t *testing.T) {
-	it, iv1, iv2, iv3 := constructMultiDimensionQueryTestTree()
-
-	modified, deleted := it.Insert(2, 4, -2)
-	assert.Equal(t, Intervals{iv1, iv3}, modified)
-	assert.Equal(t, Intervals{iv2}, deleted)
-
-	assert.Equal(t, uint64(2), it.Len())
 }

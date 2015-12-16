@@ -16,10 +16,8 @@ limitations under the License.
 
 package augmentedtree
 
-import "math"
-
 func intervalOverlaps(n *node, low, high int64, interval Interval, maxDimension uint64) bool {
-	if !overlaps(n.high, high, n.low, low) {
+	if !overlaps(n.interval.HighAtDimension(1), high, n.interval.LowAtDimension(1), low) {
 		return false
 	}
 
@@ -55,11 +53,11 @@ func compare(nodeLow, ivLow int64, nodeID, ivID uint64) int {
 }
 
 type node struct {
-	interval            Interval
-	low, high, max, min int64    // max value held by children
-	children            [2]*node // array to hold left/right
-	red                 bool     // indicates if this node is red
-	id                  uint64   // we store the id locally to reduce the number of calls to the method on the interface
+	interval Interval
+	max, min int64    // max value held by children
+	children [2]*node // array to hold left/right
+	red      bool     // indicates if this node is red
+	id       uint64   // we store the id locally to reduce the number of calls to the method on the interface
 }
 
 func (n *node) query(low, high int64, interval Interval, maxDimension uint64, fn func(node *node)) {
@@ -107,8 +105,6 @@ func newNode(interval Interval, min, max int64, dimension uint64) *node {
 	}
 	if interval != nil {
 		itn.id = interval.ID()
-		itn.low = interval.LowAtDimension(dimension)
-		itn.high = interval.HighAtDimension(dimension)
 	}
 
 	return itn
@@ -192,7 +188,7 @@ func (tree *tree) add(iv Interval) {
 
 		last = dir
 		otherLast = takeOpposite(last)
-		dir = compare(node.low, ivLow, node.id, id)
+		dir = compare(node.interval.LowAtDimension(1), ivLow, node.id, id)
 
 		if grandParent != nil {
 			helper = grandParent
@@ -235,7 +231,7 @@ func (tree *tree) delete(iv Interval) {
 
 		grandParent, parent, node = parent, node, node.children[dir]
 
-		dir = compare(node.low, ivLow, node.id, id)
+		dir = compare(node.interval.LowAtDimension(1), ivLow, node.id, id)
 		otherDir = takeOpposite(dir)
 
 		if node.id == id {
@@ -279,7 +275,7 @@ func (tree *tree) delete(iv Interval) {
 
 	if found != nil {
 		tree.number--
-		found.interval, found.max, found.min, found.low, found.high, found.id = node.interval, node.max, node.min, node.low, node.high, node.id
+		found.interval, found.max, found.min, found.id = node.interval, node.max, node.min, node.id
 		parentDir := intFromBool(parent.children[1] == node)
 		childDir := intFromBool(node.children[0] == nil)
 
@@ -290,97 +286,6 @@ func (tree *tree) delete(iv Interval) {
 	if tree.root != nil {
 		tree.root.red = false
 	}
-}
-
-// insertInterval returns an int indicating if action needs to be taken
-// with the given interval.  A 1 returned indicates this interval
-// needs to be modified.  A -1 indicates that this interval needs to
-// be deleted.  A 0 indicates this interval requires no action.
-func insertInterval(dimension uint64, interval Interval, index, count int64) int {
-	low, high := interval.LowAtDimension(dimension), interval.HighAtDimension(dimension)
-	if index > high {
-		return 0
-	}
-
-	if count > 0 {
-		return 1
-	}
-
-	if index <= low && low-index+high+count < low {
-		return -1
-	}
-
-	return 1
-}
-
-// Insert will shift intervals in the tree based on the specified
-// index and the specified count.  Dimension specifies where to
-// apply the shift.  Returned is a list of intervals impacted and
-// list of intervals deleted.  Intervals are deleted if the shift
-// makes the interval size zero or less, ie, min >= max.  These
-// intervals are automatically removed from the tree.  The tree
-// does not alter the ranges on the intervals themselves, the consumer
-// is expected to do that.
-func (tree *tree) Insert(dimension uint64,
-	index, count int64) (Intervals, Intervals) {
-
-	if tree.root == nil { // nothing to do
-		return nil, nil
-	}
-
-	modified, deleted := intervalsPool.Get().(Intervals), intervalsPool.Get().(Intervals)
-
-	tree.root.query(math.MinInt64, math.MaxInt64, nil, tree.maxDimension, func(n *node) {
-		if dimension > 1 {
-			action := insertInterval(dimension, n.interval, index, count)
-			switch action {
-			case 1:
-				modified = append(modified, n.interval)
-			case -1:
-				deleted = append(deleted, n.interval)
-			}
-			return
-		}
-
-		if n.max < index { // won't change min or max in this case
-			return
-		}
-
-		needsDeletion := false
-
-		if n.low >= index && n.low-index+n.high+count < n.low {
-			needsDeletion = true
-		}
-
-		n.max += count
-		if n.min >= index {
-			n.min += count
-		}
-
-		if n.low > index {
-			n.low += count
-			if n.low < index {
-				n.low = index
-			}
-		}
-
-		if n.high > index {
-			n.high += count
-			if n.high < index {
-				n.high = index
-			}
-		}
-
-		if needsDeletion {
-			deleted = append(deleted, n.interval)
-		} else {
-			modified = append(modified, n.interval)
-		}
-	})
-
-	tree.Delete(deleted...)
-
-	return modified, deleted
 }
 
 // Delete will remove the provided intervals from this tree.
@@ -414,21 +319,12 @@ func (tree *tree) Query(interval Interval) Intervals {
 	return Intervals
 }
 
-func (tree *tree) apply(interval Interval, fn func(*node)) {
-	if tree.root == nil {
-		return
-	}
-
-	low, high := interval.LowAtDimension(1), interval.HighAtDimension(1)
-	tree.root.query(low, high, interval, tree.maxDimension, fn)
-}
-
 func isRed(node *node) bool {
 	return node != nil && node.red
 }
 
 func setMax(parent *node) {
-	parent.max = parent.high
+	parent.max = parent.interval.HighAtDimension(1)
 
 	if parent.children[0] != nil && parent.children[0].max > parent.max {
 		parent.max = parent.children[0].max
@@ -440,7 +336,7 @@ func setMax(parent *node) {
 }
 
 func setMin(parent *node) {
-	parent.min = parent.low
+	parent.min = parent.interval.LowAtDimension(1)
 	if parent.children[0] != nil && parent.children[0].min < parent.min {
 		parent.min = parent.children[0].min
 	}
@@ -449,8 +345,8 @@ func setMin(parent *node) {
 		parent.min = parent.children[1].min
 	}
 
-	if parent.low < parent.min {
-		parent.min = parent.low
+	if parent.interval.LowAtDimension(1) < parent.min {
+		parent.min = parent.interval.LowAtDimension(1)
 	}
 }
 

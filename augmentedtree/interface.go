@@ -35,7 +35,9 @@ package augmentedtree
 // item added to the interval tree.  This interface is similar to the
 // interval found in the rangetree package and it should be possible
 // for the same struct to implement both interfaces.  Note that ranges
-// here are inclusive.
+// here are inclusive.  It is also expected that the provided interval
+// is immutable and that the returned values never change.  Doing so
+// results in undefined behavior.
 type Interval interface {
 	// LowAtDimension returns an integer representing the lower bound
 	// at the requested dimension.
@@ -67,13 +69,4 @@ type Tree interface {
 	// interval.  The provided interval's ID method is ignored so the
 	// provided ID is irrelevant.
 	Query(interval Interval) Intervals
-	// Insert will shift intervals in the tree based on the specified
-	// index and the specified count.  Dimension specifies where to
-	// apply the shift.  Returned is a list of intervals impacted and
-	// list of intervals deleted.  Intervals are deleted if the shift
-	// makes the interval size zero or less, ie, min >= max.  These
-	// intervals are automatically removed from the tree.  The tree
-	// does not alter the ranges on the intervals themselves, the consumer
-	// is expected to do that.
-	Insert(dimension uint64, index, count int64) (Intervals, Intervals)
 }
