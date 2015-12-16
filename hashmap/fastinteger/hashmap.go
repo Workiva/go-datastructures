@@ -77,6 +77,13 @@ func (packets packets) delete(key uint64) bool {
 		return false
 	}
 	packets[i] = nil
+	i = (i + 1) & (uint64(len(packets)) - 1)
+	for packets[i] != nil {
+		p := packets[i]
+		packets[i] = nil
+		packets.set(p)
+		i = (i + 1) & (uint64(len(packets)) - 1)
+	}
 	return true
 }
 
