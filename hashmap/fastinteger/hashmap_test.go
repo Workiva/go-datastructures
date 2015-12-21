@@ -121,6 +121,23 @@ func TestDeleteAll(t *testing.T) {
 	}
 }
 
+func TestDeleteCollision(t *testing.T) {
+	// 1, 27, 42 all hash to the same value using our hash function % 32
+	if hash(1)%32 != 12 || hash(27)%32 != 12 || hash(42)%32 != 12 {
+		t.Error("test values don't hash to the same value")
+	}
+
+	m := New(32)
+	m.Set(1, 1)
+	m.Set(27, 27)
+	m.Set(42, 42)
+
+	m.Delete(27)
+	value, ok := m.Get(42)
+	assert.True(t, ok)
+	assert.Equal(t, uint64(42), value)
+}
+
 func BenchmarkInsert(b *testing.B) {
 	numItems := uint64(1000)
 
