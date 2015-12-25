@@ -485,7 +485,7 @@ func (c *Ctrie) iinsert(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 			// If the branch is an I-node, then iinsert is called recursively.
 			in := branch.(*iNode)
 			if startGen == in.gen {
-				return c.iinsert(in, entry, lev+w, i, i.gen)
+				return c.iinsert(in, entry, lev+w, i, startGen)
 			}
 			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
 				return c.iinsert(i, entry, lev, parent, startGen)
