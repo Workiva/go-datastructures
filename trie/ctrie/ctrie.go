@@ -363,7 +363,7 @@ func (c *Ctrie) Iterator(cancel <-chan struct{}) <-chan *Entry {
 	ch := make(chan *Entry)
 	snapshot := c.ReadOnlySnapshot()
 	go func() {
-		traverse(snapshot.root, ch, cancel)
+		snapshot.traverse(snapshot.readRoot(), ch, cancel)
 		close(ch)
 	}()
 	return ch
@@ -385,13 +385,14 @@ func (c *Ctrie) Size() uint {
 
 var errCanceled = errors.New("canceled")
 
-func traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) error {
+func (c *Ctrie) traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) error {
+	main := gcasRead(i, c)
 	switch {
-	case i.main.cNode != nil:
-		for _, br := range i.main.cNode.array {
+	case main.cNode != nil:
+		for _, br := range main.cNode.array {
 			switch b := br.(type) {
 			case *iNode:
-				if err := traverse(b, ch, cancel); err != nil {
+				if err := c.traverse(b, ch, cancel); err != nil {
 					return err
 				}
 			case *sNode:
@@ -402,8 +403,8 @@ func traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) error {
 				}
 			}
 		}
-	case i.main.lNode != nil:
-		for _, e := range i.main.lNode.Map(func(sn interface{}) interface{} {
+	case main.lNode != nil:
+		for _, e := range main.lNode.Map(func(sn interface{}) interface{} {
 			return sn.(*sNode).Entry
 		}) {
 			select {
