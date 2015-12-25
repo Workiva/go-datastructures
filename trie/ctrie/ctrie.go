@@ -845,7 +845,7 @@ type rdcssDescriptor struct {
 	old       *iNode
 	expected  *mainNode
 	nv        *iNode
-	committed bool
+	committed int32
 }
 
 // readRoot performs a linearizable read of the Ctrie root. This operation is
@@ -878,7 +878,7 @@ func (c *Ctrie) rdcssRoot(old *iNode, expected *mainNode, nv *iNode) bool {
 	}
 	if c.casRoot(old, desc) {
 		c.rdcssComplete(false)
-		return desc.rdcss.committed
+		return atomic.LoadInt32(&desc.rdcss.committed) == 1
 	}
 	return false
 }
@@ -909,7 +909,7 @@ func (c *Ctrie) rdcssComplete(abort bool) *iNode {
 		if oldeMain == exp {
 			// Commit the RDCSS.
 			if c.casRoot(r, nv) {
-				desc.committed = true
+				atomic.StoreInt32(&desc.committed, 1)
 				return nv
 			}
 			continue
