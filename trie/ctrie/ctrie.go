@@ -63,8 +63,10 @@ type Ctrie struct {
 }
 
 // generation demarcates Ctrie snapshots. We use a heap-allocated reference
-// instead of an integer to avoid integer overflows.
-type generation struct{}
+// instead of an integer to avoid integer overflows. Struct must have a field
+// on it since two distinct zero-size variables may have the same address in
+// memory.
+type generation struct{ _ int }
 
 // iNode is an indirection node. I-nodes remain present in the Ctrie even as
 // nodes above and below change. Thread-safety is achieved in part by
