@@ -813,8 +813,8 @@ func gcasComplete(i *iNode, m *mainNode, ctrie *Ctrie) *mainNode {
 			// Signals GCAS failure. Swap old value back into I-node.
 			fn := prev.failed
 			if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&i.main)),
-				unsafe.Pointer(m), unsafe.Pointer(fn.prev)) {
-				return fn.prev
+				unsafe.Pointer(m), unsafe.Pointer(fn)) {
+				return fn
 			}
 			m = (*mainNode)(atomic.LoadPointer(
 				(*unsafe.Pointer)(unsafe.Pointer(&i.main))))
