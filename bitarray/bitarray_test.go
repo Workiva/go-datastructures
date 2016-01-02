@@ -134,6 +134,14 @@ func TestOutOfBounds(t *testing.T) {
 	}
 }
 
+func TestIsEmpty(t *testing.T) {
+	ba := newBitArray(10)
+	assert.True(t, ba.IsEmpty())
+
+	ba.SetBit(5)
+	assert.False(t, ba.IsEmpty())
+}
+
 func TestClear(t *testing.T) {
 	ba := newBitArray(10)
 
