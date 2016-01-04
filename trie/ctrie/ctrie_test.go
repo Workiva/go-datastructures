@@ -169,6 +169,47 @@ func TestConcurrency(t *testing.T) {
 	wg.Wait()
 }
 
+func TestConcurrency2(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	go func() {
+		for i := 0; i < 10000; i++ {
+			ctrie.Insert([]byte(strconv.Itoa(i)), i)
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		for i := 0; i < 10000; i++ {
+			val, ok := ctrie.Lookup([]byte(strconv.Itoa(i)))
+			if ok {
+				assert.Equal(i, val)
+			}
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		for i := 0; i < 10000; i++ {
+			ctrie.Snapshot()
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		for i := 0; i < 10000; i++ {
+			ctrie.ReadOnlySnapshot()
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+	assert.Equal(uint(10000), ctrie.Size())
+}
+
 func TestSnapshot(t *testing.T) {
 	assert := assert.New(t)
 	ctrie := New(nil)
