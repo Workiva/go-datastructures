@@ -233,7 +233,7 @@ func (ba *bitArray) Blocks() Iterator {
 }
 
 func (ba *bitArray) IsEmpty() bool {
-	return ba.anyset
+	return !ba.anyset
 }
 
 // complement flips all bits in this array.
