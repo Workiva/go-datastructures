@@ -295,6 +295,29 @@ func TestAVLDeleteReplay(t *testing.T) {
 	assert.Equal(t, uint64(4), i2.Len())
 }
 
+func TestAVLFails(t *testing.T) {
+	keys := []mockEntry{
+		mockEntry(0),
+		mockEntry(1),
+		mockEntry(3),
+		mockEntry(4),
+		mockEntry(5),
+		mockEntry(6),
+		mockEntry(7),
+		mockEntry(2),
+	}
+	i1 := NewImmutable()
+	for _, k := range keys {
+		i1, _ = i1.Insert(k)
+	}
+
+	for _, k := range keys {
+		var deleted Entries
+		i1, deleted = i1.Delete(k)
+		assert.Equal(t, Entries{k}, deleted)
+	}
+}
+
 func BenchmarkImmutableInsert(b *testing.B) {
 	numItems := b.N
 	sl := NewImmutable()
