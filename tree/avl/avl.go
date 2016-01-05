@@ -251,6 +251,7 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 	}
 	it = it.copy() // the node we found needs to be copied
 
+	oldTop := top
 	if it.children[0] == nil || it.children[1] == nil { // need to set children on parent, splicing out
 		dir = intFromBool(it.children[0] == nil)
 		if top != 0 {
@@ -272,6 +273,11 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 		}
 
 		it.entry = heir.entry
+		if oldTop != 0 {
+			cache[oldTop-1].children[dirs[oldTop-1]] = it
+		} else {
+			immutable.root = it
+		}
 		cache[top-1].children[intFromBool(cache[top-1] == it)] = heir.children[1]
 	}
 
