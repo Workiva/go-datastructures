@@ -32,7 +32,6 @@ import (
 	"unsafe"
 
 	"github.com/Workiva/go-datastructures/list"
-	"github.com/Workiva/go-datastructures/queue"
 )
 
 const (
@@ -41,9 +40,6 @@ const (
 
 	// exp2 is 2^w, which is the hashcode space.
 	exp2 = 32
-
-	// hasherPoolSize is the number of hashers to buffer.
-	hasherPoolSize = 16
 )
 
 // HashFactory returns a new Hash32 used to hash keys.
@@ -59,7 +55,6 @@ type Ctrie struct {
 	root        *iNode
 	readOnly    bool
 	hashFactory HashFactory
-	hasherPool  *queue.RingBuffer
 }
 
 // generation demarcates Ctrie snapshots. We use a heap-allocated reference
@@ -280,14 +275,9 @@ func New(hashFactory HashFactory) *Ctrie {
 }
 
 func newCtrie(root *iNode, hashFactory HashFactory, readOnly bool) *Ctrie {
-	hasherPool := queue.NewRingBuffer(hasherPoolSize)
-	for i := 0; i < hasherPoolSize; i++ {
-		hasherPool.Put(hashFactory())
-	}
 	return &Ctrie{
 		root:        root,
 		hashFactory: hashFactory,
-		hasherPool:  hasherPool,
 		readOnly:    readOnly,
 	}
 }
@@ -451,13 +441,9 @@ func (c *Ctrie) remove(entry *Entry) (interface{}, bool) {
 }
 
 func (c *Ctrie) hash(k []byte) uint32 {
-	hasher, _ := c.hasherPool.Get()
-	h := hasher.(hash.Hash32)
-	h.Write(k)
-	hash := h.Sum32()
-	h.Reset()
-	c.hasherPool.Put(h)
-	return hash
+	hasher := c.hashFactory()
+	hasher.Write(k)
+	return hasher.Sum32()
 }
 
 // iinsert attempts to insert the entry into the Ctrie. If false is returned,
