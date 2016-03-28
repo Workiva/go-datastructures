@@ -139,7 +139,7 @@ func TestIterate(t *testing.T) {
 	n := insertTest(t, defaultHasher, 10000)
 	echan := iterate(n, nil)
 	var c int64
-	for range echan {
+	for _ = range echan {
 		c++
 	}
 	assert.Equal(t, int64(10000), c)
@@ -160,7 +160,7 @@ func TestIterate(t *testing.T) {
 	n = insertTest(t, collisionHash, 1000)
 	c = 0
 	echan = iterate(n, nil)
-	for range echan {
+	for _ = range echan {
 		c++
 	}
 	assert.Equal(t, int64(1000), c)
