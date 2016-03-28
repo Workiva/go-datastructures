@@ -158,7 +158,7 @@ func TestIterate(t *testing.T) {
 	assert.True(t, c > 99 && c < 1000)
 	// test with collisions
 	n = insertTest(t, collisionHash, 1000)
-	c = 0
+	atomic.StoreInt64(&c, 0)
 	echan = iterate(n, nil)
 	for _ = range echan {
 		c++
