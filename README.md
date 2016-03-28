@@ -156,6 +156,14 @@ Most concurrent data structures do not support snapshots, instead opting for
 locks or requiring a quiescent state. This allows Ctries to have O(1) iterator
 creation and clear operations and O(logn) size retrieval.
 
+#### Dtrie
+
+A persistent hash trie that dynamically expands or shrinks to provide efficient
+memory allocation. Being persistent, the Dtrie is immutable and any modification
+yields a new version of the Dtrie rather than changing the original. Bitmapped
+nodes allow for O(log32(n)) get, remove, and update operations. Insertions are
+O(n) and iteration is O(1).
+
 #### Persistent List
 
 A persistent, immutable linked list. All write operations yield a new, updated
@@ -204,4 +212,3 @@ Requirements to commit here:
 
  - Dustin Hiatt <[dustin.hiatt@workiva.com](mailto:dustin.hiatt@workiva.com)>
  - Alexander Campbell <[alexander.campbell@workiva.com](mailto:alexander.campbell@workiva.com)>
-
