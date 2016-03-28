@@ -155,7 +155,8 @@ func TestIterate(t *testing.T) {
 	for atomic.LoadInt64(&c) < 100 {
 	}
 	close(stop)
-	assert.True(t, c > 99 && c < 1000)
+	cf := atomic.LoadInt64(&c)
+	assert.True(t, cf > 99 && cf < 1000)
 	// test with collisions
 	n = insertTest(t, collisionHash, 1000)
 	atomic.StoreInt64(&c, 0)
