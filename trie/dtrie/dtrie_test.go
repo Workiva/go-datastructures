@@ -148,7 +148,7 @@ func TestIterate(t *testing.T) {
 	stop := make(chan struct{})
 	echan = iterate(n, stop)
 	go func() {
-		for range echan {
+		for _ = range echan {
 			atomic.AddInt64(&c, 1)
 		}
 	}()
