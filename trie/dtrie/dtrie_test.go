@@ -161,9 +161,9 @@ func TestIterate(t *testing.T) {
 	atomic.StoreInt64(&c, 0)
 	echan = iterate(n, nil)
 	for _ = range echan {
-		c++
+		atomic.AddInt64(&c, 1)
 	}
-	assert.Equal(t, int64(1000), c)
+	assert.Equal(t, int64(1000), atomic.LoadInt64(&c))
 }
 
 func TestSize(t *testing.T) {
