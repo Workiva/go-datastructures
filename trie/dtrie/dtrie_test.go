@@ -28,7 +28,6 @@ package dtrie
 
 import (
 	"fmt"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -138,33 +137,30 @@ func updateTest(t *testing.T, hashfunc func(interface{}) uint32, count int) {
 func TestIterate(t *testing.T) {
 	n := insertTest(t, defaultHasher, 10000)
 	echan := iterate(n, nil)
-	var c int64
+	c := 0
 	for _ = range echan {
 		c++
 	}
-	assert.Equal(t, int64(10000), c)
+	assert.Equal(t, 10000, c)
 	// test with stop chan
 	c = 0
 	stop := make(chan struct{})
 	echan = iterate(n, stop)
-	go func() {
-		for _ = range echan {
-			atomic.AddInt64(&c, 1)
+	for _ = range echan {
+		c++
+		if c == 100 {
+			close(stop)
 		}
-	}()
-	for atomic.LoadInt64(&c) < 100 {
 	}
-	close(stop)
-	cf := atomic.LoadInt64(&c)
-	assert.True(t, cf > 99 && cf < 1000)
+	assert.Equal(t, c, 100)
 	// test with collisions
 	n = insertTest(t, collisionHash, 1000)
-	atomic.StoreInt64(&c, 0)
+	c = 0
 	echan = iterate(n, nil)
 	for _ = range echan {
-		atomic.AddInt64(&c, 1)
+		c++
 	}
-	assert.Equal(t, int64(1000), atomic.LoadInt64(&c))
+	assert.Equal(t, 1000, c)
 }
 
 func TestSize(t *testing.T) {
