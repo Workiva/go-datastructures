@@ -23,6 +23,12 @@ implementations exist, regular and sparse.  Sparse saves a great deal of space
 but insertions are O(log n).  There are some useful functions on the BitArray
 interface to detect intersection between two bitarrays.
 
+#### Bitmap
+
+an extremely quick way of representing bitarrays of length 32 or 64 within
+a uint32 and uint64 respectively. This method provides bit switching and
+popcount operations of O(1).
+
 #### Futures
 
 A helpful tool to send a "broadcast" message to listeners.  Channels have the
