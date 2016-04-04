@@ -30,13 +30,14 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Workiva/go-datastructures/bitmap"
+	//TODO switch back to "github.com/Workiva/go-datastructures/bitarray"
+	"github.com/theodus/go-datastructures/bitarray"
 )
 
 type node struct {
 	entries []Entry
-	nodeMap bitmap.Bitmap32
-	dataMap bitmap.Bitmap32
+	nodeMap bitarray.Bitmap32
+	dataMap bitarray.Bitmap32
 	level   uint32 // level starts at 0
 }
 
@@ -74,12 +75,14 @@ func emptyNode(level uint32, capacity int) *node {
 func insert(n *node, entry Entry) *node {
 	index := mask(entry.KeyHash(), n.level)
 	newNode := n
-	if newNode.level == 6 { // handle hash collisions on 6th level
-		if newNode.entries[index] == nil {
-			newNode.entries[index] = entry
-			newNode.dataMap = newNode.dataMap.SetBit(uint(index))
-			return newNode
-		}
+	// insert directly
+	if newNode.entries[index] == nil {
+		newNode.entries[index] = entry
+		newNode.dataMap = newNode.dataMap.SetBit(uint(index))
+		return newNode
+	}
+	// handle hash collisions on 6th level
+	if newNode.level == 6 {
 		if newNode.dataMap.HasBit(uint(index)) {
 			if newNode.entries[index].Key() == entry.Key() {
 				newNode.entries[index] = entry
@@ -96,16 +99,12 @@ func insert(n *node, entry Entry) *node {
 		cNode.entries = append(cNode.entries, entry)
 		return newNode
 	}
-	// insert directly
-	if !newNode.dataMap.HasBit(uint(index)) && !newNode.nodeMap.HasBit(uint(index)) {
-		newNode.entries[index] = entry
-		newNode.dataMap = newNode.dataMap.SetBit(uint(index))
-		return newNode
-	}
-	if newNode.nodeMap.HasBit(uint(index)) { // insert into sub-node
+	// insert into sub-node
+	if newNode.nodeMap.HasBit(uint(index)) {
 		newNode.entries[index] = insert(newNode.entries[index].(*node), entry)
 		return newNode
 	}
+	// replace existing entry
 	if newNode.entries[index].Key() == entry.Key() {
 		newNode.entries[index] = entry
 		return newNode
