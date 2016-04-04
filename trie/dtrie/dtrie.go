@@ -32,11 +32,35 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Jurgen J. Vinju
 package dtrie
 
+import "fmt"
+
 // Dtrie is a persistent hash trie that dynamically expands or shrinks
 // to provide efficient memory allocation.
 type Dtrie struct {
 	root   *node
 	hasher func(v interface{}) uint32
+}
+
+type entry struct {
+	hash  uint32
+	key   interface{}
+	value interface{}
+}
+
+func (e *entry) KeyHash() uint32 {
+	return e.hash
+}
+
+func (e *entry) Key() interface{} {
+	return e.key
+}
+
+func (e *entry) Value() interface{} {
+	return e.value
+}
+
+func (e *entry) String() string {
+	return fmt.Sprintf("%v:%v", e.key, e.value)
 }
 
 // New creates an empty DTrie with the given hashing function.
@@ -67,8 +91,8 @@ func (d *Dtrie) Get(key interface{}) Entry {
 
 // Insert adds an entry to the Dtrie, replacing the existing value if
 // the key already exists and returns the resulting Dtrie.
-func (d *Dtrie) Insert(entry Entry) *Dtrie {
-	root := insert(d.root, entry)
+func (d *Dtrie) Insert(key, value interface{}) *Dtrie {
+	root := insert(d.root, &entry{d.hasher(key), key, value})
 	return &Dtrie{root, d.hasher}
 }
 
