@@ -1,4 +1,4 @@
-package bitmap
+package bitarray
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPopCount32(t *testing.T) {
+func TestBitmap32_PopCount(t *testing.T) {
 	b := []uint32{
 		uint32(0x55555555), // 0x55555555 = 01010101 01010101 01010101 01010101
 		uint32(0x33333333), // 0x33333333 = 00110011 00110011 00110011 00110011
@@ -19,7 +19,7 @@ func TestPopCount32(t *testing.T) {
 	}
 }
 
-func TestPopCount64(t *testing.T) {
+func TestBitmap64_PopCount(t *testing.T) {
 	b := []uint64{
 		uint64(0x5555555555555555),
 		uint64(0x3333333333333333),
@@ -32,22 +32,37 @@ func TestPopCount64(t *testing.T) {
 	}
 }
 
-func TestSetBit(t *testing.T) {
+func TestBitmap32_SetBit(t *testing.T) {
 	m := Bitmap32(0)
 	assert.Equal(t, Bitmap32(0x4), m.SetBit(2))
 }
 
-func TestClearBit(t *testing.T) {
+func TestBitmap32_ClearBit(t *testing.T) {
 	m := Bitmap32(0x4)
 	assert.Equal(t, Bitmap32(0), m.ClearBit(2))
 }
 
-func TestHasBit(t *testing.T) {
+func TestBitmap32_HasBit(t *testing.T) {
 	m := Bitmap32(0x55555555)
 	assert.Equal(t, true, m.HasBit(2))
 }
 
-func BenchmarkPopCount32(b *testing.B) {
+func TestBitmap64_SetBit(t *testing.T) {
+	m := Bitmap64(0)
+	assert.Equal(t, Bitmap64(0x4), m.SetBit(2))
+}
+
+func TestBitmap64_ClearBit(t *testing.T) {
+	m := Bitmap64(0x4)
+	assert.Equal(t, Bitmap64(0), m.ClearBit(2))
+}
+
+func TestBitmap64_HasBit(t *testing.T) {
+	m := Bitmap64(0x55555555)
+	assert.Equal(t, true, m.HasBit(2))
+}
+
+func BenchmarkBitmap32_PopCount(b *testing.B) {
 	m := Bitmap32(0x33333333)
 	b.ResetTimer()
 	for i := b.N; i > 0; i-- {
@@ -55,7 +70,7 @@ func BenchmarkPopCount32(b *testing.B) {
 	}
 }
 
-func BenchmarkPopCount64(b *testing.B) {
+func BenchmarkBitmap64_PopCount(b *testing.B) {
 	m := Bitmap64(0x3333333333333333)
 	b.ResetTimer()
 	for i := b.N; i > 0; i-- {

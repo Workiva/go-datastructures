@@ -1,6 +1,4 @@
-// Package bitmap contains bitmaps of length 32 and 64 for tracking bool
-// values without the need for arrays or hashing.
-package bitmap
+package bitarray
 
 // Bitmap32 tracks 32 bool values within a uint32
 type Bitmap32 uint32
@@ -20,7 +18,7 @@ func (b Bitmap32) HasBit(pos uint) bool {
 	return (b & (1 << pos)) != 0
 }
 
-// PopCount returns the ammount of bits set to 1 in the Bitmap32
+// PopCount returns the amount of bits set to 1 in the Bitmap32
 func (b Bitmap32) PopCount() int {
 	// http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
 	b -= (b >> 1) & 0x55555555
@@ -49,7 +47,7 @@ func (b Bitmap64) HasBit(pos uint) bool {
 	return (b & (1 << pos)) != 0
 }
 
-// PopCount returns the ammount of bits set to 1 in the Bitmap64
+// PopCount returns the amount of bits set to 1 in the Bitmap64
 func (b Bitmap64) PopCount() int {
 	// http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
 	b -= (b >> 1) & 0x5555555555555555
