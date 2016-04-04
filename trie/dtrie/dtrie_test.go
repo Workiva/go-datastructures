@@ -27,7 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package dtrie
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,10 +37,6 @@ func TestDefaultHasher(t *testing.T) {
 		defaultHasher(map[int]string{11234: "foo"}),
 		defaultHasher(map[int]string{11234: "foo"}))
 	assert.NotEqual(t, defaultHasher("foo"), defaultHasher("bar"))
-}
-
-func (e *entry) String() string {
-	return fmt.Sprint(e.value)
 }
 
 func collisionHash(key interface{}) uint32 {
@@ -121,7 +116,7 @@ func TestIterate(t *testing.T) {
 			close(stop)
 		}
 	}
-	assert.True(t, c > 99 && c < 102)
+	assert.True(t, c == 100)
 	// test with collisions
 	n = insertTest(t, collisionHash, 1000)
 	c = 0

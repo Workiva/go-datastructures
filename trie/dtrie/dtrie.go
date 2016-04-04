@@ -77,13 +77,13 @@ func (d *Dtrie) Size() (size int) {
 	return size
 }
 
-// Get returns the Entry for the associated key or returns nil if the
+// Get returns the value for the associated key or returns nil if the
 // key does not exist.
-func (d *Dtrie) Get(key interface{}) Entry {
-	return get(d.root, d.hasher(key), key)
+func (d *Dtrie) Get(key interface{}) interface{} {
+	return get(d.root, d.hasher(key), key).Value()
 }
 
-// Insert adds an entry to the Dtrie, replacing the existing value if
+// Insert adds a key value pair to the Dtrie, replacing the existing value if
 // the key already exists and returns the resulting Dtrie.
 func (d *Dtrie) Insert(key, value interface{}) *Dtrie {
 	root := insert(d.root, &entry{d.hasher(key), key, value})

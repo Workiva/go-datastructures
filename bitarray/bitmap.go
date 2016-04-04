@@ -41,8 +41,8 @@ func (b Bitmap32) ClearBit(pos uint) Bitmap32 {
 	return b & ^(1 << pos)
 }
 
-// HasBit returns true if the bit at the given position in the Bitmap32 is 1
-func (b Bitmap32) HasBit(pos uint) bool {
+// GetBit returns true if the bit at the given position in the Bitmap32 is 1
+func (b Bitmap32) GetBit(pos uint) bool {
 	return (b & (1 << pos)) != 0
 }
 
@@ -70,8 +70,8 @@ func (b Bitmap64) ClearBit(pos uint) Bitmap64 {
 	return b & ^(1 << pos)
 }
 
-// HasBit returns true if the bit at the given position in the Bitmap64 is 1
-func (b Bitmap64) HasBit(pos uint) bool {
+// GetBit returns true if the bit at the given position in the Bitmap64 is 1
+func (b Bitmap64) GetBit(pos uint) bool {
 	return (b & (1 << pos)) != 0
 }
 

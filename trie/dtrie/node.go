@@ -80,7 +80,7 @@ func insert(n *node, entry Entry) *node {
 			newNode.dataMap = newNode.dataMap.SetBit(index)
 			return newNode
 		}
-		if newNode.dataMap.HasBit(index) {
+		if newNode.dataMap.GetBit(index) {
 			if newNode.entries[index].Key() == entry.Key() {
 				newNode.entries[index] = entry
 				return newNode
@@ -96,12 +96,12 @@ func insert(n *node, entry Entry) *node {
 		cNode.entries = append(cNode.entries, entry)
 		return newNode
 	}
-	if !newNode.dataMap.HasBit(index) && !newNode.nodeMap.HasBit(index) { // insert directly
+	if !newNode.dataMap.GetBit(index) && !newNode.nodeMap.GetBit(index) { // insert directly
 		newNode.entries[index] = entry
 		newNode.dataMap = newNode.dataMap.SetBit(index)
 		return newNode
 	}
-	if newNode.nodeMap.HasBit(index) { // insert into sub-node
+	if newNode.nodeMap.GetBit(index) { // insert into sub-node
 		newNode.entries[index] = insert(newNode.entries[index].(*node), entry)
 		return newNode
 	}
@@ -127,10 +127,10 @@ func insert(n *node, entry Entry) *node {
 // returns nil if not found
 func get(n *node, keyHash uint32, key interface{}) Entry {
 	index := uint(mask(keyHash, n.level))
-	if n.dataMap.HasBit(index) {
+	if n.dataMap.GetBit(index) {
 		return n.entries[index]
 	}
-	if n.nodeMap.HasBit(index) {
+	if n.nodeMap.GetBit(index) {
 		return get(n.entries[index].(*node), keyHash, key)
 	}
 	if n.level == 6 { // get from collisionNode
@@ -150,19 +150,19 @@ func get(n *node, keyHash uint32, key interface{}) Entry {
 func remove(n *node, keyHash uint32, key interface{}) *node {
 	index := uint(mask(keyHash, n.level))
 	newNode := n
-	if n.dataMap.HasBit(index) {
+	if n.dataMap.GetBit(index) {
 		newNode.entries[index] = nil
 		newNode.dataMap = newNode.dataMap.ClearBit(index)
 		return newNode
 	}
-	if n.nodeMap.HasBit(index) {
+	if n.nodeMap.GetBit(index) {
 		subNode := newNode.entries[index].(*node)
 		subNode = remove(subNode, keyHash, key)
 		// compress if only 1 entry exists in sub-node
 		if subNode.nodeMap.PopCount() == 0 && subNode.dataMap.PopCount() == 1 {
 			var e Entry
 			for i := uint(0); i < 32; i++ {
-				if subNode.dataMap.HasBit(i) {
+				if subNode.dataMap.GetBit(i) {
 					e = subNode.entries[i]
 					break
 				}
@@ -210,9 +210,9 @@ func pushEntries(n *node, stop <-chan struct{}, out chan Entry) {
 		default:
 			index := uint(i)
 			switch {
-			case n.dataMap.HasBit(index):
+			case n.dataMap.GetBit(index):
 				out <- e
-			case n.nodeMap.HasBit(index):
+			case n.nodeMap.GetBit(index):
 				wg.Add(1)
 				go func() {
 					defer wg.Done()

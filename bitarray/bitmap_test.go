@@ -68,9 +68,9 @@ func TestBitmap32_ClearBit(t *testing.T) {
 	assert.Equal(t, Bitmap32(0), m.ClearBit(2))
 }
 
-func TestBitmap32_HasBit(t *testing.T) {
+func TestBitmap32_zGetBit(t *testing.T) {
 	m := Bitmap32(0x55555555)
-	assert.Equal(t, true, m.HasBit(2))
+	assert.Equal(t, true, m.GetBit(2))
 }
 
 func TestBitmap64_SetBit(t *testing.T) {
@@ -83,9 +83,9 @@ func TestBitmap64_ClearBit(t *testing.T) {
 	assert.Equal(t, Bitmap64(0), m.ClearBit(2))
 }
 
-func TestBitmap64_HasBit(t *testing.T) {
+func TestBitmap64_GetBit(t *testing.T) {
 	m := Bitmap64(0x55555555)
-	assert.Equal(t, true, m.HasBit(2))
+	assert.Equal(t, true, m.GetBit(2))
 }
 
 func BenchmarkBitmap32_PopCount(b *testing.B) {
