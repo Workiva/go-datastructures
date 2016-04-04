@@ -29,15 +29,12 @@ package dtrie
 import (
 	"fmt"
 	"sync"
-
-	//TODO switch back to "github.com/Workiva/go-datastructures/bitarray"
-	"github.com/theodus/go-datastructures/bitarray"
 )
 
 type node struct {
 	entries []Entry
-	nodeMap bitarray.Bitmap32
-	dataMap bitarray.Bitmap32
+	nodeMap uint32
+	dataMap uint32
 	level   uint32 // level starts at 0
 }
 
@@ -75,15 +72,13 @@ func emptyNode(level uint32, capacity int) *node {
 func insert(n *node, entry Entry) *node {
 	index := mask(entry.KeyHash(), n.level)
 	newNode := n
-	// insert directly
-	if newNode.entries[index] == nil {
-		newNode.entries[index] = entry
-		newNode.dataMap = newNode.dataMap.SetBit(uint(index))
-		return newNode
-	}
-	// handle hash collisions on 6th level
-	if newNode.level == 6 {
-		if newNode.dataMap.HasBit(uint(index)) {
+	if newNode.level == 6 { // handle hash collisions on 6th level
+		if newNode.entries[index] == nil {
+			newNode.entries[index] = entry
+			newNode.dataMap = setBit(newNode.dataMap, index)
+			return newNode
+		}
+		if hasBit(newNode.dataMap, index) {
 			if newNode.entries[index].Key() == entry.Key() {
 				newNode.entries[index] = entry
 				return newNode
@@ -92,19 +87,22 @@ func insert(n *node, entry Entry) *node {
 			cNode.entries[0] = newNode.entries[index]
 			cNode.entries[1] = entry
 			newNode.entries[index] = cNode
-			newNode.dataMap = newNode.dataMap.ClearBit(uint(index))
+			newNode.dataMap = clearBit(newNode.dataMap, index)
 			return newNode
 		}
 		cNode := newNode.entries[index].(*collisionNode)
 		cNode.entries = append(cNode.entries, entry)
 		return newNode
 	}
-	// insert into sub-node
-	if newNode.nodeMap.HasBit(uint(index)) {
+	if !hasBit(newNode.dataMap, index) && !hasBit(newNode.nodeMap, index) { // insert directly
+		newNode.entries[index] = entry
+		newNode.dataMap = setBit(newNode.dataMap, index)
+		return newNode
+	}
+	if hasBit(newNode.nodeMap, index) { // insert into sub-node
 		newNode.entries[index] = insert(newNode.entries[index].(*node), entry)
 		return newNode
 	}
-	// replace existing entry
 	if newNode.entries[index].Key() == entry.Key() {
 		newNode.entries[index] = entry
 		return newNode
@@ -118,8 +116,8 @@ func insert(n *node, entry Entry) *node {
 	}
 	subNode = insert(subNode, newNode.entries[index])
 	subNode = insert(subNode, entry)
-	newNode.dataMap = newNode.dataMap.ClearBit(uint(index))
-	newNode.nodeMap = newNode.nodeMap.SetBit(uint(index))
+	newNode.dataMap = clearBit(newNode.dataMap, index)
+	newNode.nodeMap = setBit(newNode.nodeMap, index)
 	newNode.entries[index] = subNode
 	return newNode
 }
@@ -127,10 +125,10 @@ func insert(n *node, entry Entry) *node {
 // returns nil if not found
 func get(n *node, keyHash uint32, key interface{}) Entry {
 	index := mask(keyHash, n.level)
-	if n.dataMap.HasBit(uint(index)) {
+	if hasBit(n.dataMap, index) {
 		return n.entries[index]
 	}
-	if n.nodeMap.HasBit(uint(index)) {
+	if hasBit(n.nodeMap, index) {
 		return get(n.entries[index].(*node), keyHash, key)
 	}
 	if n.level == 6 { // get from collisionNode
@@ -150,26 +148,26 @@ func get(n *node, keyHash uint32, key interface{}) Entry {
 func remove(n *node, keyHash uint32, key interface{}) *node {
 	index := mask(keyHash, n.level)
 	newNode := n
-	if n.dataMap.HasBit(uint(index)) {
+	if hasBit(n.dataMap, index) {
 		newNode.entries[index] = nil
-		newNode.dataMap = newNode.dataMap.ClearBit(uint(index))
+		newNode.dataMap = clearBit(newNode.dataMap, index)
 		return newNode
 	}
-	if n.nodeMap.HasBit(uint(index)) {
+	if hasBit(n.nodeMap, index) {
 		subNode := newNode.entries[index].(*node)
 		subNode = remove(subNode, keyHash, key)
 		// compress if only 1 entry exists in sub-node
-		if subNode.nodeMap.PopCount() == 0 && subNode.dataMap.PopCount() == 1 {
+		if popCount(subNode.nodeMap) == 0 && popCount(subNode.dataMap) == 1 {
 			var e Entry
 			for i := uint32(0); i < 32; i++ {
-				if subNode.dataMap.HasBit(uint(i)) {
+				if hasBit(subNode.dataMap, i) {
 					e = subNode.entries[i]
 					break
 				}
 			}
 			newNode.entries[index] = e
-			newNode.nodeMap = newNode.nodeMap.ClearBit(uint(index))
-			newNode.dataMap = newNode.dataMap.SetBit(uint(index))
+			newNode.nodeMap = clearBit(newNode.nodeMap, index)
+			newNode.dataMap = setBit(newNode.dataMap, index)
 		}
 		newNode.entries[index] = subNode
 		return newNode
@@ -185,7 +183,7 @@ func remove(n *node, keyHash uint32, key interface{}) *node {
 		// compress if only 1 entry exists in collisionNode
 		if len(cNode.entries) == 1 {
 			newNode.entries[index] = cNode.entries[0]
-			newNode.dataMap = newNode.dataMap.SetBit(uint(index))
+			newNode.dataMap = setBit(newNode.dataMap, index)
 		}
 		return newNode
 	}
@@ -210,9 +208,9 @@ func pushEntries(n *node, stop <-chan struct{}, out chan Entry) {
 		default:
 			index := uint32(i)
 			switch {
-			case n.dataMap.HasBit(uint(index)):
+			case hasBit(n.dataMap, index):
 				out <- e
-			case n.nodeMap.HasBit(uint(index)):
+			case hasBit(n.nodeMap, index):
 				wg.Add(1)
 				go func() {
 					defer wg.Done()

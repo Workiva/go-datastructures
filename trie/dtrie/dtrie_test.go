@@ -27,16 +27,52 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package dtrie
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestPopCount(t *testing.T) {
+	b := []uint32{
+		uint32(0x55555555), // 0x55555555 = 01010101 01010101 01010101 01010101
+		uint32(0x33333333), // 0x33333333 = 00110011 00110011 00110011 00110011
+		uint32(0x0F0F0F0F), // 0x0F0F0F0F = 00001111 00001111 00001111 00001111
+		uint32(0x00FF00FF), // 0x00FF00FF = 00000000 11111111 00000000 11111111
+		uint32(0x0000FFFF), // 0x0000FFFF = 00000000 00000000 11111111 11111111
+	}
+	for _, x := range b {
+		assert.Equal(t, 16, popCount(x))
+	}
+}
 
 func TestDefaultHasher(t *testing.T) {
 	assert.Equal(t,
 		defaultHasher(map[int]string{11234: "foo"}),
 		defaultHasher(map[int]string{11234: "foo"}))
 	assert.NotEqual(t, defaultHasher("foo"), defaultHasher("bar"))
+}
+
+type testEntry struct {
+	hash  uint32
+	key   int
+	value int
+}
+
+func (e *testEntry) KeyHash() uint32 {
+	return e.hash
+}
+
+func (e *testEntry) Key() interface{} {
+	return e.key
+}
+
+func (e *testEntry) Value() interface{} {
+	return e.value
+}
+
+func (e *testEntry) String() string {
+	return fmt.Sprint(e.value)
 }
 
 func collisionHash(key interface{}) uint32 {
@@ -51,7 +87,7 @@ func TestInsert(t *testing.T) {
 func insertTest(t *testing.T, hashfunc func(interface{}) uint32, count int) *node {
 	n := emptyNode(0, 32)
 	for i := 0; i < count; i++ {
-		n = insert(n, &entry{hashfunc(i), i, i})
+		n = insert(n, &testEntry{hashfunc(i), i, i})
 	}
 	return n
 }
@@ -94,7 +130,7 @@ func TestUpdate(t *testing.T) {
 func updateTest(t *testing.T, hashfunc func(interface{}) uint32, count int) {
 	n := insertTest(t, hashfunc, count)
 	for i := 0; i < count; i++ {
-		n = insert(n, &entry{hashfunc(i), i, -i})
+		n = insert(n, &testEntry{hashfunc(i), i, -i})
 	}
 }
 
@@ -138,7 +174,7 @@ func BenchmarkInsert(b *testing.B) {
 	n := emptyNode(0, 32)
 	b.ResetTimer()
 	for i := b.N; i > 0; i-- {
-		n = insert(n, &entry{defaultHasher(i), i, i})
+		n = insert(n, &testEntry{defaultHasher(i), i, i})
 	}
 }
 
@@ -165,6 +201,6 @@ func BenchmarkUpdate(b *testing.B) {
 	n := insertTest(nil, defaultHasher, b.N)
 	b.ResetTimer()
 	for i := b.N; i > 0; i-- {
-		n = insert(n, &entry{defaultHasher(i), i, -i})
+		n = insert(n, &testEntry{defaultHasher(i), i, -i})
 	}
 }
