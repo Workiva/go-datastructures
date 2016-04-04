@@ -39,6 +39,24 @@ type Dtrie struct {
 	hasher func(v interface{}) uint32
 }
 
+type entry struct {
+	hash  uint32
+	key   interface{}
+	value interface{}
+}
+
+func (e *entry) KeyHash() uint32 {
+	return e.hash
+}
+
+func (e *entry) Key() interface{} {
+	return e.key
+}
+
+func (e *entry) Value() interface{} {
+	return e.value
+}
+
 // New creates an empty DTrie with the given hashing function.
 // If nil is passed in, the default hashing function will be used.
 func New(hasher func(v interface{}) uint32) *Dtrie {
@@ -59,16 +77,16 @@ func (d *Dtrie) Size() (size int) {
 	return size
 }
 
-// Get returns the Entry for the associated key or returns nil if the
+// Get returns the value for the associated key or returns nil if the
 // key does not exist.
-func (d *Dtrie) Get(key interface{}) Entry {
-	return get(d.root, d.hasher(key), key)
+func (d *Dtrie) Get(key interface{}) interface{} {
+	return get(d.root, d.hasher(key), key).Value()
 }
 
-// Insert adds an entry to the Dtrie, replacing the existing value if
+// Insert adds a key value pair to the Dtrie, replacing the existing value if
 // the key already exists and returns the resulting Dtrie.
-func (d *Dtrie) Insert(entry Entry) *Dtrie {
-	root := insert(d.root, entry)
+func (d *Dtrie) Insert(key, value interface{}) *Dtrie {
+	root := insert(d.root, &entry{d.hasher(key), key, value})
 	return &Dtrie{root, d.hasher}
 }
 
