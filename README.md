@@ -21,13 +21,9 @@ Bitarray used to detect existence without having to resort to hashing with
 hashmaps.  Requires entities have a uint64 unique identifier.  Two
 implementations exist, regular and sparse.  Sparse saves a great deal of space
 but insertions are O(log n).  There are some useful functions on the BitArray
-interface to detect intersection between two bitarrays.
-
-#### Bitmap
-
-an extremely quick way of representing bitarrays of length 32 or 64 within
-a uint32 and uint64 respectively. This method provides bit switching and
-popcount operations of O(1).
+interface to detect intersection between two bitarrays. This package also
+includes bitmaps of length 32 and 64 that provide increased speed and O(1) for
+all operations by storing the bitmaps in unsigned integers rather than arrays.
 
 #### Futures
 
