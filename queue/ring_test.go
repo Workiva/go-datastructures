@@ -280,30 +280,32 @@ func BenchmarkRBLifeCycle(b *testing.B) {
 }
 
 func BenchmarkRBPut(b *testing.B) {
-	rbs := make([]*RingBuffer, 0, b.N)
-
-	for i := 0; i < b.N; i++ {
-		rbs = append(rbs, NewRingBuffer(2))
-	}
+	rb := NewRingBuffer(uint64(b.N))
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		rbs[i].Put(i)
+		ok, err := rb.Offer(i)
+		if !ok {
+			b.Fail()
+		}
+		if err != nil {
+			b.Log(err)
+			b.Fail()
+		}
 	}
 }
 
 func BenchmarkRBGet(b *testing.B) {
-	rbs := make([]*RingBuffer, 0, b.N)
+	rb := NewRingBuffer(uint64(b.N))
 
 	for i := 0; i < b.N; i++ {
-		rbs = append(rbs, NewRingBuffer(2))
-		rbs[i].Put(i)
+		rb.Offer(i)
 	}
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		rbs[i].Get()
+		rb.Get()
 	}
 }
