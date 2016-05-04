@@ -102,7 +102,7 @@ func (items *items) peek() (interface{}, bool) {
 		return nil, false
 	}
 
-	return (*items)[length-1], true
+	return (*items)[0], true
 }
 
 func (items *items) getUntil(checker func(item interface{}) bool) []interface{} {
