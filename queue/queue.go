@@ -260,11 +260,11 @@ func (q *Queue) Peek() (interface{}, error) {
 	}
 
 	peekItem, ok := q.items.peek()
-	if ok {
-		return peekItem, nil
+	if !ok {
+		return nil, ErrEmptyQueue
 	}
 
-	return nil, ErrUnknown
+	return peekItem, nil
 }
 
 // TakeUntil takes a function and returns a list of items that

@@ -26,6 +26,7 @@ var (
 	// ErrTimeout is returned when an applicable queue operation times out.
 	ErrTimeout = errors.New(`queue: poll timed out`)
 
-	// ErrUnknown is returned if the error state was unusual and unexpected.
-	ErrUnknown = errors.New(`queue: unknown error`)
+	// ErrEmptyQueue is returned when an non-applicable queue operation was called
+	// due to the queue's empty item state
+	ErrEmptyQueue = errors.New(`queue: empty queue`)
 )
