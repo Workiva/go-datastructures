@@ -95,6 +95,16 @@ func (items *items) get(number int64) []interface{} {
 	return returnItems
 }
 
+func (items *items) peek() (interface{}, bool) {
+	length := len(*items)
+
+	if length == 0 {
+		return nil, false
+	}
+
+	return (*items)[0], true
+}
+
 func (items *items) getUntil(checker func(item interface{}) bool) []interface{} {
 	length := len(*items)
 
@@ -237,6 +247,24 @@ func (q *Queue) Poll(number int64, timeout time.Duration) ([]interface{}, error)
 	items = q.items.get(number)
 	q.lock.Unlock()
 	return items, nil
+}
+
+// Peek returns a the first item in the queue by value
+// without modifying the queue.
+func (q *Queue) Peek() (interface{}, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+
+	if q.disposed {
+		return nil, ErrDisposed
+	}
+
+	peekItem, ok := q.items.peek()
+	if !ok {
+		return nil, ErrEmptyQueue
+	}
+
+	return peekItem, nil
 }
 
 // TakeUntil takes a function and returns a list of items that

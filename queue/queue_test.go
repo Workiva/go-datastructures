@@ -329,6 +329,32 @@ func BenchmarkChannel(b *testing.B) {
 	wg.Wait()
 }
 
+func TestPeek(t *testing.T) {
+	q := New(10)
+	q.Put(`a`)
+	q.Put(`b`)
+	q.Put(`c`)
+	peekResult, err := q.Peek()
+	peekExpected := `a`
+	assert.Nil(t, err)
+	assert.Equal(t, q.Len(), int64(3))
+	assert.Equal(t, peekExpected, peekResult)
+
+	popResult, err := q.Get(1)
+	assert.Nil(t, err)
+	assert.Equal(t, peekResult, popResult[0])
+	assert.Equal(t, q.Len(), int64(2))
+}
+
+func TestPeekOnDisposedQueue(t *testing.T) {
+	q := New(10)
+	q.Dispose()
+	result, err := q.Peek()
+
+	assert.Nil(t, result)
+	assert.IsType(t, ErrDisposed, err)
+}
+
 func TestTakeUntil(t *testing.T) {
 	q := New(10)
 	q.Put(`a`, `b`, `c`)
