@@ -19,6 +19,10 @@ Package set is a simple unordered set implemented with a map.  This set
 is threadsafe which decreases performance.
 
 TODO: Actually write custom hashmap using the hash/fnv hasher.
+
+TODO: Our Set implementation Could be further optimized by getting the uintptr
+of the generic interface{} used and using that as the key; Golang maps handle
+uintptr much better than the generic interace{} key.
 */
 
 package set

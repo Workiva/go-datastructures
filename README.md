@@ -59,9 +59,11 @@ Inserts are typical BBST times at O(log n^d) where d is the number of
 dimensions.
 
 #### Set
-Self explanatory.  Could be further optimized by getting the uintptr of the
-generic interface{} used and using that as the key as Golang maps handle that
-much better than the generic struct type.
+Our Set implementation is very simple, accepts items of type `interface{}` and
+includes only a few methods. If your application requires a richer Set
+implementation over lists of type `sort.Interface`, see
+[xtgo/set](https://github.com/xtgo/set) and
+[goware/set](https://github.com/goware/set).
 
 #### Threadsafe
 A package that is meant to contain some commonly used items but in a threadsafe
