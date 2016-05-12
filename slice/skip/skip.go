@@ -73,19 +73,37 @@ const p = .5 // the p level defines the probability that a node
 // items in the universe.  If p = .5 then maxlevel = 32 is appropriate
 // for uint32.
 
+// lockedSource is an implementation of rand.Source that is safe for
+// concurrent use by multiple goroutines. The code is modeled after
+// https://golang.org/src/math/rand/rand.go.
+type lockedSource struct {
+	mu  sync.Mutex
+	src rand.Source
+}
+
+// Int63 implements the rand.Source interface.
+func (ls *lockedSource) Int63() (n int64) {
+	ls.mu.Lock()
+	n = ls.src.Int63()
+	ls.mu.Unlock()
+	return
+}
+
+// Seed implements the rand.Source interface.
+func (ls *lockedSource) Seed(seed int64) {
+	ls.mu.Lock()
+	ls.src.Seed(seed)
+	ls.mu.Unlock()
+}
+
 // generator will be the common generator to create random numbers. It
 // is seeded with unix nanosecond when this line is executed at runtime,
 // and only executed once ensuring all random numbers come from the same
 // randomly seeded generator.
-var generator = rand.New(rand.NewSource(time.Now().UnixNano()))
-
-// rnLock protects the RNG as the generator is not threadsafe.
-var rnLock sync.Mutex
+var generator = rand.New(&lockedSource{src: rand.NewSource(time.Now().UnixNano())})
 
 func generateLevel(maxLevel uint8) uint8 {
 	var level uint8
-	rnLock.Lock()
-	defer rnLock.Unlock()
 	for level = uint8(1); level < maxLevel-1; level++ {
 		if generator.Float64() >= p {
 
