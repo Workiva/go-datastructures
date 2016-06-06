@@ -384,6 +384,30 @@ func TestTakeUntilEmptyQueue(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 
+func TestTakeUntilThenGet(t *testing.T) {
+	q := New(10)
+	q.Put(`a`, `b`, `c`)
+	takeItems, _ := q.TakeUntil(func(item interface{}) bool {
+		return item != `c`
+	})
+
+	restItems, _ := q.Get(3)
+	assert.Equal(t, []interface{}{`a`, `b`}, takeItems)
+	assert.Equal(t, []interface{}{`c`}, restItems)
+}
+
+func TestTakeUntilNoMatches(t *testing.T) {
+	q := New(10)
+	q.Put(`a`, `b`, `c`)
+	takeItems, _ := q.TakeUntil(func(item interface{}) bool {
+		return item != `a`
+	})
+
+	restItems, _ := q.Get(3)
+	assert.Equal(t, []interface{}{}, takeItems)
+	assert.Equal(t, []interface{}{`a`, `b`, `c`}, restItems)
+}
+
 func TestTakeUntilOnDisposedQueue(t *testing.T) {
 	q := New(10)
 	q.Dispose()
