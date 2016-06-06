@@ -115,7 +115,7 @@ func (items *items) getUntil(checker func(item interface{}) bool) []interface{} 
 	}
 
 	returnItems := make([]interface{}, 0, length)
-	index := 0
+	index := -1
 	for i, item := range *items {
 		if !checker(item) {
 			break
@@ -123,9 +123,10 @@ func (items *items) getUntil(checker func(item interface{}) bool) []interface{} 
 
 		returnItems = append(returnItems, item)
 		index = i
+		(*items)[i] = nil // prevent memory leak
 	}
 
-	*items = (*items)[index:]
+	*items = (*items)[index+1:]
 	return returnItems
 }
 
