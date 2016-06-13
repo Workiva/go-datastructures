@@ -112,19 +112,10 @@ func (z Keys) MarshalMsg(b []byte) (o []byte, err error) {
 		if z[xvk] == nil {
 			o = msgp.AppendNil(o)
 		} else {
-			// map header, size 3
-			// string "u"
-			o = append(o, 0x83, 0xa1, 0x75)
-			o = msgp.AppendBytes(o, []byte(z[xvk].UUID))
-			// string "v"
-			o = append(o, 0xa1, 0x76)
-			o, err = msgp.AppendIntf(o, z[xvk].Value)
+			o, err = z[xvk].MarshalMsg(o)
 			if err != nil {
 				return
 			}
-			// string "p"
-			o = append(o, 0xa1, 0x70)
-			o = msgp.AppendBytes(o, z[xvk].Payload)
 		}
 	}
 	return
@@ -153,45 +144,9 @@ func (z *Keys) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			if (*z)[bzg] == nil {
 				(*z)[bzg] = new(Key)
 			}
-			var field []byte
-			_ = field
-			var isz uint32
-			isz, bts, err = msgp.ReadMapHeaderBytes(bts)
+			bts, err = (*z)[bzg].UnmarshalMsg(bts)
 			if err != nil {
 				return
-			}
-			for isz > 0 {
-				isz--
-				field, bts, err = msgp.ReadMapKeyZC(bts)
-				if err != nil {
-					return
-				}
-				switch msgp.UnsafeString(field) {
-				case "u":
-					{
-						var tmp []byte
-						tmp, bts, err = msgp.ReadBytesBytes(bts, []byte((*z)[bzg].UUID))
-						(*z)[bzg].UUID = ID(tmp)
-					}
-					if err != nil {
-						return
-					}
-				case "v":
-					(*z)[bzg].Value, bts, err = msgp.ReadIntfBytes(bts)
-					if err != nil {
-						return
-					}
-				case "p":
-					(*z)[bzg].Payload, bts, err = msgp.ReadBytesBytes(bts, (*z)[bzg].Payload)
-					if err != nil {
-						return
-					}
-				default:
-					bts, err = msgp.Skip(bts)
-					if err != nil {
-						return
-					}
-				}
 			}
 		}
 	}
@@ -205,7 +160,7 @@ func (z Keys) Msgsize() (s int) {
 		if z[bai] == nil {
 			s += msgp.NilSize
 		} else {
-			s += 1 + 2 + msgp.BytesPrefixSize + len([]byte(z[bai].UUID)) + 2 + msgp.GuessSize(z[bai].Value) + 2 + msgp.BytesPrefixSize + len(z[bai].Payload)
+			s += z[bai].Msgsize()
 		}
 	}
 	return
@@ -237,19 +192,10 @@ func (z *Node) MarshalMsg(b []byte) (o []byte, err error) {
 		if z.ChildKeys[ajw] == nil {
 			o = msgp.AppendNil(o)
 		} else {
-			// map header, size 3
-			// string "u"
-			o = append(o, 0x83, 0xa1, 0x75)
-			o = msgp.AppendBytes(o, []byte(z.ChildKeys[ajw].UUID))
-			// string "v"
-			o = append(o, 0xa1, 0x76)
-			o, err = msgp.AppendIntf(o, z.ChildKeys[ajw].Value)
+			o, err = z.ChildKeys[ajw].MarshalMsg(o)
 			if err != nil {
 				return
 			}
-			// string "p"
-			o = append(o, 0xa1, 0x70)
-			o = msgp.AppendBytes(o, z.ChildKeys[ajw].Payload)
 		}
 	}
 	return
@@ -324,43 +270,9 @@ func (z *Node) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					if z.ChildKeys[ajw] == nil {
 						z.ChildKeys[ajw] = new(Key)
 					}
-					var isz uint32
-					isz, bts, err = msgp.ReadMapHeaderBytes(bts)
+					bts, err = z.ChildKeys[ajw].UnmarshalMsg(bts)
 					if err != nil {
 						return
-					}
-					for isz > 0 {
-						isz--
-						field, bts, err = msgp.ReadMapKeyZC(bts)
-						if err != nil {
-							return
-						}
-						switch msgp.UnsafeString(field) {
-						case "u":
-							{
-								var tmp []byte
-								tmp, bts, err = msgp.ReadBytesBytes(bts, []byte(z.ChildKeys[ajw].UUID))
-								z.ChildKeys[ajw].UUID = ID(tmp)
-							}
-							if err != nil {
-								return
-							}
-						case "v":
-							z.ChildKeys[ajw].Value, bts, err = msgp.ReadIntfBytes(bts)
-							if err != nil {
-								return
-							}
-						case "p":
-							z.ChildKeys[ajw].Payload, bts, err = msgp.ReadBytesBytes(bts, z.ChildKeys[ajw].Payload)
-							if err != nil {
-								return
-							}
-						default:
-							bts, err = msgp.Skip(bts)
-							if err != nil {
-								return
-							}
-						}
 					}
 				}
 			}
@@ -385,7 +297,7 @@ func (z *Node) Msgsize() (s int) {
 		if z.ChildKeys[ajw] == nil {
 			s += msgp.NilSize
 		} else {
-			s += 1 + 2 + msgp.BytesPrefixSize + len([]byte(z.ChildKeys[ajw].UUID)) + 2 + msgp.GuessSize(z.ChildKeys[ajw].Value) + 2 + msgp.BytesPrefixSize + len(z.ChildKeys[ajw].Payload)
+			s += z.ChildKeys[ajw].Msgsize()
 		}
 	}
 	return
