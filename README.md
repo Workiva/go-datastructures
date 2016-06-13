@@ -145,6 +145,11 @@ immutable version.  Unfortunately, to make the B-tree generic we require an
 interface and the most expensive operation in CPU profiling is the interface
 method which in turn calls into runtime.assertI2T.  We need generics.
 
+#### Immutable B Tree
+A btree based on two principals, immutablability and concurrency. 
+Somewhat slow for single value lookups and puts, it is very fast for bulk operations.  
+A persister can be injected to make this index persistent.
+
 #### Ctrie
 
 A concurrent, lock-free hash array mapped trie with efficient non-blocking
