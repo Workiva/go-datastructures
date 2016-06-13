@@ -70,7 +70,7 @@ func (c *cacher) loadNode(t *Tr, key ID) (*Node, error) {
 // All found nodes are cached so subsequent calls should be faster than
 // the initial.  This blocks until the node is loaded, but is also threadsafe.
 func (c *cacher) getNode(t *Tr, key ID, useCache bool) (*Node, error) {
-	if !cache {
+	if !useCache {
 		return c.loadNode(t, key)
 	}
 
