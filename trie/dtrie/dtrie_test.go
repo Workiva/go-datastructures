@@ -114,6 +114,7 @@ func TestIterate(t *testing.T) {
 		c++
 		if c == 100 {
 			close(stop)
+			break
 		}
 	}
 	assert.True(t, c == 100)
