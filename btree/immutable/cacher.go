@@ -7,8 +7,9 @@ import (
 	"github.com/Workiva/go-datastructures/futures"
 )
 
-// cacher provides a convenient interface for retrieving,
-// storing, and caching nodes.  This ensures that we don't have to constantly
+// cacher provides a convenient construct for retrieving,
+// storing, and caching nodes; basically wrapper persister with a caching layer.
+// This ensures that we don't have to constantly
 // run to the persister to fetch nodes we are using over and over again.
 // TODO: this should probably evict items from the cache if the cache gets
 // too full.
@@ -16,6 +17,21 @@ type cacher struct {
 	lock      sync.Mutex
 	cache     map[string]*futures.Future
 	persister Persister
+}
+
+func (c *cacher) asyncLoadNode(t *Tr, key ID, completer chan interface{}) {
+	n, err := c.loadNode(t, key)
+	if err != nil {
+		completer <- err
+		return
+	}
+
+	if n == nil {
+		completer <- ErrNodeNotFound
+		return
+	}
+
+	completer <- n
 }
 
 // clear deletes all items from the cache.
@@ -53,7 +69,7 @@ func (c *cacher) loadNode(t *Tr, key ID) (*Node, error) {
 // if the cacher could not go to the persister or the node could not be found.
 // All found nodes are cached so subsequent calls should be faster than
 // the initial.  This blocks until the node is loaded, but is also threadsafe.
-func (c *cacher) getNode(t *Tr, key ID, cache bool) (*Node, error) {
+func (c *cacher) getNode(t *Tr, key ID, useCache bool) (*Node, error) {
 	if !cache {
 		return c.loadNode(t, key)
 	}
@@ -75,20 +91,7 @@ func (c *cacher) getNode(t *Tr, key ID, cache bool) (*Node, error) {
 	c.cache[string(key)] = future
 	c.lock.Unlock()
 
-	go func() {
-		n, err := c.loadNode(t, key)
-		if err != nil {
-			completer <- err
-			return
-		}
-
-		if n == nil {
-			completer <- ErrNodeNotFound
-			return
-		}
-
-		completer <- n
-	}()
+	go c.asyncLoadNode(t, key, completer)
 
 	ifc, err := future.GetResult()
 	if err != nil {
