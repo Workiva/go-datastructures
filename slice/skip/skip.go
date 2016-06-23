@@ -60,6 +60,7 @@ package skip
 import (
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Workiva/go-datastructures/common"
@@ -120,7 +121,7 @@ func insertNode(sl *SkipList, n *node, cmp common.Comparator, pos uint64, cache 
 		n.entry = cmp
 		return oldEntry
 	}
-	sl.num++
+	atomic.AddUint64(&sl.num, 1)
 
 	nodeLevel := generateLevel(sl.maxLevel)
 	if nodeLevel > sl.level {
@@ -174,8 +175,8 @@ func splitAt(sl *SkipList, index uint64) (*SkipList, *SkipList) {
 		sl.cache[i].forward[i] = nil
 	}
 
-	right.num = sl.num - index
-	sl.num = sl.num - right.num
+	right.num = sl.Len() - index // right is not in user's hands yet
+	atomic.AddUint64(&sl.num, -right.num)
 
 	sl.resetMaxLevel()
 	right.resetMaxLevel()
@@ -217,7 +218,7 @@ func (sl *SkipList) init(ifc interface{}) {
 }
 
 func (sl *SkipList) search(cmp common.Comparator, update nodes, widths widths) (*node, uint64) {
-	if sl.num == 0 { // nothing in the list
+	if sl.Len() == 0 { // nothing in the list
 		return nil, 1
 	}
 
@@ -253,11 +254,11 @@ func (sl *SkipList) resetMaxLevel() {
 }
 
 func (sl *SkipList) searchByPosition(position uint64, update nodes, widths widths) (*node, uint64) {
-	if sl.num == 0 { // nothing in the list
+	if sl.Len() == 0 { // nothing in the list
 		return nil, 1
 	}
 
-	if position > sl.num {
+	if position > sl.Len() {
 		return nil, 1
 	}
 
@@ -339,8 +340,8 @@ func (sl *SkipList) Insert(comparators ...common.Comparator) common.Comparators 
 }
 
 func (sl *SkipList) insertAtPosition(position uint64, cmp common.Comparator) {
-	if position > sl.num {
-		position = sl.num
+	if position > sl.Len() {
+		position = sl.Len()
 	}
 	n, pos := sl.searchByPosition(position, sl.cache, sl.posCache)
 	insertNode(sl, n, cmp, pos, sl.cache, sl.posCache, true)
@@ -377,7 +378,7 @@ func (sl *SkipList) delete(cmp common.Comparator) common.Comparator {
 		return nil
 	}
 
-	sl.num--
+	atomic.AddUint64(&sl.num, ^uint64(0)) // decrement
 
 	for i := uint8(0); i <= sl.level; i++ {
 		if sl.cache[i].forward[i] != n {
@@ -414,7 +415,7 @@ func (sl *SkipList) Delete(comparators ...common.Comparator) common.Comparators 
 
 // Len returns the number of items in this skiplist.
 func (sl *SkipList) Len() uint64 {
-	return sl.num
+	return atomic.LoadUint64(&sl.num)
 }
 
 func (sl *SkipList) iterAtPosition(pos uint64) *iterator {
@@ -462,7 +463,7 @@ func (sl *SkipList) Iter(cmp common.Comparator) Iterator {
 // the content of this list.
 func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {
 	index++ // 0-index offset
-	if index >= sl.num {
+	if index >= sl.Len() {
 		return sl, nil
 	}
 	return splitAt(sl, index)
