@@ -76,6 +76,21 @@ func (w *waiters) put(sema *sema) {
 	*w = append(*w, sema)
 }
 
+func (w *waiters) remove(sema *sema) {
+	if len(*w) == 0 {
+		return
+	}
+	// build new slice, copy all except sema
+	ws := *w
+	newWs := make(waiters, 0, len(*w))
+	for i := range ws {
+		if ws[i] != sema {
+			newWs = append(newWs, ws[i])
+		}
+	}
+	*w = newWs
+}
+
 type items []interface{}
 
 func (items *items) get(number int64) []interface{} {
@@ -237,6 +252,10 @@ func (q *Queue) Poll(number int64, timeout time.Duration) ([]interface{}, error)
 			select {
 			case sema.ready <- true:
 				// we called this before Put() could
+				// Remove sema from waiters.
+				q.lock.Lock()
+				q.waiters.remove(sema)
+				q.lock.Unlock()
 			default:
 				// Put() got it already, we need to call Done() so Put() can move on
 				sema.response.Done()
