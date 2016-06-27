@@ -59,6 +59,32 @@ func (k Keys) toItems() items {
 	return items
 }
 
+func (k Keys) sort(comparator Comparator) Keys {
+	return (&keySortWrapper{comparator, k}).sort()
+}
+
+type keySortWrapper struct {
+	comparator Comparator
+	keys       Keys
+}
+
+func (sw *keySortWrapper) Len() int {
+	return len(sw.keys)
+}
+
+func (sw *keySortWrapper) Swap(i, j int) {
+	sw.keys[i], sw.keys[j] = sw.keys[j], sw.keys[i]
+}
+
+func (sw *keySortWrapper) Less(i, j int) bool {
+	return sw.comparator(sw.keys[i].Value, sw.keys[j].Value) < 0
+}
+
+func (sw *keySortWrapper) sort() Keys {
+	sort.Sort(sw)
+	return sw.keys
+}
+
 func splitKeys(keys Keys, numParts int) []Keys {
 	parts := make([]Keys, numParts)
 	for i := int64(0); i < int64(numParts); i++ {

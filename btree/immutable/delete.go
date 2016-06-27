@@ -28,6 +28,14 @@ func (t *Tr) DeleteItems(values ...interface{}) ([]*Item, error) {
 		keys = append(keys, &Key{Value: item.Value, Payload: item.Payload})
 	}, values...)
 
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to sort the keys to ensure that a multidelete
+	// distributes deletes across a single node correctly
+	keys = keys.sort(t.config.Comparator)
+
 	err = t.delete(keys)
 	if err != nil {
 		return nil, err
