@@ -587,6 +587,18 @@ func TestDeleteAfterSplitIncreasing(t *testing.T) {
 	}
 }
 
+func TestDeleteMultipleLevelsRandomlyBulk(t *testing.T) {
+	num := 200
+	cfg := defaultConfig()
+	rt := New(cfg)
+	mutable := rt.AsMutable()
+	items := generateRandomItems(num)
+	mutable.AddItems(items...)
+	mutable.DeleteItems(itemsToValues(items[:100]...)...)
+	result, _ := mutable.(*Tr).toList(itemsToValues(items...)...)
+	assert.Len(t, result, 100)
+}
+
 func TestDeleteAfterSplitDecreasing(t *testing.T) {
 	num := 11
 	cfg := defaultConfig()
