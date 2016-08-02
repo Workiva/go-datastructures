@@ -622,3 +622,20 @@ func TestInsertDuplicateIntervalChildren(t *testing.T) {
 	result := tree.Query(constructSingleDimensionInterval(0, 10, 0))
 	assert.Contains(t, result, iv1)
 }
+
+func TestTraverse(t *testing.T) {
+	tree := newTree(1)
+	top := 30
+	for i := 0; i <= top; i++ {
+		tree.Add(constructSingleDimensionInterval(int64(i*10), int64((i+1)*10), uint64(i)))
+	}
+	found := map[uint64]bool{}
+	tree.Traverse(func(id Interval) {
+		found[id.ID()] = true
+	})
+	for i := 0; i <= top; i++ {
+		if found, _ := found[uint64(i)]; !found {
+			t.Errorf("could not find expected interval %d", i)
+		}
+	}
+}
