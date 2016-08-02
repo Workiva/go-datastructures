@@ -179,7 +179,7 @@ func (sba *sparseBitArray) Capacity() uint64 {
 		return 0
 	}
 
-	return sba.indices[len(sba.indices)-1] + s
+	return (sba.indices[len(sba.indices)-1] + 1) * s
 }
 
 // Equals returns a bool indicating if the provided bit array
