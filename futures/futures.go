@@ -72,11 +72,13 @@ func (f *Future) setItem(item interface{}, err error) {
 
 func listenForResult(f *Future, ch Completer, timeout time.Duration, wg *sync.WaitGroup) {
 	wg.Done()
+	t := time.NewTimer(timeout)
 	select {
 	case item := <-ch:
 		f.setItem(item, nil)
-	case <-time.After(timeout):
-		f.setItem(nil, fmt.Errorf(`Timeout after %f seconds.`, timeout.Seconds()))
+		t.Stop() // we want to trigger GC of this timer as soon as it's no longer needed
+	case <-t.C:
+		f.setItem(nil, fmt.Errorf(`timeout after %f seconds`, timeout.Seconds()))
 	}
 }
 
