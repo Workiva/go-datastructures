@@ -61,6 +61,14 @@ func (f *Future) GetResult() (interface{}, error) {
 	return f.item, f.err
 }
 
+// HasResult will return true iff the result exists
+func (f *Future) HasResult() bool {
+	f.lock.Lock()
+	hasResult := f.triggered
+	f.lock.Unlock()
+	return hasResult
+}
+
 func (f *Future) setItem(item interface{}, err error) {
 	f.lock.Lock()
 	f.triggered = true
