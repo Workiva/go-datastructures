@@ -3,20 +3,22 @@ package cache
 import (
 	"container/list"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEvictionPolicy(t *testing.T) {
 	c := &cache{keyList: list.New()}
 	EvictionPolicy(LeastRecentlyUsed)(c)
-	if accessed, added := c.recordAccess("foo"), c.recordAdd("foo"); accessed == nil || added != nil {
-		t.Errorf("EvictionPolicy failed to set LRU policy")
-	}
+	accessed, added := c.recordAccess("foo"), c.recordAdd("foo")
+	assert.NotNil(t, accessed)
+	assert.Nil(t, added)
 
 	c = &cache{keyList: list.New()}
 	EvictionPolicy(LeastRecentlyAdded)(c)
-	if accessed, added := c.recordAccess("foo"), c.recordAdd("foo"); accessed != nil || added == nil {
-		t.Errorf("EvictionPolicy failed to set LRU policy")
-	}
+	accessed, added = c.recordAccess("foo"), c.recordAdd("foo")
+	assert.Nil(t, accessed)
+	assert.NotNil(t, added)
 }
 
 func TestNew(t *testing.T) {
@@ -27,24 +29,15 @@ func TestNew(t *testing.T) {
 
 	c := New(314159, option).(*cache)
 
-	if c.cap != 314159 {
-		t.Errorf("Expected cache capacity of %d", 314159)
-	}
-	if c.size != 0 {
-		t.Errorf("Expected initial size of zero")
-	}
-	if c.items == nil {
-		t.Errorf("Expected items to be initialized")
-	}
-	if c.keyList == nil {
-		t.Errorf("Expected keyList to be initialized")
-	}
-	if !optionApplied {
-		t.Errorf("New did not apply its provided option")
-	}
-	if accessed, added := c.recordAccess("foo"), c.recordAdd("foo"); accessed == nil || added != nil {
-		t.Errorf("Expected default LRU policy")
-	}
+	assert.Equal(t, uint64(314159), c.cap)
+	assert.Equal(t, uint64(0), c.size)
+	assert.NotNil(t, c.items)
+	assert.NotNil(t, c.keyList)
+	assert.True(t, optionApplied)
+
+	accessed, added := c.recordAccess("foo"), c.recordAdd("foo")
+	assert.NotNil(t, accessed)
+	assert.Nil(t, added)
 }
 
 type testItem uint64
@@ -123,18 +116,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Log(testCase.label)
 		testCase.useCache(testCase.cache)
-		if testCase.cache.Size() != testCase.expectedSize {
-			t.Errorf("Expected size of %d, got %d", testCase.expectedSize, testCase.cache.Size())
-		}
-		actual := testCase.cache.Get(keys...)
-		if len(actual) != len(testCase.expectedItems) {
-			t.Errorf("Expected to get %d items, got %d", len(testCase.expectedItems), len(actual))
-		} else {
-			for i, expectedItem := range testCase.expectedItems {
-				if actual[i] != expectedItem {
-					t.Errorf("Expected Get to return %v in position %d, got %v", expectedItem, i, actual[i])
-				}
-			}
-		}
+		assert.Equal(t, testCase.expectedSize, testCase.cache.Size())
+		assert.Equal(t, testCase.expectedItems, testCase.cache.Get(keys...))
 	}
 }
