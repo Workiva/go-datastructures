@@ -5,14 +5,6 @@ import (
 	"testing"
 )
 
-func TestCapacity(t *testing.T) {
-	c := &cache{}
-	Capacity(52)(c)
-	if c.cap != 52 {
-		t.Errorf("Capacity failed to set cap")
-	}
-}
-
 func TestEvictionPolicy(t *testing.T) {
 	c := &cache{keyList: list.New()}
 	EvictionPolicy(LeastRecentlyUsed)(c)
@@ -33,10 +25,10 @@ func TestNew(t *testing.T) {
 		optionApplied = true
 	}
 
-	c := New(option).(*cache)
+	c := New(314159, option).(*cache)
 
-	if c.cap != 10*1024*1024 {
-		t.Errorf("Expected default cache capacity of %d", 10*1024*1024)
+	if c.cap != 314159 {
+		t.Errorf("Expected cache capacity of %d", 314159)
 	}
 	if c.size != 0 {
 		t.Errorf("Expected initial size of zero")
@@ -71,7 +63,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 		expectedItems []Item
 	}{{
 		label: "Items added, key doesn't exist",
-		cache: New(),
+		cache: New(10000),
 		useCache: func(c Cache) {
 			c.Put("foo", testItem(1))
 		},
@@ -79,7 +71,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 		expectedItems: []Item{testItem(1), nil, nil},
 	}, {
 		label: "Items added, key exists",
-		cache: New(),
+		cache: New(10000),
 		useCache: func(c Cache) {
 			c.Put("foo", testItem(1))
 			c.Put("foo", testItem(10))
@@ -88,7 +80,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 		expectedItems: []Item{testItem(10), nil, nil},
 	}, {
 		label: "Items added, LRA eviction",
-		cache: New(Capacity(2), EvictionPolicy(LeastRecentlyAdded)),
+		cache: New(2, EvictionPolicy(LeastRecentlyAdded)),
 		useCache: func(c Cache) {
 			c.Put("foo", testItem(1))
 			c.Put("bar", testItem(1))
@@ -99,7 +91,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 		expectedItems: []Item{nil, testItem(1), testItem(1)},
 	}, {
 		label: "Items added, LRU eviction",
-		cache: New(Capacity(2), EvictionPolicy(LeastRecentlyUsed)),
+		cache: New(2, EvictionPolicy(LeastRecentlyUsed)),
 		useCache: func(c Cache) {
 			c.Put("foo", testItem(1))
 			c.Put("bar", testItem(1))
@@ -110,7 +102,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 		expectedItems: []Item{testItem(1), nil, testItem(1)},
 	}, {
 		label: "Items removed, key doesn't exist",
-		cache: New(),
+		cache: New(10000),
 		useCache: func(c Cache) {
 			c.Put("foo", testItem(1))
 			c.Remove("baz")
@@ -119,7 +111,7 @@ func TestPutGetRemoveSize(t *testing.T) {
 		expectedItems: []Item{testItem(1), nil, nil},
 	}, {
 		label: "Items removed, key exists",
-		cache: New(),
+		cache: New(10000),
 		useCache: func(c Cache) {
 			c.Put("foo", testItem(1))
 			c.Remove("foo")

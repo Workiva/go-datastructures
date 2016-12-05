@@ -54,14 +54,6 @@ type cache struct {
 // CacheOption configures a cache.
 type CacheOption func(*cache)
 
-// Capacity sets the fixed capacity bound on the cache, in bytes.
-// If not provided, default is 10MB.
-func Capacity(cap uint64) CacheOption {
-	return func(c *cache) {
-		c.cap = cap
-	}
-}
-
 // Policy is a cache eviction policy for use with the EvictionPolicy CacheOption.
 type Policy uint8
 
@@ -90,9 +82,9 @@ func EvictionPolicy(policy Policy) CacheOption {
 // New returns a cache with the requested options configured.
 // The cache consumes memory bounded by a fixed capacity,
 // plus tracking overhead linear in the number of items.
-func New(options ...CacheOption) Cache {
+func New(capacity uint64, options ...CacheOption) Cache {
 	c := &cache{
-		cap:     10 * 1024 * 1024, // Default capacity of 10MB
+		cap:     capacity,
 		keyList: list.New(),
 		items:   map[string]*cached{},
 	}
