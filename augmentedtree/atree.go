@@ -201,6 +201,8 @@ func (tree *tree) add(iv Interval) {
 		}
 
 		if node.id == id {
+			// on duplicate range + id, replace the interval on this node
+			node.interval = iv
 			break
 		}
 
