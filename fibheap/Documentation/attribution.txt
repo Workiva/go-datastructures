@@ -1,0 +1,6 @@
+All rights belong to Keith Schwarz (htiek@cs.stanford.edu) and Stanford University.
+
+Original source of PDF presentations:
+L1: http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/08/Slides08.pdf
+L2: http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/09/Slides09.pdf
+
