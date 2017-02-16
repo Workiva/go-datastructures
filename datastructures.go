@@ -16,6 +16,7 @@ import (
 	_ "github.com/Workiva/go-datastructures/bitarray"
 	_ "github.com/Workiva/go-datastructures/btree/palm"
 	_ "github.com/Workiva/go-datastructures/btree/plus"
+	_ "github.com/Workiva/go-datastructures/fibheap"
 	_ "github.com/Workiva/go-datastructures/futures"
 	_ "github.com/Workiva/go-datastructures/hashmap/fastinteger"
 	_ "github.com/Workiva/go-datastructures/numerics/optimization"
