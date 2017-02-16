@@ -1,0 +1,7 @@
+BenchmarkFibHeap_Enqueue-4       	10000000	       167 ns/op	      72 B/op	       1 allocs/op
+BenchmarkFibHeap_DequeueMin-4    	   20000	    229153 ns/op	  167035 B/op	       2 allocs/op
+BenchmarkFibHeap_DecreaseKey-4   	10000000	       105 ns/op	      80 B/op	       1 allocs/op
+BenchmarkFibHeap_Delete-4        	   10000	    109693 ns/op	   85836 B/op	       2 allocs/op
+BenchmarkFibHeap_Merge-4         	 5000000	       268 ns/op	     144 B/op	       3 allocs/op
+PASS
+ok  	_/home/nikola/git/go-datastructures/fibheap	11.457s
