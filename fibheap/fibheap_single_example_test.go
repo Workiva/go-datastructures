@@ -1,6 +1,6 @@
 package fibheap
 
-// Example Test for the Fibonacci heap with floats
+// Example usage of the Fibonacci heap
 
 import (
 	"fmt"
@@ -15,15 +15,15 @@ func Example() {
 	heap1 := NewFloatFibHeap()
 	fmt.Println("Created heap 1.")
 	nodeh1_1 := heap1.Enqueue(SomeLargerNumberAround15)
-	fmt.Printf("Heap 1 insert: %v\n", nodeh1_1.priority)
+	fmt.Printf("Heap 1 insert: %v\n", nodeh1_1.Priority)
 
 	heap2 := NewFloatFibHeap()
 	fmt.Println("Created heap 2.")
 	fmt.Printf("Heap 2 is empty? %v\n", heap2.IsEmpty())
 	nodeh2_1 := heap2.Enqueue(SomeNumberAroundMinus1000)
-	fmt.Printf("Heap 2 insert: %v\n", nodeh2_1.priority)
+	fmt.Printf("Heap 2 insert: %v\n", nodeh2_1.Priority)
 	nodeh2_2 := heap2.Enqueue(SomeNumberAround0)
-	fmt.Printf("Heap 2 insert: %v\n", nodeh2_2.priority)
+	fmt.Printf("Heap 2 insert: %v\n", nodeh2_2.Priority)
 	fmt.Printf("Heap 1 size: %v\n", heap1.Size())
 	fmt.Printf("Heap 2 size: %v\n", heap2.Size())
 	fmt.Printf("Heap 1 is empty? %v\n", heap1.IsEmpty())
@@ -36,7 +36,7 @@ func Example() {
 
 	mergedHeap.DecreaseKey(nodeh2_1, SomeNumberAroundMinus1003)
 	min, _ := mergedHeap.DequeueMin()
-	fmt.Printf("Dequeue minimum of merged heap: %v\n", min.priority)
+	fmt.Printf("Dequeue minimum of merged heap: %v\n", min.Priority)
 	fmt.Printf("Merged heap size: %v\n", mergedHeap.Size())
 
 	fmt.Printf("Delete from merged heap: %v\n", SomeNumberAround0)
@@ -44,7 +44,7 @@ func Example() {
 	fmt.Printf("Merged heap size: %v\n", mergedHeap.Size())
 
 	min, _ = mergedHeap.DequeueMin()
-	fmt.Printf("Extracting minimum of merged heap: %v\n", min.priority)
+	fmt.Printf("Extracting minimum of merged heap: %v\n", min.Priority)
 	fmt.Printf("Merged heap size: %v\n", mergedHeap.Size())
 	fmt.Printf("Merged heap is empty? %v\n", mergedHeap.IsEmpty())
 

@@ -134,16 +134,16 @@ func TestEnqueueDequeueMin(t *testing.T) {
 		min, err = heap.DequeueMin()
 		assert.NoError(t, err)
 		if heap.Size() == 199 {
-			assert.Equal(t, Seq1FirstMinimum, min.priority)
+			assert.Equal(t, Seq1FirstMinimum, min.Priority)
 		}
 		if heap.Size() == 197 {
-			assert.Equal(t, Seq1ThirdMinimum, min.priority)
+			assert.Equal(t, Seq1ThirdMinimum, min.Priority)
 		}
 		if heap.Size() == 195 {
-			assert.Equal(t, Seq1FifthMinimum, min.priority)
+			assert.Equal(t, Seq1FifthMinimum, min.Priority)
 		}
 		if heap.Size() == 0 {
-			assert.Equal(t, Seq1LastMinimum, min.priority)
+			assert.Equal(t, Seq1LastMinimum, min.Priority)
 		}
 	}
 }
@@ -176,7 +176,7 @@ func TestEnqueueDecreaseKey(t *testing.T) {
 	for i := 0; i < len(NumberSequence2Sorted); i++ {
 		min, err = heap.DequeueMin()
 		assert.NoError(t, err)
-		assert.Equal(t, NumberSequence2Sorted[i], min.priority)
+		assert.Equal(t, NumberSequence2Sorted[i], min.Priority)
 	}
 }
 
@@ -209,7 +209,7 @@ func TestEnqueueDelete(t *testing.T) {
 	for i := 0; i < len(NumberSequence2Deleted3ElemSorted); i++ {
 		min, err = heap.DequeueMin()
 		assert.NoError(t, err)
-		assert.Equal(t, NumberSequence2Deleted3ElemSorted[i], min.priority)
+		assert.Equal(t, NumberSequence2Deleted3ElemSorted[i], min.Priority)
 	}
 }
 
@@ -231,7 +231,7 @@ func TestMerge(t *testing.T) {
 	for i := 0; i < len(NumberSequenceMerged3And4Sorted); i++ {
 		min, err = heap.DequeueMin()
 		assert.NoError(t, err)
-		assert.Equal(t, NumberSequenceMerged3And4Sorted[i], min.priority)
+		assert.Equal(t, NumberSequenceMerged3And4Sorted[i], min.Priority)
 	}
 }
 

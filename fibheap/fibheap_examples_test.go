@@ -15,7 +15,7 @@ func ExampleFloatingFibonacciHeap_Enqueue() {
 	// The function returns a pointer
 	// to the node that contains the new value
 	node := heap.Enqueue(SomeNumber)
-	fmt.Println(node.priority)
+	fmt.Println(node.Priority)
 	// Output: 15.5
 }
 
@@ -24,7 +24,7 @@ func ExampleFloatingFibonacciHeap_Min() {
 	heap.Enqueue(SomeNumber)
 	heap.Enqueue(SomeLargerNumber)
 	min, _ := heap.Min()
-	fmt.Println(min.priority)
+	fmt.Println(min.Priority)
 	// Output: 15.5
 }
 
@@ -52,7 +52,7 @@ func ExampleFloatingFibonacciHeap_DequeueMin() {
 	heap := NewFloatFibHeap()
 	heap.Enqueue(SomeNumber)
 	node, _ := heap.DequeueMin()
-	fmt.Printf("Dequeueing minimal element: %v\n", node.priority)
+	fmt.Printf("Dequeueing minimal element: %v\n", node.Priority)
 	// Output:
 	// Dequeueing minimal element: 15.5
 }
@@ -61,10 +61,10 @@ func ExampleFloatingFibonacciHeap_DecreaseKey() {
 	heap := NewFloatFibHeap()
 	node := heap.Enqueue(SomeNumber)
 	min, _ := heap.Min()
-	fmt.Printf("Minimal element before decreasing key: %v\n", min.priority)
+	fmt.Printf("Minimal element before decreasing key: %v\n", min.Priority)
 	heap.DecreaseKey(node, SomeSmallerNumber)
 	min, _ = heap.Min()
-	fmt.Printf("Minimal element after decreasing key: %v\n", min.priority)
+	fmt.Printf("Minimal element after decreasing key: %v\n", min.Priority)
 	// Output:
 	// Minimal element before decreasing key: 15.5
 	// Minimal element after decreasing key: -10.1
@@ -75,10 +75,10 @@ func ExampleFloatingFibonacciHeap_Delete() {
 	node := heap.Enqueue(SomeNumber)
 	heap.Enqueue(SomeLargerNumber)
 	min, _ := heap.Min()
-	fmt.Printf("Minimal element before deletion: %v\n", min.priority)
+	fmt.Printf("Minimal element before deletion: %v\n", min.Priority)
 	heap.Delete(node)
 	min, _ = heap.Min()
-	fmt.Printf("Minimal element after deletion: %v\n", min.priority)
+	fmt.Printf("Minimal element after deletion: %v\n", min.Priority)
 	// Output:
 	// Minimal element before deletion: 15.5
 	// Minimal element after deletion: 112.211
@@ -91,12 +91,12 @@ func ExampleFloatingFibonacciHeap_Merge() {
 	heap1.Enqueue(SomeLargerNumber)
 	heap2.Enqueue(SomeSmallerNumber)
 	min, _ := heap1.Min()
-	fmt.Printf("Minimal element of heap 1: %v\n", min.priority)
+	fmt.Printf("Minimal element of heap 1: %v\n", min.Priority)
 	min, _ = heap2.Min()
-	fmt.Printf("Minimal element of heap 2: %v\n", min.priority)
+	fmt.Printf("Minimal element of heap 2: %v\n", min.Priority)
 	heap, _ := heap1.Merge(heap2)
 	min, _ = heap.Min()
-	fmt.Printf("Minimal element of merged heap: %v\n", min.priority)
+	fmt.Printf("Minimal element of merged heap: %v\n", min.Priority)
 	// Output:
 	// Minimal element of heap 1: 15.5
 	// Minimal element of heap 2: -10.1
