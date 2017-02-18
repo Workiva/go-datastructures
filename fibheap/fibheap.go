@@ -172,7 +172,7 @@ func (heap *fibHeap) Size() uint {
 
 func (heap *fibHeap) DequeueMin() (*Entry, error) {
 	if heap.IsEmpty() {
-		return nil, fmt.Errorf("Heap is empty")
+		return nil, fmt.Errorf("Cannot dequeue minimum of empty heap")
 	}
 
 	heap.size--
@@ -275,8 +275,17 @@ func (heap *fibHeap) DequeueMin() (*Entry, error) {
 
 func (heap *fibHeap) DecreaseKey(node *Entry, newPriority float64) (*Entry, error) {
 
-	if newPriority > node.Priority {
-		return nil, fmt.Errorf("The given new priority is larger than the old")
+	if heap.IsEmpty() {
+		return nil, fmt.Errorf("Cannot decrease key in an empty heap")
+	}
+
+	if node == nil {
+		return nil, fmt.Errorf("Cannot decrease key: given node is nil")
+	}
+
+	if newPriority >= node.Priority {
+		return nil, fmt.Errorf("The given new priority: %v, is larger than or equal to the old: %v",
+			newPriority, node.Priority)
 	}
 
 	decreaseKeyUnchecked(heap, node, newPriority)
@@ -284,6 +293,14 @@ func (heap *fibHeap) DecreaseKey(node *Entry, newPriority float64) (*Entry, erro
 }
 
 func (heap *fibHeap) Delete(node *Entry) error {
+
+	if heap.IsEmpty() {
+		return fmt.Errorf("Cannot delete element from an empty heap")
+	}
+
+	if node == nil {
+		return fmt.Errorf("Cannot delete node: given node is nil")
+	}
 
 	decreaseKeyUnchecked(heap, node, -math.MaxFloat64)
 	heap.DequeueMin()
@@ -299,10 +316,15 @@ func (heap *fibHeap) Delete(node *Entry) error {
  */
 func (heap *fibHeap) Merge(other FloatingFibonacciHeap) (FloatingFibonacciHeap, error) {
 
+	if heap == nil || other == nil {
+		return nil, fmt.Errorf("One of the heaps to merge is nil. Cannot merge")
+	}
+
 	otherHeap, ok := other.(*fibHeap)
 	if !ok {
 		// throw an error
-		return nil, fmt.Errorf("The passed object is of type %T, not of internal type *fibHeap. Please provide your own implementation of merge", other)
+		return nil, fmt.Errorf("The passed object is of type %T, not of internal type *fibHeap. "+
+			"Please provide your own implementation of merge", other)
 	}
 
 	resultSize := heap.size + otherHeap.size

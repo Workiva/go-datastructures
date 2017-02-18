@@ -148,6 +148,39 @@ func TestEnqueueDequeueMin(t *testing.T) {
 	}
 }
 
+func TestFibHeap_Enqueue_Min(t *testing.T) {
+	heap := NewFloatFibHeap()
+	for i := 0; i < len(NumberSequence1); i++ {
+		heap.Enqueue(NumberSequence1[i])
+	}
+
+	min, err := heap.Min()
+	assert.NoError(t, err)
+	assert.Equal(t, Seq1FirstMinimum, min.Priority)
+}
+
+func TestFibHeap_Min_EmptyHeap(t *testing.T) {
+	heap := NewFloatFibHeap()
+
+	heap.Enqueue(0)
+	heap.DequeueMin()
+
+	// Heap should be empty at this point
+
+	min, err := heap.Min()
+
+	assert.EqualError(t, err, "Trying to get minimum element of empty heap")
+	assert.Nil(t, min)
+}
+
+func TestFibHeap_DequeueMin_EmptyHeap(t *testing.T) {
+	heap := NewFloatFibHeap()
+	min, err := heap.DequeueMin()
+
+	assert.EqualError(t, err, "Cannot dequeue minimum of empty heap")
+	assert.Nil(t, min)
+}
+
 func TestEnqueueDecreaseKey(t *testing.T) {
 	heap := NewFloatFibHeap()
 	var e1, e2, e3 *Entry
@@ -178,6 +211,37 @@ func TestEnqueueDecreaseKey(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, NumberSequence2Sorted[i], min.Priority)
 	}
+}
+
+func TestFibHeap_DecreaseKey_EmptyHeap(t *testing.T) {
+	heap := NewFloatFibHeap()
+
+	elem := heap.Enqueue(15)
+	heap.DequeueMin()
+
+	// Heap should be empty at this point
+	min, err := heap.DecreaseKey(elem, 0)
+
+	assert.EqualError(t, err, "Cannot decrease key in an empty heap")
+	assert.Nil(t, min)
+}
+
+func TestFibHeap_DecreaseKey_NilNode(t *testing.T) {
+	heap := NewFloatFibHeap()
+	heap.Enqueue(1)
+	min, err := heap.DecreaseKey(nil, 0)
+
+	assert.EqualError(t, err, "Cannot decrease key: given node is nil")
+	assert.Nil(t, min)
+}
+
+func TestFibHeap_DecreaseKey_LargerNewPriority(t *testing.T) {
+	heap := NewFloatFibHeap()
+	node := heap.Enqueue(1)
+	min, err := heap.DecreaseKey(node, 20)
+
+	assert.EqualError(t, err, "The given new priority: 20, is larger than or equal to the old: 1")
+	assert.Nil(t, min)
 }
 
 func TestEnqueueDelete(t *testing.T) {
@@ -213,6 +277,24 @@ func TestEnqueueDelete(t *testing.T) {
 	}
 }
 
+func TestFibHeap_Delete_EmptyHeap(t *testing.T) {
+	heap := NewFloatFibHeap()
+
+	elem := heap.Enqueue(15)
+	heap.DequeueMin()
+
+	// Heap should be empty at this point
+	err := heap.Delete(elem)
+	assert.EqualError(t, err, "Cannot delete element from an empty heap")
+}
+
+func TestFibHeap_Delete_NilNode(t *testing.T) {
+	heap := NewFloatFibHeap()
+	heap.Enqueue(1)
+	err := heap.Delete(nil)
+	assert.EqualError(t, err, "Cannot delete node: given node is nil")
+}
+
 func TestMerge(t *testing.T) {
 	heap1 := NewFloatFibHeap()
 	for i := 0; i < len(NumberSequence3); i++ {
@@ -233,6 +315,14 @@ func TestMerge(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, NumberSequenceMerged3And4Sorted[i], min.Priority)
 	}
+}
+
+func TestFibHeap_Merge_NilHeap(t *testing.T) {
+	var heap FloatingFibonacciHeap
+	heap = NewFloatFibHeap()
+	newHeap, err := heap.Merge(nil)
+	assert.EqualError(t, err, "One of the heaps to merge is nil. Cannot merge")
+	assert.Nil(t, newHeap)
 }
 
 // ***************
