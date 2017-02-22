@@ -306,7 +306,7 @@ func TestMerge(t *testing.T) {
 		heap1.Enqueue(NumberSequence4[i])
 	}
 
-	heap, err := heap1.Merge(heap2)
+	heap, err := heap1.Merge(&heap2)
 	assert.NoError(t, err)
 
 	var min *Entry
@@ -322,7 +322,7 @@ func TestFibHeap_Merge_NilHeap(t *testing.T) {
 	heap = NewFloatFibHeap()
 	newHeap, err := heap.Merge(nil)
 	assert.EqualError(t, err, "One of the heaps to merge is nil. Cannot merge")
-	assert.Nil(t, newHeap)
+	assert.Equal(t, newHeap, FloatingFibonacciHeap{})
 }
 
 // ***************
@@ -421,7 +421,7 @@ func BenchmarkFibHeap_Merge(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		heap1.Enqueue(2 * 1E10 * (rand.Float64() - 0.5))
 		heap2.Enqueue(2 * 1E10 * (rand.Float64() - 0.5))
-		_, err := heap1.Merge(heap2)
+		_, err := heap1.Merge(&heap2)
 		assert.NoError(b, err)
 	}
 }

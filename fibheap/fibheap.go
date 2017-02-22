@@ -78,27 +78,9 @@ import (
 
 // FloatingFibonacciHeap is an implementation of a fibonacci heap
 // with only floating-point priorities and no user data attached.
-type FloatingFibonacciHeap interface {
-	// Enqueue adds and element to the heap
-	Enqueue(priority float64) *Entry
-	// Min returns the minimum element in the heap
-	Min() (*Entry, error)
-	// IsEmpty answers: is the heap empty?
-	IsEmpty() bool
-	// Size gives the number of elements in the heap
-	Size() uint
-	// DequeueMin removes and returns the
-	// minimal element in the heap
-	DequeueMin() (*Entry, error)
-	// DecreaseKey decreases the key of the
-	// given element, sets it to the new
-	// given priority and returns the node
-	// if successfully set
-	DecreaseKey(node *Entry, newPriority float64) (*Entry, error)
-	// Delete deletes the given element in the heap
-	Delete(node *Entry) error
-	// Merge merges two heaps
-	Merge(otherHeap FloatingFibonacciHeap) (FloatingFibonacciHeap, error)
+type FloatingFibonacciHeap struct {
+	min  *Entry // The minimal element
+	size uint   // Size of the heap
 }
 
 // Entry is the entry type that will be used
@@ -111,42 +93,11 @@ type Entry struct {
 	Priority float64
 }
 
-/******************************************
- ************** END INTERFACE *************
- ******************************************/
-
-type fibHeap struct {
-	min  *Entry // The minimal element
-	size uint   // Size of the heap
-}
-
-// ****************
-// HELPER FUNCTIONS
-// ****************
-
-func newEntry(priority float64) *Entry {
-	result := new(Entry)
-	result.degree = 0
-	result.marked = false
-	result.child = nil
-	result.parent = nil
-	result.next = result
-	result.prev = result
-	result.Priority = priority
-	return result
-}
-
-// ***********
-// ACTUAL CODE
-// ***********
-
-// Remember that it's actually *fibHeap and not fibHeap
-// that fulfills the contract of the interface.
-
 // NewFloatFibHeap creates a new, empty, Fibonacci heap object.
-func NewFloatFibHeap() FloatingFibonacciHeap { return &fibHeap{nil, 0} }
+func NewFloatFibHeap() FloatingFibonacciHeap { return FloatingFibonacciHeap{nil, 0} }
 
-func (heap *fibHeap) Enqueue(priority float64) *Entry {
+// Enqueue adds and element to the heap
+func (heap *FloatingFibonacciHeap) Enqueue(priority float64) *Entry {
 	singleton := newEntry(priority)
 
 	// Merge singleton list with heap
@@ -155,22 +106,27 @@ func (heap *fibHeap) Enqueue(priority float64) *Entry {
 	return singleton
 }
 
-func (heap *fibHeap) Min() (*Entry, error) {
+// Min returns the minimum element in the heap
+func (heap *FloatingFibonacciHeap) Min() (*Entry, error) {
 	if heap.IsEmpty() {
 		return nil, fmt.Errorf("Trying to get minimum element of empty heap")
 	}
 	return heap.min, nil
 }
 
-func (heap *fibHeap) IsEmpty() bool {
+// IsEmpty answers: is the heap empty?
+func (heap *FloatingFibonacciHeap) IsEmpty() bool {
 	return heap.size == 0
 }
 
-func (heap *fibHeap) Size() uint {
+// Size gives the number of elements in the heap
+func (heap *FloatingFibonacciHeap) Size() uint {
 	return heap.size
 }
 
-func (heap *fibHeap) DequeueMin() (*Entry, error) {
+// DequeueMin removes and returns the
+// minimal element in the heap
+func (heap *FloatingFibonacciHeap) DequeueMin() (*Entry, error) {
 	if heap.IsEmpty() {
 		return nil, fmt.Errorf("Cannot dequeue minimum of empty heap")
 	}
@@ -273,7 +229,11 @@ func (heap *fibHeap) DequeueMin() (*Entry, error) {
 	return min, nil
 }
 
-func (heap *fibHeap) DecreaseKey(node *Entry, newPriority float64) (*Entry, error) {
+// DecreaseKey decreases the key of the
+// given element, sets it to the new
+// given priority and returns the node
+// if successfully set
+func (heap *FloatingFibonacciHeap) DecreaseKey(node *Entry, newPriority float64) (*Entry, error) {
 
 	if heap.IsEmpty() {
 		return nil, fmt.Errorf("Cannot decrease key in an empty heap")
@@ -292,7 +252,8 @@ func (heap *fibHeap) DecreaseKey(node *Entry, newPriority float64) (*Entry, erro
 	return node, nil
 }
 
-func (heap *fibHeap) Delete(node *Entry) error {
+// Delete deletes the given element in the heap
+func (heap *FloatingFibonacciHeap) Delete(node *Entry) error {
 
 	if heap.IsEmpty() {
 		return fmt.Errorf("Cannot delete element from an empty heap")
@@ -307,36 +268,47 @@ func (heap *fibHeap) Delete(node *Entry) error {
 	return nil
 }
 
-/*
- * Given two Fibonacci heaps, returns a new Fibonacci heap that contains
- * all of the elements of the two heaps.  Each of the input heaps is
- * destructively modified by having all its elements removed.  You can
- * continue to use those heaps, but be aware that they will be empty
- * after this call completes.
- */
-func (heap *fibHeap) Merge(other FloatingFibonacciHeap) (FloatingFibonacciHeap, error) {
+// Merge returns a new Fibonacci heap that contains
+// all of the elements of the two heaps.  Each of the input heaps is
+// destructively modified by having all its elements removed.  You can
+// continue to use those heaps, but be aware that they will be empty
+// after this call completes.
+func (heap *FloatingFibonacciHeap) Merge(other *FloatingFibonacciHeap) (FloatingFibonacciHeap, error) {
 
 	if heap == nil || other == nil {
-		return nil, fmt.Errorf("One of the heaps to merge is nil. Cannot merge")
+		return FloatingFibonacciHeap{}, fmt.Errorf("One of the heaps to merge is nil. Cannot merge")
 	}
 
-	otherHeap, ok := other.(*fibHeap)
-	if !ok {
-		// throw an error
-		return nil, fmt.Errorf("The passed object is of type %T, not of internal type *fibHeap. "+
-			"Please provide your own implementation of merge", other)
-	}
+	resultSize := heap.size + other.size
 
-	resultSize := heap.size + otherHeap.size
-
-	resultMin := mergeLists(heap.min, otherHeap.min)
+	resultMin := mergeLists(heap.min, other.min)
 
 	heap.min = nil
-	otherHeap.min = nil
+	other.min = nil
 	heap.size = 0
-	otherHeap.size = 0
+	other.size = 0
 
-	return &fibHeap{resultMin, resultSize}, nil
+	return FloatingFibonacciHeap{resultMin, resultSize}, nil
+}
+
+/******************************************
+ ************** END INTERFACE *************
+ ******************************************/
+
+// ****************
+// HELPER FUNCTIONS
+// ****************
+
+func newEntry(priority float64) *Entry {
+	result := new(Entry)
+	result.degree = 0
+	result.marked = false
+	result.child = nil
+	result.parent = nil
+	result.next = result
+	result.prev = result
+	result.Priority = priority
+	return result
 }
 
 func mergeLists(one, two *Entry) *Entry {
@@ -361,7 +333,7 @@ func mergeLists(one, two *Entry) *Entry {
 
 }
 
-func decreaseKeyUnchecked(heap *fibHeap, node *Entry, priority float64) {
+func decreaseKeyUnchecked(heap *FloatingFibonacciHeap, node *Entry, priority float64) {
 	node.Priority = priority
 
 	if node.parent != nil && node.Priority <= node.parent.Priority {
@@ -373,7 +345,7 @@ func decreaseKeyUnchecked(heap *fibHeap, node *Entry, priority float64) {
 	}
 }
 
-func cutNode(heap *fibHeap, node *Entry) {
+func cutNode(heap *FloatingFibonacciHeap, node *Entry) {
 	node.marked = false
 
 	if node.parent == nil {

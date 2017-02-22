@@ -94,7 +94,7 @@ func ExampleFloatingFibonacciHeap_Merge() {
 	fmt.Printf("Minimal element of heap 1: %v\n", min.Priority)
 	min, _ = heap2.Min()
 	fmt.Printf("Minimal element of heap 2: %v\n", min.Priority)
-	heap, _ := heap1.Merge(heap2)
+	heap, _ := heap1.Merge(&heap2)
 	min, _ = heap.Min()
 	fmt.Printf("Minimal element of merged heap: %v\n", min.Priority)
 	// Output:

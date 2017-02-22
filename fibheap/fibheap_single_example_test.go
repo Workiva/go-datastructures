@@ -30,7 +30,7 @@ func Example() {
 	fmt.Printf("Heap 2 is empty? %v\n", heap2.IsEmpty())
 
 	fmt.Printf("\nMerge Heap 1 and Heap 2.\n")
-	mergedHeap, _ := heap1.Merge(heap2)
+	mergedHeap, _ := heap1.Merge(&heap2)
 	fmt.Printf("Merged heap size: %v\n", mergedHeap.Size())
 	fmt.Printf("Set node with priority %v to new priority %v\n", SomeNumberAroundMinus1000, SomeNumberAroundMinus1003)
 
