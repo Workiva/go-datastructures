@@ -8,6 +8,7 @@ import (
 	"math/rand"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Go does not have constant arrays.
@@ -132,7 +133,7 @@ func TestEnqueueDequeueMin(t *testing.T) {
 	var err error
 	for heap.Size() > 0 {
 		min, err = heap.DequeueMin()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		if heap.Size() == 199 {
 			assert.Equal(t, Seq1FirstMinimum, min.Priority)
 		}
@@ -155,7 +156,7 @@ func TestFibHeap_Enqueue_Min(t *testing.T) {
 	}
 
 	min, err := heap.Min()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Seq1FirstMinimum, min.Priority)
 }
 
@@ -163,11 +164,12 @@ func TestFibHeap_Min_EmptyHeap(t *testing.T) {
 	heap := NewFloatFibHeap()
 
 	heap.Enqueue(0)
-	heap.DequeueMin()
+	min, err := heap.DequeueMin()
+	require.NoError(t, err)
 
 	// Heap should be empty at this point
 
-	min, err := heap.Min()
+	min, err = heap.Min()
 
 	assert.EqualError(t, err, "Trying to get minimum element of empty heap")
 	assert.Nil(t, min)
@@ -177,6 +179,7 @@ func TestFibHeap_DequeueMin_EmptyHeap(t *testing.T) {
 	heap := NewFloatFibHeap()
 	min, err := heap.DequeueMin()
 
+	assert.IsType(t, EmptyHeapError(""), err)
 	assert.EqualError(t, err, "Cannot dequeue minimum of empty heap")
 	assert.Nil(t, min)
 }
@@ -196,19 +199,21 @@ func TestEnqueueDecreaseKey(t *testing.T) {
 		}
 	}
 
-	assert.NotNil(t, e1)
-	assert.NotNil(t, e2)
-	assert.NotNil(t, e3)
+	require.NotNil(t, e1)
+	require.NotNil(t, e2)
+	require.NotNil(t, e3)
 
-	heap.DecreaseKey(e1, Seq2DecreaseKey1Trgt)
-	heap.DecreaseKey(e2, Seq2DecreaseKey2Trgt)
-	heap.DecreaseKey(e3, Seq2DecreaseKey3Trgt)
+	_, err := heap.DecreaseKey(e1, Seq2DecreaseKey1Trgt)
+	require.NoError(t, err)
+	_, err = heap.DecreaseKey(e2, Seq2DecreaseKey2Trgt)
+	require.NoError(t, err)
+	_, err = heap.DecreaseKey(e3, Seq2DecreaseKey3Trgt)
+	require.NoError(t, err)
 
 	var min *Entry
-	var err error
 	for i := 0; i < len(NumberSequence2Sorted); i++ {
 		min, err = heap.DequeueMin()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, NumberSequence2Sorted[i], min.Priority)
 	}
 }
@@ -222,6 +227,7 @@ func TestFibHeap_DecreaseKey_EmptyHeap(t *testing.T) {
 	// Heap should be empty at this point
 	min, err := heap.DecreaseKey(elem, 0)
 
+	assert.IsType(t, EmptyHeapError(""), err)
 	assert.EqualError(t, err, "Cannot decrease key in an empty heap")
 	assert.Nil(t, min)
 }
@@ -231,6 +237,7 @@ func TestFibHeap_DecreaseKey_NilNode(t *testing.T) {
 	heap.Enqueue(1)
 	min, err := heap.DecreaseKey(nil, 0)
 
+	assert.IsType(t, NilError(""), err)
 	assert.EqualError(t, err, "Cannot decrease key: given node is nil")
 	assert.Nil(t, min)
 }
@@ -266,13 +273,16 @@ func TestEnqueueDelete(t *testing.T) {
 	var err error
 
 	err = heap.Delete(e1)
+	require.NoError(t, err)
 	err = heap.Delete(e2)
+	require.NoError(t, err)
 	err = heap.Delete(e3)
+	require.NoError(t, err)
 
 	var min *Entry
 	for i := 0; i < len(NumberSequence2Deleted3ElemSorted); i++ {
 		min, err = heap.DequeueMin()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, NumberSequence2Deleted3ElemSorted[i], min.Priority)
 	}
 }
@@ -285,6 +295,7 @@ func TestFibHeap_Delete_EmptyHeap(t *testing.T) {
 
 	// Heap should be empty at this point
 	err := heap.Delete(elem)
+	assert.IsType(t, EmptyHeapError(""), err)
 	assert.EqualError(t, err, "Cannot delete element from an empty heap")
 }
 
@@ -292,6 +303,7 @@ func TestFibHeap_Delete_NilNode(t *testing.T) {
 	heap := NewFloatFibHeap()
 	heap.Enqueue(1)
 	err := heap.Delete(nil)
+	assert.IsType(t, NilError(""), err)
 	assert.EqualError(t, err, "Cannot delete node: given node is nil")
 }
 
@@ -307,12 +319,12 @@ func TestMerge(t *testing.T) {
 	}
 
 	heap, err := heap1.Merge(&heap2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var min *Entry
 	for i := 0; i < len(NumberSequenceMerged3And4Sorted); i++ {
 		min, err = heap.DequeueMin()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, NumberSequenceMerged3And4Sorted[i], min.Priority)
 	}
 }
@@ -321,6 +333,7 @@ func TestFibHeap_Merge_NilHeap(t *testing.T) {
 	var heap FloatingFibonacciHeap
 	heap = NewFloatFibHeap()
 	newHeap, err := heap.Merge(nil)
+	assert.IsType(t, NilError(""), err)
 	assert.EqualError(t, err, "One of the heaps to merge is nil. Cannot merge")
 	assert.Equal(t, newHeap, FloatingFibonacciHeap{})
 }
