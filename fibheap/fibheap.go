@@ -14,7 +14,9 @@ limitations under the License.
 Special thanks to  Keith Schwarz (htiek@cs.stanford.edu),
 whose code and documentation have been used as a reference
 for the algorithm implementation.
-http://www.keithschwarz.com/interesting/code/?dir=fibonacci-heap
+Java implementation: http://www.keithschwarz.com/interesting/code/?dir=fibonacci-heap
+Binomial heaps: http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/08/Slides08.pdf
+Fibonacci heaps: http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/09/Slides09.pdf
 */
 
 /*Package fibheap is an implementation of a priority queue backed by a Fibonacci heap,
