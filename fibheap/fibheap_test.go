@@ -362,13 +362,8 @@ func BenchmarkFibHeap_Enqueue(b *testing.B) {
 
 	heap := NewFloatFibHeap()
 
-	slice := make([]float64, 0, b.N)
 	for i := 0; i < b.N; i++ {
-		slice = append(slice, 2*1E10*(rand.Float64()-0.5))
-	}
-
-	for i := 0; i < b.N; i++ {
-		heap.Enqueue(slice[i])
+		heap.Enqueue(2 * 1E10 * (rand.Float64() - 0.5))
 	}
 }
 
@@ -376,9 +371,10 @@ func BenchmarkFibHeap_Enqueue(b *testing.B) {
 func BenchmarkFibHeap_DequeueMin(b *testing.B) {
 
 	heap := NewFloatFibHeap()
+	N := 1000000
 
-	slice := make([]float64, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	slice := make([]float64, 0, N)
+	for i := 0; i < N; i++ {
 		slice = append(slice, 2*1E10*(rand.Float64()-0.5))
 		heap.Enqueue(slice[i])
 	}
@@ -392,27 +388,35 @@ func BenchmarkFibHeap_DequeueMin(b *testing.B) {
 // Runs in O(1) amortized time
 func BenchmarkFibHeap_DecreaseKey(b *testing.B) {
 	heap := NewFloatFibHeap()
+	N := 10000000
 
-	sliceFlt := make([]float64, 0, b.N)
-	sliceE := make([]*Entry, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	sliceFlt := make([]float64, 0, N)
+	sliceE := make([]*Entry, 0, N)
+	for i := 0; i < N; i++ {
 		sliceFlt = append(sliceFlt, 2*1E10*(float64(i)-0.5))
 		sliceE = append(sliceE, heap.Enqueue(sliceFlt[i]))
 	}
 
+	b.ResetTimer()
+	offset := float64(2)
 	for i := 0; i < b.N; i++ {
+		// Change offset if b.N larger than N
+		if i%N == 0 && i > 0 {
+			offset *= float64(i / N)
+		}
 		// Shift-decrease keys
-		heap.DecreaseKey(sliceE[i], sliceFlt[i]-2E10)
+		heap.DecreaseKey(sliceE[i%N], sliceFlt[i%N]-offset)
 	}
 }
 
 // Runs in O(log(N)) time
 func BenchmarkFibHeap_Delete(b *testing.B) {
 	heap := NewFloatFibHeap()
+	N := 1000000
 
-	sliceFlt := make([]float64, 0, b.N)
-	sliceE := make([]*Entry, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	sliceFlt := make([]float64, 0, N)
+	sliceE := make([]*Entry, 0, N)
+	for i := 0; i < N; i++ {
 		sliceFlt = append(sliceFlt, 2*1E10*(float64(i)-0.5))
 		sliceE = append(sliceE, heap.Enqueue(sliceFlt[i]))
 	}
