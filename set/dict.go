@@ -146,6 +146,9 @@ func New(items ...interface{}) *Set {
 	for _, item := range items {
 		set.items[item] = struct{}{}
 	}
+	if len(items) > 0 {
+		set.flattened = nil
+	}
 
 	return set
 }
