@@ -17,6 +17,7 @@ limitations under the License.
 package bitarray
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -307,4 +308,29 @@ func BenchmarkSparseBitArrayToNums(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sba.ToNums()
 	}
+}
+
+func TestSparseBitArrayReadWrite(t *testing.T) {
+	numItems := uint64(1280)
+	input := newSparseBitArray()
+
+	for i := uint64(0); i < numItems; i++ {
+		if i%3 == 0 {
+			input.SetBit(i)
+		}
+	}
+
+	writebuf := new(bytes.Buffer)
+	err := WriteSparse(writebuf, input)
+	assert.Equal(t, err, nil)
+
+	assert.Equal(t, len(writebuf.Bytes()), 336)
+
+	expected := []byte{20, 0, 0, 0, 0, 0, 0, 0, 73}
+	assert.Equal(t, expected, writebuf.Bytes()[:9])
+
+	readbuf := bytes.NewReader(writebuf.Bytes())
+	output, err := ReadSparse(readbuf)
+	assert.Equal(t, err, nil)
+	assert.True(t, input.Equals(output))
 }

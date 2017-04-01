@@ -17,6 +17,7 @@ limitations under the License.
 package bitarray
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -479,4 +480,31 @@ func BenchmarkBitArrayToNums(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ba.ToNums()
 	}
+}
+
+func TestBitArrayReadWrite(t *testing.T) {
+	numItems := uint64(1280)
+	input := newBitArray(numItems)
+
+	for i := uint64(0); i < numItems; i++ {
+		if i%3 == 0 {
+			input.SetBit(i)
+		}
+	}
+
+	writebuf := new(bytes.Buffer)
+	err := Write(writebuf, input)
+	assert.Equal(t, err, nil)
+
+	// 1280 bits = 20 blocks = 160 bytes, plus lowest and highest at
+	// 128 bits = 16 bytes plus 1 byte for the anyset param
+	assert.Equal(t, len(writebuf.Bytes()), 177)
+
+	expected := []byte{0, 0, 0, 0, 0, 0, 0, 0, 254}
+	assert.Equal(t, expected, writebuf.Bytes()[:9])
+
+	readbuf := bytes.NewReader(writebuf.Bytes())
+	output, err := Read(readbuf)
+	assert.Equal(t, err, nil)
+	assert.True(t, input.Equals(output))
 }
