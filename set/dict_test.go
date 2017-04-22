@@ -76,6 +76,22 @@ func TestExists(t *testing.T) {
 	}
 }
 
+func TestExists_WithNewItems(t *testing.T) {
+	set := New(`test`, `test1`)
+
+	if !set.Exists(`test`) {
+		t.Errorf(`Correct existence not determined`)
+	}
+
+	if !set.Exists(`test1`) {
+		t.Errorf(`Correct existence not determined`)
+	}
+
+	if set.Exists(`test2`) {
+		t.Errorf(`Correct nonexistence not determined.`)
+	}
+}
+
 func TestLen(t *testing.T) {
 	set := New()
 	set.Add(`test`)
