@@ -118,6 +118,19 @@ func TestFlattenCaches(t *testing.T) {
 	}
 }
 
+func TestFlattenCaches_CacheReturn(t *testing.T) {
+	set := New()
+	item := `test`
+	set.Add(item)
+
+	flatten1 := set.Flatten()
+	flatten2 := set.Flatten()
+
+	if !reflect.DeepEqual(flatten1, flatten2) {
+		t.Errorf(`Flatten cache is not the same as original result. Got %+v, expected %+v`, 1, flatten2, flatten1)
+	}
+}
+
 func TestAddClearsCache(t *testing.T) {
 	set := New()
 	item := `test`
