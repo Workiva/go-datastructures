@@ -139,7 +139,7 @@ func (set *Set) Dispose() {
 	pool.Put(set)
 }
 
-// New is the constructor for sets.  It will pull from a reuseable memory pool if it can.
+// New is the constructor for sets. It will pull from a reuseable memory pool if it can.
 // Takes a list of items to initialize the set with.
 func New(items ...interface{}) *Set {
 	set := pool.Get().(*Set)
