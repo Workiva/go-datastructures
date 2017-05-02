@@ -127,7 +127,7 @@ func TestFlattenCaches_CacheReturn(t *testing.T) {
 	flatten2 := set.Flatten()
 
 	if !reflect.DeepEqual(flatten1, flatten2) {
-		t.Errorf(`Flatten cache is not the same as original result. Got %+v, expected %+v`, 1, flatten2, flatten1)
+		t.Errorf(`Flatten cache is not the same as original result. Got %+v, expected %+v`, flatten2, flatten1)
 	}
 }
 
