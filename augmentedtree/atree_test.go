@@ -265,6 +265,36 @@ func TestAddLargeNumberOfItems(t *testing.T) {
 	assert.Equal(t, uint64(numItems), it.Len())
 }
 
+type uniqueInterval struct {
+	*mockInterval
+	unique int64
+}
+
+func TestAddReplaceOnIdenticalID(t *testing.T) {
+	it := newTree(1)
+	ui1 := &uniqueInterval{
+		mockInterval: constructSingleDimensionInterval(0, 1, 0),
+		unique:       0,
+	}
+	ui2 := &uniqueInterval{
+		mockInterval: constructSingleDimensionInterval(0, 1, 0),
+		unique:       ui1.unique + 1,
+	}
+
+	it.add(ui1)
+
+	intervals := it.Query(ui1)
+	assert.Len(t, intervals, 1)
+	assert.Contains(t, intervals, ui1)
+	assert.NotContains(t, intervals, ui2)
+
+	it.add(ui2)
+	intervals = it.Query(ui1)
+	assert.Len(t, intervals, 1)
+	assert.NotContains(t, intervals, ui1)
+	assert.Contains(t, intervals, ui2)
+}
+
 func BenchmarkAddItems(b *testing.B) {
 	numItems := int64(1000)
 	intervals := make(Intervals, 0, numItems)
