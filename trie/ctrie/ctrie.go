@@ -1,5 +1,5 @@
 /*
-Copyright 2015 Workiva, LLC
+Copyright 2015-2017 Workiva, LLC and others.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -405,6 +405,8 @@ func (c *Ctrie) traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) err
 				return errCanceled
 			}
 		}
+	case main.tNode != nil:
+		ch <- main.tNode.Entry
 	}
 	return nil
 }
