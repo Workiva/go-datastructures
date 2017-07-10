@@ -135,7 +135,8 @@ func (rb *RingBuffer) Get() (interface{}, error) {
 // Poll will return the next item in the queue.  This call will block
 // if the queue is empty.  This call will unblock when an item is added
 // to the queue, Dispose is called on the queue, or the timeout is reached. An
-// error will be returned if the queue is disposed or a timeout occurs.
+// error will be returned if the queue is disposed or a timeout occurs. A
+// non-positive timeout will block indefinitely.
 func (rb *RingBuffer) Poll(timeout time.Duration) (interface{}, error) {
 	var (
 		n     *node
