@@ -19,6 +19,7 @@ package queue
 import (
 	"runtime"
 	"sync/atomic"
+	"time"
 )
 
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
@@ -128,9 +129,23 @@ L:
 // to the queue or Dispose is called on the queue.  An error will be returned
 // if the queue is disposed.
 func (rb *RingBuffer) Get() (interface{}, error) {
-	var n *node
-	pos := atomic.LoadUint64(&rb.dequeue)
-	i := 0
+	return rb.Poll(0)
+}
+
+// Poll will return the next item in the queue.  This call will block
+// if the queue is empty.  This call will unblock when an item is added
+// to the queue, Dispose is called on the queue, or the timeout is reached. An
+// error will be returned if the queue is disposed or a timeout occurs.
+func (rb *RingBuffer) Poll(timeout time.Duration) (interface{}, error) {
+	var (
+		n     *node
+		pos   = atomic.LoadUint64(&rb.dequeue)
+		i     = 0
+		start time.Time
+	)
+	if timeout > 0 {
+		start = time.Now()
+	}
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -148,6 +163,10 @@ L:
 			panic(`Ring buffer in compromised state during a get operation.`)
 		default:
 			pos = atomic.LoadUint64(&rb.dequeue)
+		}
+
+		if timeout > 0 && time.Since(start) >= timeout {
+			return nil, ErrTimeout
 		}
 
 		if i == 10000 {
