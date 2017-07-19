@@ -328,6 +328,44 @@ func BenchmarkRBLifeCycle(b *testing.B) {
 	wg.Wait()
 }
 
+func BenchmarkRBLifeCycleContention(b *testing.B) {
+	rb := NewRingBuffer(64)
+
+	var wwg sync.WaitGroup
+	var rwg sync.WaitGroup
+	wwg.Add(10)
+	rwg.Add(10)
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			for {
+				_, err := rb.Get()
+				if err == ErrDisposed {
+					rwg.Done()
+					return
+				} else {
+					assert.Nil(b, err)
+				}
+			}
+		}()
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			for j := 0; j < b.N; j++ {
+				rb.Put(j)
+			}
+			wwg.Done()
+		}()
+	}
+
+	wwg.Wait()
+	rb.Dispose()
+	rwg.Wait()
+}
+
 func BenchmarkRBPut(b *testing.B) {
 	rb := NewRingBuffer(uint64(b.N))
 
