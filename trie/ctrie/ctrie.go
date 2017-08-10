@@ -405,6 +405,12 @@ func (c *Ctrie) traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) err
 				return errCanceled
 			}
 		}
+	case main.tNode != nil:
+		select {
+		case ch <- main.tNode.Entry:
+		case <-cancel:
+			return errCanceled
+		}
 	}
 	return nil
 }
