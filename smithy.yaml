@@ -5,3 +5,7 @@ runner_image: drydock-prod.workiva.net/workiva/smithy-runner-golang:121185
 
 script:
     - glide install
+
+artifacts:
+  dependencies:
+    - glide.lock
