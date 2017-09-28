@@ -184,6 +184,12 @@ structure which preserve and reuse previous versions. This uses a very
 functional, cons-style of list manipulation. Insert, get, remove, and size
 operations are O(n) as you would expect.
 
+#### Stack
+
+A persistent, immutable stack providing time efficient operations. All operations are applied to the stack itself and don't need
+the user to reassign the stack every time. Push and Pop operations are *O(1)*. Since Go is gc'ed
+the function Clear is also *O(1)*. DropWhile and PopWhile are *O(k < n)* for *k* predicate matches.
+
 ### Installation
 
  1. Install Go 1.3 or higher.
