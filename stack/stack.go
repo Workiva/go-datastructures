@@ -97,9 +97,7 @@ func (s *stack) Drop() error {
 	}
 
 	s.size--
-	top := s.top
-	ntop := top.next
-	s.top = ntop
+	s.top = s.top.next
 	return nil
 }
 
