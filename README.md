@@ -184,6 +184,13 @@ structure which preserve and reuse previous versions. This uses a very
 functional, cons-style of list manipulation. Insert, get, remove, and size
 operations are O(n) as you would expect.
 
+#### Simple Graph
+
+A mutable, non-persistent undirected graph where parallel edges and self-loops are 
+not permitted. Operations to add an edge as well as retrieve the total number of 
+vertices/edges are O(1) while the operation to retrieve the vertices adjacent to a
+target is O(n). For more details see [wikipedia](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Simple_graph)
+
 ### Installation
 
  1. Install Go 1.3 or higher.
