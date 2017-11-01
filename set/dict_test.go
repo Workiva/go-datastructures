@@ -76,6 +76,22 @@ func TestExists(t *testing.T) {
 	}
 }
 
+func TestExists_WithNewItems(t *testing.T) {
+	set := New(`test`, `test1`)
+
+	if !set.Exists(`test`) {
+		t.Errorf(`Correct existence not determined`)
+	}
+
+	if !set.Exists(`test1`) {
+		t.Errorf(`Correct existence not determined`)
+	}
+
+	if set.Exists(`test2`) {
+		t.Errorf(`Correct nonexistence not determined.`)
+	}
+}
+
 func TestLen(t *testing.T) {
 	set := New()
 	set.Add(`test`)
@@ -99,6 +115,19 @@ func TestFlattenCaches(t *testing.T) {
 
 	if len(set.flattened) != 1 {
 		t.Errorf(`Expected len: %d, received: %d`, 1, len(set.flattened))
+	}
+}
+
+func TestFlattenCaches_CacheReturn(t *testing.T) {
+	set := New()
+	item := `test`
+	set.Add(item)
+
+	flatten1 := set.Flatten()
+	flatten2 := set.Flatten()
+
+	if !reflect.DeepEqual(flatten1, flatten2) {
+		t.Errorf(`Flatten cache is not the same as original result. Got %+v, expected %+v`, flatten2, flatten1)
 	}
 }
 
