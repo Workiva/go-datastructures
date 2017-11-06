@@ -226,6 +226,7 @@ func TestSnapshot(t *testing.T) {
 		assert.Equal(i, val)
 	}
 
+	// Now remove the values from the original.
 	for i := 0; i < 100; i++ {
 		ctrie.Remove([]byte(strconv.Itoa(i)))
 	}
@@ -237,6 +238,7 @@ func TestSnapshot(t *testing.T) {
 		assert.Equal(i, val)
 	}
 
+	// New Ctrie and snapshot.
 	ctrie = New(nil)
 	for i := 0; i < 100; i++ {
 		ctrie.Insert([]byte(strconv.Itoa(i)), i)
@@ -266,7 +268,45 @@ func TestSnapshot(t *testing.T) {
 	_, ok = ctrie.Lookup([]byte("bat"))
 	assert.False(ok)
 
-	snapshot = ctrie.ReadOnlySnapshot()
+	// Ensure snapshots-of-snapshots work as expected.
+	snapshot2 := snapshot.Snapshot()
+	for i := 0; i < 100; i++ {
+		_, ok := snapshot2.Lookup([]byte(strconv.Itoa(i)))
+		assert.False(ok)
+	}
+	val, ok = snapshot2.Lookup([]byte("bat"))
+	assert.True(ok)
+	assert.Equal("man", val)
+
+	snapshot2.Remove([]byte("bat"))
+	_, ok = snapshot2.Lookup([]byte("bat"))
+	assert.False(ok)
+	val, ok = snapshot.Lookup([]byte("bat"))
+	assert.True(ok)
+	assert.Equal("man", val)
+}
+
+func TestReadOnlySnapshot(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	for i := 0; i < 100; i++ {
+		ctrie.Insert([]byte(strconv.Itoa(i)), i)
+	}
+
+	snapshot := ctrie.ReadOnlySnapshot()
+
+	// Ensure snapshot contains expected keys.
+	for i := 0; i < 100; i++ {
+		val, ok := snapshot.Lookup([]byte(strconv.Itoa(i)))
+		assert.True(ok)
+		assert.Equal(i, val)
+	}
+
+	for i := 0; i < 50; i++ {
+		ctrie.Remove([]byte(strconv.Itoa(i)))
+	}
+
+	// Ensure snapshot was unaffected by removals.
 	for i := 0; i < 100; i++ {
 		val, ok := snapshot.Lookup([]byte(strconv.Itoa(i)))
 		assert.True(ok)
@@ -274,24 +314,31 @@ func TestSnapshot(t *testing.T) {
 	}
 
 	// Ensure read-only snapshots panic on writes.
-	defer func() {
-		assert.NotNil(recover())
+	func() {
+		defer func() {
+			assert.NotNil(recover())
+		}()
+		snapshot.Remove([]byte("blah"))
 	}()
-	snapshot.Remove([]byte("blah"))
 
 	// Ensure snapshots-of-snapshots work as expected.
 	snapshot2 := snapshot.Snapshot()
+	for i := 50; i < 100; i++ {
+		ctrie.Remove([]byte(strconv.Itoa(i)))
+	}
 	for i := 0; i < 100; i++ {
 		val, ok := snapshot2.Lookup([]byte(strconv.Itoa(i)))
 		assert.True(ok)
 		assert.Equal(i, val)
 	}
-	snapshot2.Remove([]byte("0"))
-	_, ok = snapshot2.Lookup([]byte("0"))
-	assert.False(ok)
-	val, ok = snapshot.Lookup([]byte("0"))
-	assert.True(ok)
-	assert.Equal(0, val)
+
+	// Ensure snapshots of read-only snapshots panic on writes.
+	func() {
+		defer func() {
+			assert.NotNil(recover())
+		}()
+		snapshot2.Remove([]byte("blah"))
+	}()
 }
 
 func TestIterator(t *testing.T) {
