@@ -359,6 +359,34 @@ func TestIteratorCoversTNodes(t *testing.T) {
 	assert.Len(seenKeys, 1)
 }
 
+// TestCtrieReadOnlySnapshot ensures read-only snapshots are not affected when
+// mutating the original Ctrie.
+func TestCtrieReadOnlySnapshot(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(nil)
+	s := ctrie.ReadOnlySnapshot()
+
+	count := 0
+	for _ = range s.Iterator(nil) {
+		count++
+	}
+	assert.Equal(0, count)
+
+	ctrie.Insert([]byte("fooooo"), "hello")
+
+	count = 0
+	for _ = range ctrie.Iterator(nil) {
+		count++
+	}
+	assert.Equal(1, count)
+
+	count = 0
+	for _ = range s.Iterator(nil) {
+		count++
+	}
+	assert.Equal(0, count)
+}
+
 func TestSize(t *testing.T) {
 	ctrie := New(nil)
 	for i := 0; i < 10; i++ {
