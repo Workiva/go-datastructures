@@ -143,7 +143,6 @@ func (c *cache) Remove(keys ...string) {
 	}
 }
 
-// Size returns the current size of the cache.  This method is threadsafe.
 func (c *cache) Size() uint64 {
 	c.Lock()
 	defer c.Unlock()
