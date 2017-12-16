@@ -121,13 +121,15 @@ func (t *tree) Traverse(fn func(id Interval)) {
 
 	for len(nodes) != 0 {
 		c := nodes[len(nodes)-1]
-		fn(c.interval)
 		nodes = nodes[:len(nodes)-1]
-		if c.children[0] != nil {
-			nodes = append(nodes, c.children[0])
-		}
-		if c.children[1] != nil {
-			nodes = append(nodes, c.children[1])
+		if c != nil {
+			fn(c.interval)
+			if c.children[0] != nil {
+				nodes = append(nodes, c.children[0])
+			}
+			if c.children[1] != nil {
+				nodes = append(nodes, c.children[1])
+			}
 		}
 	}
 }

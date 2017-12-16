@@ -1,0 +1,12 @@
+package: github.com/Workiva/go-datastructures
+import:
+- package: github.com/satori/go.uuid
+  version: ^1.1.0
+- package: github.com/stretchr/testify
+  version: ^1.1.4
+  subpackages:
+  - mock
+- package: github.com/tinylib/msgp
+  version: ^1.0.2
+  subpackages:
+  - msgp

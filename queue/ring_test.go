@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -176,6 +177,54 @@ func TestRingGetEmpty(t *testing.T) {
 	wg.Wait()
 }
 
+func TestRingPollEmpty(t *testing.T) {
+	rb := NewRingBuffer(3)
+
+	_, err := rb.Poll(1)
+	assert.Equal(t, ErrTimeout, err)
+}
+
+func TestRingPoll(t *testing.T) {
+	rb := NewRingBuffer(10)
+
+	// should be able to Poll() before anything is present, without breaking future Puts
+	rb.Poll(time.Millisecond)
+
+	rb.Put(`test`)
+	result, err := rb.Poll(0)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Equal(t, `test`, result)
+	assert.Equal(t, uint64(0), rb.Len())
+
+	rb.Put(`1`)
+	rb.Put(`2`)
+
+	result, err = rb.Poll(time.Millisecond)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Equal(t, `1`, result)
+	assert.Equal(t, uint64(1), rb.Len())
+
+	result, err = rb.Poll(time.Millisecond)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	assert.Equal(t, `2`, result)
+
+	before := time.Now()
+	_, err = rb.Poll(5 * time.Millisecond)
+	// This delta is normally 1-3 ms but running tests in CI with -race causes
+	// this to run much slower. For now, just bump up the threshold.
+	assert.InDelta(t, 5, time.Since(before).Seconds()*1000, 10)
+	assert.Equal(t, ErrTimeout, err)
+}
+
 func TestRingLen(t *testing.T) {
 	rb := NewRingBuffer(4)
 	assert.Equal(t, uint64(0), rb.Len())
@@ -277,6 +326,44 @@ func BenchmarkRBLifeCycle(b *testing.B) {
 	}
 
 	wg.Wait()
+}
+
+func BenchmarkRBLifeCycleContention(b *testing.B) {
+	rb := NewRingBuffer(64)
+
+	var wwg sync.WaitGroup
+	var rwg sync.WaitGroup
+	wwg.Add(10)
+	rwg.Add(10)
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			for {
+				_, err := rb.Get()
+				if err == ErrDisposed {
+					rwg.Done()
+					return
+				} else {
+					assert.Nil(b, err)
+				}
+			}
+		}()
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			for j := 0; j < b.N; j++ {
+				rb.Put(j)
+			}
+			wwg.Done()
+		}()
+	}
+
+	wwg.Wait()
+	rb.Dispose()
+	rwg.Wait()
 }
 
 func BenchmarkRBPut(b *testing.B) {

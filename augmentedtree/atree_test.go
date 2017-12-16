@@ -625,6 +625,11 @@ func TestInsertDuplicateIntervalChildren(t *testing.T) {
 
 func TestTraverse(t *testing.T) {
 	tree := newTree(1)
+
+	tree.Traverse(func(i Interval) {
+		assert.Fail(t, `traverse should not be called for empty tree`)
+	})
+
 	top := 30
 	for i := 0; i <= top; i++ {
 		tree.Add(constructSingleDimensionInterval(int64(i*10), int64((i+1)*10), uint64(i)))

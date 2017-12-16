@@ -49,6 +49,10 @@ and ensure goroutines quit so objects can be GC'd.  Threadsafety is achieved
 using only CAS operations making this queue quite fast.  Benchmarks can be found
 in that package.
 
+#### Fibonacci Heap
+
+A standard Fibonacci heap providing the usual operations. Can be useful in executing Dijkstra or Prim's algorithms in the theoretically minimal time. Also useful as a general-purpose priority queue. The special thing about Fibonacci heaps versus other heap variants is the cheap decrease-key operation. This heap has a constant complexity for find minimum, insert and merge of two heaps, an amortized constant complexity for decrease key and O(log(n)) complexity for a deletion or dequeue minimum. In practice the constant factors are large, so Fibonacci heaps could be slower than Pairing heaps, depending on usage. Benchmarks - in the project subfolder. The heap has not been designed for thread-safety.
+
 #### Range Tree
 
 Useful to determine if n-dimensional points fall within an n-dimensional range.
@@ -147,7 +151,7 @@ method which in turn calls into runtime.assertI2T.  We need generics.
 
 #### Immutable B Tree
 A btree based on two principals, immutablability and concurrency. 
-Somewhat slow for single value lookups and puts, it is very fast for bulk operations.  
+Somewhat slow for single value lookups and puts, it is very fast for bulk operations.
 A persister can be injected to make this index persistent.
 
 #### Ctrie

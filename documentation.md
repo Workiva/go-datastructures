@@ -2,7 +2,7 @@
 
 The goal of the go-datastructures library is to port implementations of some common datastructures to Go or to improve on some existing datastructures.  These datastructures are designed to be re-used for anyone that needs them throughout the community. (and hopefully improved upon).
 
-Given the commonality and popularity of these datastructures in other languages, it is hoped that by open sourcing this library we an leverage a great deal of institutional knowledge to improve upon the Go-specific implementations.
+Given the commonality and popularity of these datastructures in other languages, it is hoped that by open sourcing this library we leverage a great deal of institutional knowledge to improve upon the Go-specific implementations.
 
 # Datastructures
 
@@ -16,7 +16,7 @@ The actual implementation is a top-down red-black binary search tree.
 
 ### Future
 
-Implement a bottom-up version as well.  
+Implement a bottom-up version as well.
 
 ## Bit Array
 
@@ -46,7 +46,7 @@ When I get time, I'd like to implement a lockless ring buffer for further perfor
 
 ## Range Tree
 
-The range tree is a way to store n-dimensional points of data in a manner that it permits logarithmic queries.  These points are usually representing as points on a Cartesian graph represented by integers.
+The range tree is a way to store n-dimensional points of data in a manner that permits logarithmic-complexity queries.  These points are usually represented as points on a Cartesian graph represented by integers.
 
 There are two implementations of a range tree in this package, one that is mutable and one that is immutable.  The mutable version can be faster, but involves lock contention if the consumer needs to ensure threadsafety.  The immutable version is a copy-on-write range tree that is optimized by only copying portions of the rangetree on write and is best written to in batches.  Operations on the immutable version are slower, but it is safe to read and write from this version at the same time from different threads.
 
@@ -55,6 +55,14 @@ Although rangetrees are often represented as BBSTs as described above, the n-dim
 ### Future
 
 Unite both implementations of the rangetree under the same interface.  The implementations (especially the immutable one) could use some futher performance optimizations.
+
+## Fibonacci Heap
+
+The usual Fibonacci Heap with a floating-point priority key. Does a good job as a priority queue, especially for large n. Should be useful in writing an optimal solution for Dijkstra's and Prim's algorithms. (because of it's efficient decrease-key)
+
+### Future
+
+I'd like to add a value interface{} pointer that will be able to hold any user data attached to each node in the heap. Another thing would be writing a fast implementation of Dijkstra and Prim using this structure. And a third would be analysing thread-safety and coming up with a thread-safe variant.
 
 ## Set
 
