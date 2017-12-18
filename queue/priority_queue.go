@@ -76,7 +76,7 @@ func (items *priorityItems) pop() Item {
 func (items *priorityItems) get(number int) []Item {
 	returnItems := make([]Item, 0, number)
 	for i := 0; i < number; i++ {
-		if i >= len(*items) {
+		if len(*items) == 0 {
 			break
 		}
 
