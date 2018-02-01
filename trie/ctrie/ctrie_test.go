@@ -341,6 +341,24 @@ func TestIterator(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestIteratorCoversTNodes reproduces the scenario of a bug where tNodes weren't being traversed.
+func TestIteratorCoversTNodes(t *testing.T) {
+	assert := assert.New(t)
+	ctrie := New(mockHashFactory)
+	// Add a pair of keys that collide (because we're using the mock hash).
+	ctrie.Insert([]byte("a"), true)
+	ctrie.Insert([]byte("b"), true)
+	// Delete one key, leaving exactly one sNode in the cNode.  This will
+	// trigger creation of a tNode.
+	ctrie.Remove([]byte("b"))
+	seenKeys := map[string]bool{}
+	for entry := range ctrie.Iterator(nil) {
+		seenKeys[string(entry.Key)] = true
+	}
+	assert.Contains(seenKeys, "a", "Iterator did not return 'a'.")
+	assert.Len(seenKeys, 1)
+}
+
 func TestSize(t *testing.T) {
 	ctrie := New(nil)
 	for i := 0; i < 10; i++ {

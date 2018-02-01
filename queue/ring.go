@@ -19,6 +19,7 @@ package queue
 import (
 	"runtime"
 	"sync/atomic"
+	"time"
 )
 
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
@@ -86,7 +87,6 @@ func (rb *RingBuffer) Offer(item interface{}) (bool, error) {
 func (rb *RingBuffer) put(item interface{}, offer bool) (bool, error) {
 	var n *node
 	pos := atomic.LoadUint64(&rb.queue)
-	i := 0
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -110,12 +110,7 @@ L:
 			return false, nil
 		}
 
-		if i == 10000 {
-			runtime.Gosched() // free up the cpu before the next iteration
-			i = 0
-		} else {
-			i++
-		}
+		runtime.Gosched() // free up the cpu before the next iteration
 	}
 
 	n.data = item
@@ -128,9 +123,23 @@ L:
 // to the queue or Dispose is called on the queue.  An error will be returned
 // if the queue is disposed.
 func (rb *RingBuffer) Get() (interface{}, error) {
-	var n *node
-	pos := atomic.LoadUint64(&rb.dequeue)
-	i := 0
+	return rb.Poll(0)
+}
+
+// Poll will return the next item in the queue.  This call will block
+// if the queue is empty.  This call will unblock when an item is added
+// to the queue, Dispose is called on the queue, or the timeout is reached. An
+// error will be returned if the queue is disposed or a timeout occurs. A
+// non-positive timeout will block indefinitely.
+func (rb *RingBuffer) Poll(timeout time.Duration) (interface{}, error) {
+	var (
+		n     *node
+		pos   = atomic.LoadUint64(&rb.dequeue)
+		start time.Time
+	)
+	if timeout > 0 {
+		start = time.Now()
+	}
 L:
 	for {
 		if atomic.LoadUint64(&rb.disposed) == 1 {
@@ -150,12 +159,11 @@ L:
 			pos = atomic.LoadUint64(&rb.dequeue)
 		}
 
-		if i == 10000 {
-			runtime.Gosched() // free up the cpu before the next iteration
-			i = 0
-		} else {
-			i++
+		if timeout > 0 && time.Since(start) >= timeout {
+			return nil, ErrTimeout
 		}
+
+		runtime.Gosched() // free up the cpu before the next iteration
 	}
 	data := n.data
 	n.data = nil

@@ -49,6 +49,25 @@ func TestWaitOnGetResult(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestHasResult(t *testing.T) {
+	completer := make(chan interface{})
+	f := New(completer, time.Duration(30*time.Minute))
+
+	assert.False(t, f.HasResult())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		f.GetResult()
+		wg.Done()
+	}()
+
+	completer <- `test`
+	wg.Wait()
+
+	assert.True(t, f.HasResult())
+}
+
 func TestTimeout(t *testing.T) {
 	completer := make(chan interface{})
 	f := New(completer, time.Duration(0))

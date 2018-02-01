@@ -30,6 +30,7 @@ var ErrFutureCanceled = errors.New("future canceled")
 // Many simultaneous listeners may wait for result either with `f.Value()`
 // or by selecting/fetching from `f.WaitChan()`, which is closed when future
 // fulfilled.
+// Selectable contains sync.Mutex, so it is not movable/copyable.
 type Selectable struct {
 	m      sync.Mutex
 	val    interface{}
@@ -39,12 +40,17 @@ type Selectable struct {
 }
 
 // NewSelectable returns new selectable future.
+// Note: this method is for backward compatibility.
+// You may allocate it directly on stack or embedding into larger structure
 func NewSelectable() *Selectable {
-	return &Selectable{wait: make(chan struct{})}
+	return &Selectable{}
 }
 
 func (f *Selectable) wchan() <-chan struct{} {
 	f.m.Lock()
+	if f.wait == nil {
+		f.wait = make(chan struct{})
+	}
 	ch := f.wait
 	f.m.Unlock()
 	return ch
@@ -77,7 +83,9 @@ func (f *Selectable) Fill(v interface{}, e error) error {
 		atomic.StoreUint32(&f.filled, 1)
 		w := f.wait
 		f.wait = closed
-		close(w)
+		if w != nil {
+			close(w)
+		}
 	}
 	f.m.Unlock()
 	return f.err
