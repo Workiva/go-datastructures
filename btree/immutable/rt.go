@@ -149,7 +149,7 @@ func (t *Tr) Len() int {
 func (t *Tr) AsMutable() MutableTree {
 	return &Tr{
 		Count:     t.Count,
-		UUID:      uuid.NewV4().Bytes(),
+		UUID:      uuid.Must(uuid.NewV4()).Bytes(),
 		Root:      t.Root,
 		config:    t.config,
 		cacher:    t.cacher,
@@ -197,7 +197,7 @@ func treeFromBytes(p Persister, data []byte, comparator Comparator) (*Tr, error)
 func newTree(cfg Config) *Tr {
 	return &Tr{
 		config: cfg,
-		UUID:   uuid.NewV4().Bytes(),
+		UUID:   uuid.Must(uuid.NewV4()).Bytes(),
 		cacher: newCacher(cfg.Persister),
 	}
 }

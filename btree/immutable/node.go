@@ -120,7 +120,7 @@ func (n *Node) copy() *Node {
 	copy(cpKeys, n.ChildKeys)
 
 	return &Node{
-		ID:          uuid.NewV4().Bytes(),
+		ID:          uuid.Must(uuid.NewV4()).Bytes(),
 		IsLeaf:      n.IsLeaf,
 		ChildValues: cpValues,
 		ChildKeys:   cpKeys,
@@ -297,7 +297,7 @@ func (n *Node) deleteKeyAt(i int) {
 func (n *Node) splitLeafAt(i int) (interface{}, *Node) {
 	left := newNode()
 	left.IsLeaf = n.IsLeaf
-	left.ID = uuid.NewV4().Bytes()
+	left.ID = uuid.Must(uuid.NewV4()).Bytes()
 
 	value := n.ChildValues[i]
 	leftValues := make([]interface{}, i+1)
@@ -320,7 +320,7 @@ func (n *Node) splitLeafAt(i int) (interface{}, *Node) {
 func (n *Node) splitInternalAt(i int) (interface{}, *Node) {
 	left := newNode()
 	left.IsLeaf = n.IsLeaf
-	left.ID = uuid.NewV4().Bytes()
+	left.ID = uuid.Must(uuid.NewV4()).Bytes()
 	value := n.ChildValues[i]
 	leftValues := make([]interface{}, i)
 	copy(leftValues, n.ChildValues[:i])
@@ -421,7 +421,7 @@ func nodeFromBytes(t *Tr, data []byte) (*Node, error) {
 // IsLeaf is false by default.
 func newNode() *Node {
 	return &Node{
-		ID: uuid.NewV4().Bytes(),
+		ID: uuid.Must(uuid.NewV4()).Bytes(),
 	}
 }
 

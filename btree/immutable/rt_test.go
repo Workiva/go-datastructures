@@ -220,7 +220,7 @@ func generateRandomQuery() (interface{}, interface{}) {
 func newItem(value interface{}) *Item {
 	return &Item{
 		Value:   value,
-		Payload: uuid.NewV4().Bytes(),
+		Payload: uuid.Must(uuid.NewV4()).Bytes(),
 	}
 }
 
