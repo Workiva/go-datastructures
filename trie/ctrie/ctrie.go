@@ -306,28 +306,35 @@ func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
 	return c.remove(&Entry{Key: key, hash: c.hash(key)})
 }
 
-// Snapshot returns a stable, point-in-time snapshot of the Ctrie.
+// Snapshot returns a stable, point-in-time snapshot of the Ctrie. If the Ctrie
+// is read-only, the returned Ctrie will also be read-only.
 func (c *Ctrie) Snapshot() *Ctrie {
-	for {
-		root := c.readRoot()
-		main := gcasRead(root, c)
-		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
-			return newCtrie(c.readRoot().copyToGen(&generation{}, c), c.hashFactory, c.readOnly)
-		}
-	}
+	return c.snapshot(c.readOnly)
 }
 
 // ReadOnlySnapshot returns a stable, point-in-time snapshot of the Ctrie which
 // is read-only. Write operations on a read-only snapshot will panic.
 func (c *Ctrie) ReadOnlySnapshot() *Ctrie {
-	if c.readOnly {
+	return c.snapshot(true)
+}
+
+// snapshot wraps up the CAS logic to make a snapshot or a read-only snapshot.
+func (c *Ctrie) snapshot(readOnly bool) *Ctrie {
+	if readOnly && c.readOnly {
 		return c
 	}
 	for {
 		root := c.readRoot()
 		main := gcasRead(root, c)
 		if c.rdcssRoot(root, main, root.copyToGen(&generation{}, c)) {
-			return newCtrie(c.readRoot(), c.hashFactory, true)
+			if readOnly {
+				// For a read-only snapshot, we can share the old generation
+				// root.
+				return newCtrie(root, c.hashFactory, readOnly)
+			}
+			// For a read-write snapshot, we need to take a copy of the root
+			// in the new generation.
+			return newCtrie(c.readRoot().copyToGen(&generation{}, c), c.hashFactory, readOnly)
 		}
 	}
 }
@@ -404,6 +411,12 @@ func (c *Ctrie) traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) err
 			case <-cancel:
 				return errCanceled
 			}
+		}
+	case main.tNode != nil:
+		select {
+		case ch <- main.tNode.Entry:
+		case <-cancel:
+			return errCanceled
 		}
 	}
 	return nil
