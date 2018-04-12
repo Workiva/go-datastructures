@@ -27,6 +27,7 @@ import (
 	_ "github.com/Workiva/go-datastructures/slice"
 	_ "github.com/Workiva/go-datastructures/slice/skip"
 	_ "github.com/Workiva/go-datastructures/sort"
+	_ "github.com/Workiva/go-datastructures/stack"
 	_ "github.com/Workiva/go-datastructures/threadsafe/err"
 	_ "github.com/Workiva/go-datastructures/tree/avl"
 	_ "github.com/Workiva/go-datastructures/trie/xfast"
