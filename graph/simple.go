@@ -48,6 +48,7 @@ type SimpleGraph struct {
 	v, e          int
 }
 
+// V returns the number of vertices in the SimpleGraph
 func (g *SimpleGraph) V() int {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
@@ -55,6 +56,7 @@ func (g *SimpleGraph) V() int {
 	return g.v
 }
 
+// E returns the number of edges in the SimpleGraph
 func (g *SimpleGraph) E() int {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
@@ -62,6 +64,7 @@ func (g *SimpleGraph) E() int {
 	return g.e
 }
 
+// AddEdge will create an edge between vertices v and w
 func (g *SimpleGraph) AddEdge(v, w interface{}) error {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
@@ -83,6 +86,7 @@ func (g *SimpleGraph) AddEdge(v, w interface{}) error {
 	return nil
 }
 
+// Adj returns the list of all vertices connected to v
 func (g *SimpleGraph) Adj(v interface{}) ([]interface{}, error) {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
@@ -101,6 +105,7 @@ func (g *SimpleGraph) Adj(v interface{}) ([]interface{}, error) {
 	return adj, nil
 }
 
+// Degree returns the number of vertices connected to v
 func (g *SimpleGraph) Degree(v interface{}) (int, error) {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
@@ -121,6 +126,7 @@ func (g *SimpleGraph) addVertex(v interface{}) {
 	}
 }
 
+// NewSimpleGraph creates and returns a SimpleGraph
 func NewSimpleGraph() *SimpleGraph {
 	return &SimpleGraph{
 		adjacencyList: make(map[interface{}]map[interface{}]struct{}),
