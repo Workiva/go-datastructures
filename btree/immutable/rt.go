@@ -18,11 +18,7 @@ limitations under the License.
 
 package btree
 
-import (
-	"sync"
-
-	"github.com/satori/go.uuid"
-)
+import "sync"
 
 // context is used to keep track of the nodes in this mutable
 // that have been created.  This is basically any node that had
@@ -149,7 +145,7 @@ func (t *Tr) Len() int {
 func (t *Tr) AsMutable() MutableTree {
 	return &Tr{
 		Count:     t.Count,
-		UUID:      uuid.NewV4().Bytes(),
+		UUID:      newID(),
 		Root:      t.Root,
 		config:    t.config,
 		cacher:    t.cacher,
@@ -197,7 +193,7 @@ func treeFromBytes(p Persister, data []byte, comparator Comparator) (*Tr, error)
 func newTree(cfg Config) *Tr {
 	return &Tr{
 		config: cfg,
-		UUID:   uuid.NewV4().Bytes(),
+		UUID:   newID(),
 		cacher: newCacher(cfg.Persister),
 	}
 }
