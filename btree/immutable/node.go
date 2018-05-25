@@ -19,10 +19,21 @@ limitations under the License.
 package btree
 
 import (
+	"crypto/rand"
+	"io"
 	"sort"
-
-	"github.com/satori/go.uuid"
 )
+
+func newID() []byte {
+	id := make([]byte, 16)
+	_, err := io.ReadFull(rand.Reader, id)
+	if err != nil {
+		// This can't happen unless the system is badly
+		// configured, like /dev/urandom isn't readable.
+		panic("reading random: " + err.Error())
+	}
+	return id
+}
 
 // ID exists because i'm tired of writing []byte
 type ID []byte
@@ -120,7 +131,7 @@ func (n *Node) copy() *Node {
 	copy(cpKeys, n.ChildKeys)
 
 	return &Node{
-		ID:          uuid.NewV4().Bytes(),
+		ID:          newID(),
 		IsLeaf:      n.IsLeaf,
 		ChildValues: cpValues,
 		ChildKeys:   cpKeys,
@@ -297,7 +308,7 @@ func (n *Node) deleteKeyAt(i int) {
 func (n *Node) splitLeafAt(i int) (interface{}, *Node) {
 	left := newNode()
 	left.IsLeaf = n.IsLeaf
-	left.ID = uuid.NewV4().Bytes()
+	left.ID = newID()
 
 	value := n.ChildValues[i]
 	leftValues := make([]interface{}, i+1)
@@ -320,7 +331,7 @@ func (n *Node) splitLeafAt(i int) (interface{}, *Node) {
 func (n *Node) splitInternalAt(i int) (interface{}, *Node) {
 	left := newNode()
 	left.IsLeaf = n.IsLeaf
-	left.ID = uuid.NewV4().Bytes()
+	left.ID = newID()
 	value := n.ChildValues[i]
 	leftValues := make([]interface{}, i)
 	copy(leftValues, n.ChildValues[:i])
@@ -421,7 +432,7 @@ func nodeFromBytes(t *Tr, data []byte) (*Node, error) {
 // IsLeaf is false by default.
 func newNode() *Node {
 	return &Node{
-		ID: uuid.NewV4().Bytes(),
+		ID: newID(),
 	}
 }
 

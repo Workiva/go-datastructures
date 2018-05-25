@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -220,7 +219,7 @@ func generateRandomQuery() (interface{}, interface{}) {
 func newItem(value interface{}) *Item {
 	return &Item{
 		Value:   value,
-		Payload: uuid.NewV4().Bytes(),
+		Payload: newID(),
 	}
 }
 
