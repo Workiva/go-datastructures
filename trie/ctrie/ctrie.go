@@ -229,7 +229,7 @@ func (l *lNode) lookup(e *Entry) (interface{}, bool) {
 
 // inserted creates a new L-node with the added entry.
 func (l *lNode) inserted(entry *Entry) *lNode {
-	return &lNode{l.Add(&sNode{entry})}
+	return &lNode{l.removed(entry).Add(&sNode{entry})}
 }
 
 // removed creates a new L-node with the entry removed.
