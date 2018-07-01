@@ -429,6 +429,51 @@ func TestClear(t *testing.T) {
 	assert.Equal(uint(10), snapshot.Size())
 }
 
+type fakehash struct{}
+
+func (h *fakehash) Sum32() uint32 {
+	return 42
+}
+
+func (h *fakehash) Sum(b []byte) []byte {
+	return nil
+}
+
+func (h *fakehash) Size() int {
+	return 0
+}
+
+func (h *fakehash) BlockSize() int {
+	return 0
+}
+
+func (h *fakehash) Reset() {
+
+}
+
+func (h *fakehash) Write(b []byte) (int, error) {
+	return 0, nil
+}
+
+func factory() hash.Hash32 {
+	return &fakehash{}
+}
+
+func TestHashCollision(t *testing.T) {
+	trie := New(factory)
+	trie.Insert([]byte("foobar"), 1)
+	trie.Insert([]byte("zogzog"), 2)
+	trie.Insert([]byte("foobar"), 3)
+	val, exists := trie.Lookup([]byte("foobar"))
+	assert.True(t, exists)
+	assert.Equal(t, 3, val)
+
+	trie.Remove([]byte("foobar"))
+
+	_, exists = trie.Lookup([]byte("foobar"))
+	assert.False(t, exists)
+}
+
 func BenchmarkInsert(b *testing.B) {
 	ctrie := New(nil)
 	b.ResetTimer()
