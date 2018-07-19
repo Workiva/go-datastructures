@@ -83,7 +83,7 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 
 	// Run through the sparse array and attempt comparisons wherever
 	// possible against the dense bit array.
-	for selfIndex, selfValue := range ba.indices {
+	for selfIndex, selfValue := range sba.indices {
 
 		if selfValue >= uint64(len(other.blocks)) {
 			// The dense bit array has been exhausted. This is the
@@ -98,6 +98,11 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 		}
 		ba.blocks[selfIndex] = ba.blocks[selfIndex].and(
 			other.blocks[selfValue])
+
+		if ba.blocks[selfIndex] == 0 {
+			ba.blocks.deleteAtIndex(int64(selfIndex))
+			ba.indices.deleteAtIndex(int64(selfIndex))
+		}
 	}
 
 	return ba
