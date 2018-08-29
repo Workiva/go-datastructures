@@ -71,6 +71,10 @@ func andSparseWithSparseBitArray(sba, other *sparseBitArray) BitArray {
 }
 
 func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
+	if other.IsEmpty() {
+		return newSparseBitArray()
+	}
+
 	// Use a duplicate of the sparse array to store the results of the
 	// bitwise and. More memory-efficient than allocating a new dense bit
 	// array.
@@ -89,8 +93,8 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 			// The dense bit array has been exhausted. This is the
 			// annoying case because we have to trim the sparse
 			// array to the size of the dense array.
-			ba.blocks = ba.blocks[:selfIndex]
-			ba.indices = ba.indices[:selfIndex]
+			ba.blocks = ba.blocks[:selfIndex-1]
+			ba.indices = ba.indices[:selfIndex-1]
 
 			// once this is done, there are no more comparisons.
 			// We're ready to return
@@ -98,6 +102,17 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 		}
 		ba.blocks[selfIndex] = ba.blocks[selfIndex].and(
 			other.blocks[selfValue])
+
+	}
+
+	// Ensure any zero'd blocks in the resulting sparse
+	// array are deleted
+	for i := 0; i < len(ba.blocks); i++ {
+		if ba.blocks[i] == 0 {
+			ba.blocks.deleteAtIndex(int64(i))
+			ba.indices.deleteAtIndex(int64(i))
+			i--
+		}
 	}
 
 	return ba
