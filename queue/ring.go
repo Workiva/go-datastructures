@@ -22,9 +22,9 @@ import (
 	"time"
 )
 
-// roundUp takes a uint64 greater than 0 and rounds it up to the next
+// roundUp takes a int64 greater than 0 and rounds it up to the next
 // power of 2.
-func roundUp(v uint64) uint64 {
+func roundUp(v int64) int64 {
 	v--
 	v |= v >> 1
 	v |= v >> 2
@@ -37,7 +37,7 @@ func roundUp(v uint64) uint64 {
 }
 
 type node struct {
-	position uint64
+	position int64
 	data     interface{}
 }
 
@@ -50,20 +50,20 @@ type nodes []*node
 // described here: http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
 // with some minor additions.
 type RingBuffer struct {
-	_padding0      [8]uint64
-	queue          uint64
-	_padding1      [8]uint64
-	dequeue        uint64
-	_padding2      [8]uint64
-	mask, disposed uint64
-	_padding3      [8]uint64
+	_padding0      [8]int64
+	queue          int64
+	_padding1      [8]int64
+	dequeue        int64
+	_padding2      [8]int64
+	mask, disposed int64
+	_padding3      [8]int64
 	nodes          nodes
 }
 
-func (rb *RingBuffer) init(size uint64) {
+func (rb *RingBuffer) init(size int64) {
 	size = roundUp(size)
 	rb.nodes = make(nodes, size)
-	for i := uint64(0); i < size; i++ {
+	for i := int64(0); i < size; i++ {
 		rb.nodes[i] = &node{position: i}
 	}
 	rb.mask = size - 1 // so we don't have to do this with every put/get operation
@@ -86,24 +86,24 @@ func (rb *RingBuffer) Offer(item interface{}) (bool, error) {
 
 func (rb *RingBuffer) put(item interface{}, offer bool) (bool, error) {
 	var n *node
-	pos := atomic.LoadUint64(&rb.queue)
+	pos := atomic.LoadInt64(&rb.queue)
 L:
 	for {
-		if atomic.LoadUint64(&rb.disposed) == 1 {
+		if atomic.LoadInt64(&rb.disposed) == 1 {
 			return false, ErrDisposed
 		}
 
 		n = rb.nodes[pos&rb.mask]
-		seq := atomic.LoadUint64(&n.position)
+		seq := atomic.LoadInt64(&n.position)
 		switch dif := seq - pos; {
 		case dif == 0:
-			if atomic.CompareAndSwapUint64(&rb.queue, pos, pos+1) {
+			if atomic.CompareAndSwapInt64(&rb.queue, pos, pos+1) {
 				break L
 			}
 		case dif < 0:
-			panic(`Ring buffer in a compromised state during a put operation.`)
+			return false, ErrFullQueue
 		default:
-			pos = atomic.LoadUint64(&rb.queue)
+			pos = atomic.LoadInt64(&rb.queue)
 		}
 
 		if offer {
@@ -114,7 +114,7 @@ L:
 	}
 
 	n.data = item
-	atomic.StoreUint64(&n.position, pos+1)
+	atomic.StoreInt64(&n.position, pos+1)
 	return true, nil
 }
 
@@ -134,7 +134,7 @@ func (rb *RingBuffer) Get() (interface{}, error) {
 func (rb *RingBuffer) Poll(timeout time.Duration) (interface{}, error) {
 	var (
 		n     *node
-		pos   = atomic.LoadUint64(&rb.dequeue)
+		pos   = atomic.LoadInt64(&rb.dequeue)
 		start time.Time
 	)
 	if timeout > 0 {
@@ -142,21 +142,21 @@ func (rb *RingBuffer) Poll(timeout time.Duration) (interface{}, error) {
 	}
 L:
 	for {
-		if atomic.LoadUint64(&rb.disposed) == 1 {
+		if atomic.LoadInt64(&rb.disposed) == 1 {
 			return nil, ErrDisposed
 		}
 
 		n = rb.nodes[pos&rb.mask]
-		seq := atomic.LoadUint64(&n.position)
+		seq := atomic.LoadInt64(&n.position)
 		switch dif := seq - (pos + 1); {
 		case dif == 0:
-			if atomic.CompareAndSwapUint64(&rb.dequeue, pos, pos+1) {
+			if atomic.CompareAndSwapInt64(&rb.dequeue, pos, pos+1) {
 				break L
 			}
 		case dif < 0:
-			panic(`Ring buffer in compromised state during a get operation.`)
+			return false, ErrFullQueue
 		default:
-			pos = atomic.LoadUint64(&rb.dequeue)
+			pos = atomic.LoadInt64(&rb.dequeue)
 		}
 
 		if timeout > 0 && time.Since(start) >= timeout {
@@ -167,36 +167,36 @@ L:
 	}
 	data := n.data
 	n.data = nil
-	atomic.StoreUint64(&n.position, pos+rb.mask+1)
+	atomic.StoreInt64(&n.position, pos+rb.mask+1)
 	return data, nil
 }
 
 // Len returns the number of items in the queue.
-func (rb *RingBuffer) Len() uint64 {
-	return atomic.LoadUint64(&rb.queue) - atomic.LoadUint64(&rb.dequeue)
+func (rb *RingBuffer) Len() int64 {
+	return atomic.LoadInt64(&rb.queue) - atomic.LoadInt64(&rb.dequeue)
 }
 
 // Cap returns the capacity of this ring buffer.
-func (rb *RingBuffer) Cap() uint64 {
-	return uint64(len(rb.nodes))
+func (rb *RingBuffer) Cap() int64 {
+	return int64(len(rb.nodes))
 }
 
 // Dispose will dispose of this queue and free any blocked threads
 // in the Put and/or Get methods.  Calling those methods on a disposed
 // queue will return an error.
 func (rb *RingBuffer) Dispose() {
-	atomic.CompareAndSwapUint64(&rb.disposed, 0, 1)
+	atomic.CompareAndSwapInt64(&rb.disposed, 0, 1)
 }
 
 // IsDisposed will return a bool indicating if this queue has been
 // disposed.
 func (rb *RingBuffer) IsDisposed() bool {
-	return atomic.LoadUint64(&rb.disposed) == 1
+	return atomic.LoadInt64(&rb.disposed) == 1
 }
 
 // NewRingBuffer will allocate, initialize, and return a ring buffer
 // with the specified size.
-func NewRingBuffer(size uint64) *RingBuffer {
+func NewRingBuffer(size int64) *RingBuffer {
 	rb := &RingBuffer{}
 	rb.init(size)
 	return rb

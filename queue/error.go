@@ -29,4 +29,8 @@ var (
 	// ErrEmptyQueue is returned when an non-applicable queue operation was called
 	// due to the queue's empty item state
 	ErrEmptyQueue = errors.New(`queue: empty queue`)
+
+	// ErrFullQueue is returned when an non-applicable queue operation was called
+	// due to the queue's full item state
+	ErrFullQueue = errors.New(`queue: full queue`)
 )
