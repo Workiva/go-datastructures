@@ -1,0 +1,9 @@
+version: 1
+update_configs:
+  - package_manager: "go:dep"
+    directory: "/"
+    update_schedule: "weekly"
+    commit_message:
+      prefix: "fix"
+      prefix_developmeent: "chore"
+      include_scope: true
