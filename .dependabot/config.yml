@@ -5,5 +5,5 @@ update_configs:
     update_schedule: "weekly"
     commit_message:
       prefix: "fix"
-      prefix_developmeent: "chore"
+      prefix_development: "chore"
       include_scope: true
