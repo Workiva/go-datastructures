@@ -41,7 +41,7 @@ type node struct {
 	data     interface{}
 }
 
-type nodes []*node
+type nodes []node
 
 // RingBuffer is a MPMC buffer that achieves threadsafety with CAS operations
 // only.  A put on full or get on empty call will block until an item
@@ -64,7 +64,7 @@ func (rb *RingBuffer) init(size uint64) {
 	size = roundUp(size)
 	rb.nodes = make(nodes, size)
 	for i := uint64(0); i < size; i++ {
-		rb.nodes[i] = &node{position: i}
+		rb.nodes[i] = node{position: i}
 	}
 	rb.mask = size - 1 // so we don't have to do this with every put/get operation
 }
@@ -93,7 +93,7 @@ L:
 			return false, ErrDisposed
 		}
 
-		n = rb.nodes[pos&rb.mask]
+		n = &rb.nodes[pos&rb.mask]
 		seq := atomic.LoadUint64(&n.position)
 		switch dif := seq - pos; {
 		case dif == 0:
@@ -146,7 +146,7 @@ L:
 			return nil, ErrDisposed
 		}
 
-		n = rb.nodes[pos&rb.mask]
+		n = &rb.nodes[pos&rb.mask]
 		seq := atomic.LoadUint64(&n.position)
 		switch dif := seq - (pos + 1); {
 		case dif == 0:
