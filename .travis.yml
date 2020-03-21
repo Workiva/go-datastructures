@@ -4,6 +4,7 @@ go:
   - 1.7.x
   - 1.8.x
   - 1.9.x
+  - 1.14.x
   - tip
 
 before_install: go get golang.org/x/tools/cmd/cover
@@ -12,7 +13,7 @@ install:
 - go get github.com/Masterminds/glide
 - glide install
 
-script: go test -race -v -cover $(glide novendor)
+script:  go test ./... -v -cover
 
 env:
 - GOMAXPROCS=8 GORACE="halt_on_error=1"
