@@ -1,4 +1,14 @@
-FROM golang:1.16-alpine3.13 AS build-go
+FROM ubuntu:bionic as base
+
+# install go
+ENV GO_VERSION='1.15.5'
+ENV GOPATH=/go
+ENV PATH=$PATH:$GOPATH/bin:/usr/local/go/bin
+RUN curl -o /tmp/go${GO_VERSION}.linux-amd64.tar.gz https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz && \
+    tar -C /usr/local/ -xzf /tmp/go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm -Rf /tmp/go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm -r /usr/local/go/doc /usr/local/go/api && \
+    cd ~/
 
 ARG GIT_SSH_KEY
 ARG KNOWN_HOSTS_CONTENT
