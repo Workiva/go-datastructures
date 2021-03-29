@@ -1,16 +1,12 @@
 language: go
 
 go:
-  - 1.7.x
-  - 1.8.x
-  - 1.9.x
   - tip
 
 before_install: go get golang.org/x/tools/cmd/cover
 
 install:
-- go get github.com/Masterminds/glide
-- glide install
+- go mod vendor
 
 script: go test -race -v -cover $(glide novendor)
 
