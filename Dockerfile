@@ -1,4 +1,4 @@
-FROM drydock-prod.workiva.net/workiva/smithy-runner-golang:121185 as build
+FROM golang:1.16-alpine3.13 AS build-go
 
 ARG GIT_SSH_KEY
 ARG KNOWN_HOSTS_CONTENT
@@ -15,9 +15,9 @@ ARG GOPATH=/go/
 ENV PATH $GOPATH/bin:$PATH
 RUN git config --global url.git@github.com:.insteadOf https://github.com
 RUN echo "Starting the script section" && \
-		glide install && \
-		echo "script section completed"
+    go mode vendor && \
+    echo "script section completed"
 
-ARG BUILD_ARTIFACTS_DEPENDENCIES=/go/src/github.com/Workiva/go-datastructures/glide.lock
+ARG BUILD_ARTIFACTS_DEPENDENCIES=/go/src/github.com/Workiva/go-datastructures/go.mod
 
 FROM scratch
