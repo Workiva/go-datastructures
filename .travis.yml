@@ -8,7 +8,7 @@ before_install: go get golang.org/x/tools/cmd/cover
 install:
 - go mod vendor
 
-script: go test -race -v -cover $(glide novendor)
+script: go test -race -v -cover ./...
 
 env:
 - GOMAXPROCS=8 GORACE="halt_on_error=1"
