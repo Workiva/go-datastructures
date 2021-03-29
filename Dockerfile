@@ -1,3 +1,4 @@
+FROM apline/git as base
 FROM golang:1.16-alpine3.13 AS build-go
 
 ARG GIT_SSH_KEY
