@@ -25,6 +25,10 @@ import (
 // roundUp takes a uint64 greater than 0 and rounds it up to the next
 // power of 2.
 func roundUp(v uint64) uint64 {
+	if v <= 1 {
+		return 2
+	}
+
 	v--
 	v |= v >> 1
 	v |= v >> 2
