@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetCompressedBit(t *testing.T) {
@@ -73,6 +74,48 @@ func BenchmarkSetCompressedBit(b *testing.B) {
 		for j := 0; j < numItems; j++ {
 			ba.SetBit(uint64(j))
 		}
+	}
+}
+
+func TestGetSetCompressedBits(t *testing.T) {
+	ba := newSparseBitArray()
+	buf := make([]uint64, 0, 5)
+
+	require.NoError(t, ba.SetBit(1))
+	require.NoError(t, ba.SetBit(4))
+	require.NoError(t, ba.SetBit(8))
+	require.NoError(t, ba.SetBit(63))
+	require.NoError(t, ba.SetBit(64))
+	require.NoError(t, ba.SetBit(200))
+	require.NoError(t, ba.SetBit(1000))
+
+	assert.Equal(t, []uint64{1, 4, 8, 63, 64}, ba.GetSetBits(0, buf))
+	assert.Equal(t, []uint64{63, 64, 200, 1000}, ba.GetSetBits(10, buf))
+	assert.Equal(t, []uint64{63, 64, 200, 1000}, ba.GetSetBits(63, buf))
+	assert.Equal(t, []uint64{200, 1000}, ba.GetSetBits(128, buf))
+
+	require.NoError(t, ba.ClearBit(4))
+	require.NoError(t, ba.ClearBit(64))
+	assert.Equal(t, []uint64{1, 8, 63, 200, 1000}, ba.GetSetBits(0, buf))
+	assert.Empty(t, ba.GetSetBits(1001, buf))
+
+	ba.Reset()
+	assert.Empty(t, ba.GetSetBits(0, buf))
+}
+
+func BenchmarkGetSetCompressedBits(b *testing.B) {
+	ba := newSparseBitArray()
+	for i := uint64(0); i < 168000; i++ {
+		if i%13 == 0 || i%5 == 0 {
+			require.NoError(b, ba.SetBit(i))
+		}
+	}
+
+	buf := make([]uint64, 0, ba.Capacity())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ba.GetSetBits(0, buf)
 	}
 }
 
