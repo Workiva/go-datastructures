@@ -36,6 +36,10 @@ type BitArray interface {
 	// function returns an error if the position is out
 	// of range.  A sparse bit array never returns an error.
 	GetBit(k uint64) (bool, error)
+	// GetSetBits gets the position of bits set in the array. Will
+	// return as many set bits as can fit in the provided buffer
+	// starting from the specified position in the array.
+	GetSetBits(from uint64, buffer []uint64) []uint64
 	// ClearBit clears the bit at the given position.  This
 	// function returns an error if the position is out
 	// of range.  A sparse bit array never returns an error.

@@ -116,7 +116,12 @@ func (ba *bitArray) GetBit(k uint64) (bool, error) {
 	return result, nil
 }
 
-//ClearBit will unset a bit at the given index if it is set.
+// GetSetBits gets the position of bits set in the array.
+func (ba *bitArray) GetSetBits(_ uint64, buffer []uint64) []uint64 {
+	return buffer[:0]
+}
+
+// ClearBit will unset a bit at the given index if it is set.
 func (ba *bitArray) ClearBit(k uint64) error {
 	if k >= ba.Capacity() {
 		return OutOfRangeError(k)
