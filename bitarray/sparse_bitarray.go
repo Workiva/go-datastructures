@@ -128,8 +128,21 @@ func (sba *sparseBitArray) GetBit(k uint64) (bool, error) {
 }
 
 // GetSetBits gets the position of bits set in the array.
-func (sba *sparseBitArray) GetSetBits(_ uint64, buffer []uint64) []uint64 {
-	return buffer[:0]
+func (sba *sparseBitArray) GetSetBits(from uint64, buffer []uint64) []uint64 {
+	fromBlockIndex, fromOffset := getIndexAndRemainder(from)
+
+	fromBlockLocation := sba.indices.search(fromBlockIndex)
+	if int(fromBlockLocation) == len(sba.indices) {
+		return buffer[:0]
+	}
+
+	return getSetBitsInBlocks(
+		fromBlockIndex,
+		fromOffset,
+		sba.blocks[fromBlockLocation:],
+		sba.indices[fromBlockLocation:],
+		buffer,
+	)
 }
 
 // ToNums converts this sparse bitarray to a list of numbers contained
