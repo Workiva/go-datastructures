@@ -119,6 +119,28 @@ func BenchmarkGetSetCompressedBits(b *testing.B) {
 	}
 }
 
+func TestCompressedCount(t *testing.T) {
+	ba := newSparseBitArray()
+	assert.Equal(t, uint64(0), ba.Count())
+
+	require.NoError(t, ba.SetBit(0))
+	assert.Equal(t, uint64(1), ba.Count())
+
+	require.NoError(t, ba.SetBit(40))
+	require.NoError(t, ba.SetBit(64))
+	require.NoError(t, ba.SetBit(100))
+	require.NoError(t, ba.SetBit(200))
+	require.NoError(t, ba.SetBit(469))
+	require.NoError(t, ba.SetBit(500))
+	assert.Equal(t, uint64(7), ba.Count())
+
+	require.NoError(t, ba.ClearBit(200))
+	assert.Equal(t, uint64(6), ba.Count())
+
+	ba.Reset()
+	assert.Equal(t, uint64(0), ba.Count())
+}
+
 func TestClearCompressedBit(t *testing.T) {
 	ba := newSparseBitArray()
 	ba.SetBit(5)
