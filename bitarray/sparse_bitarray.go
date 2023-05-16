@@ -16,7 +16,10 @@ limitations under the License.
 
 package bitarray
 
-import "sort"
+import (
+	"math/bits"
+	"sort"
+)
 
 // uintSlice is an alias for a slice of ints.  Len, Swap, and Less
 // are exported to fulfill an interface needed for the search
@@ -241,6 +244,15 @@ func (sba *sparseBitArray) Equals(other BitArray) bool {
 	}
 
 	return true
+}
+
+// Count returns the number of set bits in this array.
+func (sba *sparseBitArray) Count() uint64 {
+	count := 0
+	for _, block := range sba.blocks {
+		count += bits.OnesCount64(uint64(block))
+	}
+	return uint64(count)
 }
 
 // Or will perform a bitwise or operation with the provided bitarray and
