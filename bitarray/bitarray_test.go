@@ -230,6 +230,9 @@ func TestGetSetBits(t *testing.T) {
 	require.NoError(t, ba.SetBit(200))
 	require.NoError(t, ba.SetBit(1000))
 
+	assert.Equal(t, []uint64(nil), ba.GetSetBits(0, nil))
+	assert.Equal(t, []uint64{}, ba.GetSetBits(0, []uint64{}))
+
 	assert.Equal(t, []uint64{1, 4, 8, 63, 64}, ba.GetSetBits(0, buf))
 	assert.Equal(t, []uint64{63, 64, 200, 1000}, ba.GetSetBits(10, buf))
 	assert.Equal(t, []uint64{63, 64, 200, 1000}, ba.GetSetBits(63, buf))

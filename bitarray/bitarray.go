@@ -139,6 +139,10 @@ func getSetBitsInBlocks(
 	buffer []uint64,
 ) []uint64 {
 	bufferCapacity := cap(buffer)
+	if bufferCapacity == 0 {
+		return buffer[:0]
+	}
+
 	results := buffer[:bufferCapacity]
 	resultSize := 0
 
