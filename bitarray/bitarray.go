@@ -171,7 +171,7 @@ func getSetBitsInBlocks(
 				return results[:resultSize]
 			}
 
-			// Example of this expression:
+			// Clear the bit we just added to the result, which is the last bit set in the block. Ex.:
 			//  block                   01001100
 			//  ^block                  10110011
 			//  (^block) + 1            10110100
