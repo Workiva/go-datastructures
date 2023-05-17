@@ -145,10 +145,10 @@ func TestIsEmpty(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	ba := newBitArray(500)
-	assert.Equal(t, uint64(0), ba.Count())
+	assert.Equal(t, 0, ba.Count())
 
 	require.NoError(t, ba.SetBit(0))
-	assert.Equal(t, uint64(1), ba.Count())
+	assert.Equal(t, 1, ba.Count())
 
 	require.NoError(t, ba.SetBit(40))
 	require.NoError(t, ba.SetBit(64))
@@ -156,13 +156,13 @@ func TestCount(t *testing.T) {
 	require.NoError(t, ba.SetBit(200))
 	require.NoError(t, ba.SetBit(469))
 	require.NoError(t, ba.SetBit(500))
-	assert.Equal(t, uint64(7), ba.Count())
+	assert.Equal(t, 7, ba.Count())
 
 	require.NoError(t, ba.ClearBit(200))
-	assert.Equal(t, uint64(6), ba.Count())
+	assert.Equal(t, 6, ba.Count())
 
 	ba.Reset()
-	assert.Equal(t, uint64(0), ba.Count())
+	assert.Equal(t, 0, ba.Count())
 }
 
 func TestClear(t *testing.T) {

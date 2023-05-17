@@ -247,12 +247,12 @@ func (sba *sparseBitArray) Equals(other BitArray) bool {
 }
 
 // Count returns the number of set bits in this array.
-func (sba *sparseBitArray) Count() uint64 {
+func (sba *sparseBitArray) Count() int {
 	count := 0
 	for _, block := range sba.blocks {
 		count += bits.OnesCount64(uint64(block))
 	}
-	return uint64(count)
+	return count
 }
 
 // Or will perform a bitwise or operation with the provided bitarray and

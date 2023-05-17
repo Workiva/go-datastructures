@@ -203,12 +203,12 @@ func (ba *bitArray) ClearBit(k uint64) error {
 }
 
 // Count returns the number of set bits in this array.
-func (ba *bitArray) Count() uint64 {
+func (ba *bitArray) Count() int {
 	count := 0
 	for _, block := range ba.blocks {
 		count += bits.OnesCount64(uint64(block))
 	}
-	return uint64(count)
+	return count
 }
 
 // Or will bitwise or two bit arrays and return a new bit array
