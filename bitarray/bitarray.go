@@ -168,11 +168,11 @@ func getSetBitsInBlocks(
 			}
 
 			// Example of this expression:
-			// 	block					01001100
-			// 	^block					10110011
-			// 	(^block) + 1 			10110100
-			// 	block & (^block) + 1	00000100
-			// 	block ^ mask 			01001000
+			//  block                   01001100
+			//  ^block                  10110011
+			//  (^block) + 1            10110100
+			//  block & (^block) + 1    00000100
+			//  block ^ mask            01001000
 			mask := block & ((^block) + 1)
 			block = block ^ mask
 		}
