@@ -20,6 +20,8 @@ efficient way.  This is *NOT* a threadsafe package.
 */
 package bitarray
 
+import "math/bits"
+
 // bitArray is a struct that maintains state of a bit array.
 type bitArray struct {
 	blocks  []block
@@ -116,7 +118,74 @@ func (ba *bitArray) GetBit(k uint64) (bool, error) {
 	return result, nil
 }
 
-//ClearBit will unset a bit at the given index if it is set.
+// GetSetBits gets the position of bits set in the array.
+func (ba *bitArray) GetSetBits(from uint64, buffer []uint64) []uint64 {
+	fromBlockIndex, fromOffset := getIndexAndRemainder(from)
+	return getSetBitsInBlocks(
+		fromBlockIndex,
+		fromOffset,
+		ba.blocks[fromBlockIndex:],
+		nil,
+		buffer,
+	)
+}
+
+// getSetBitsInBlocks fills a buffer with positions of set bits in the provided blocks. Optionally, indices may be
+// provided for sparse/non-consecutive blocks.
+func getSetBitsInBlocks(
+	fromBlockIndex, fromOffset uint64,
+	blocks []block,
+	indices []uint64,
+	buffer []uint64,
+) []uint64 {
+	bufferCapacity := cap(buffer)
+	if bufferCapacity == 0 {
+		return buffer[:0]
+	}
+
+	results := buffer[:bufferCapacity]
+	resultSize := 0
+
+	for i, block := range blocks {
+		blockIndex := fromBlockIndex + uint64(i)
+		if indices != nil {
+			blockIndex = indices[i]
+		}
+
+		isFirstBlock := blockIndex == fromBlockIndex
+		if isFirstBlock {
+			block >>= fromOffset
+		}
+
+		for block != 0 {
+			trailing := bits.TrailingZeros64(uint64(block))
+
+			if isFirstBlock {
+				results[resultSize] = uint64(trailing) + (blockIndex << 6) + fromOffset
+			} else {
+				results[resultSize] = uint64(trailing) + (blockIndex << 6)
+			}
+			resultSize++
+
+			if resultSize == cap(results) {
+				return results[:resultSize]
+			}
+
+			// Clear the bit we just added to the result, which is the last bit set in the block. Ex.:
+			//  block                   01001100
+			//  ^block                  10110011
+			//  (^block) + 1            10110100
+			//  block & (^block) + 1    00000100
+			//  block ^ mask            01001000
+			mask := block & ((^block) + 1)
+			block = block ^ mask
+		}
+	}
+
+	return results[:resultSize]
+}
+
+// ClearBit will unset a bit at the given index if it is set.
 func (ba *bitArray) ClearBit(k uint64) error {
 	if k >= ba.Capacity() {
 		return OutOfRangeError(k)
@@ -135,6 +204,15 @@ func (ba *bitArray) ClearBit(k uint64) error {
 		ba.setLowest()
 	}
 	return nil
+}
+
+// Count returns the number of set bits in this array.
+func (ba *bitArray) Count() int {
+	count := 0
+	for _, block := range ba.blocks {
+		count += bits.OnesCount64(uint64(block))
+	}
+	return count
 }
 
 // Or will bitwise or two bit arrays and return a new bit array

@@ -16,7 +16,10 @@ limitations under the License.
 
 package bitarray
 
-import "sort"
+import (
+	"math/bits"
+	"sort"
+)
 
 // uintSlice is an alias for a slice of ints.  Len, Swap, and Less
 // are exported to fulfill an interface needed for the search
@@ -127,6 +130,24 @@ func (sba *sparseBitArray) GetBit(k uint64) (bool, error) {
 	return sba.blocks[i].get(position), nil
 }
 
+// GetSetBits gets the position of bits set in the array.
+func (sba *sparseBitArray) GetSetBits(from uint64, buffer []uint64) []uint64 {
+	fromBlockIndex, fromOffset := getIndexAndRemainder(from)
+
+	fromBlockLocation := sba.indices.search(fromBlockIndex)
+	if int(fromBlockLocation) == len(sba.indices) {
+		return buffer[:0]
+	}
+
+	return getSetBitsInBlocks(
+		fromBlockIndex,
+		fromOffset,
+		sba.blocks[fromBlockLocation:],
+		sba.indices[fromBlockLocation:],
+		buffer,
+	)
+}
+
 // ToNums converts this sparse bitarray to a list of numbers contained
 // within it.
 func (sba *sparseBitArray) ToNums() []uint64 {
@@ -223,6 +244,15 @@ func (sba *sparseBitArray) Equals(other BitArray) bool {
 	}
 
 	return true
+}
+
+// Count returns the number of set bits in this array.
+func (sba *sparseBitArray) Count() int {
+	count := 0
+	for _, block := range sba.blocks {
+		count += bits.OnesCount64(uint64(block))
+	}
+	return count
 }
 
 // Or will perform a bitwise or operation with the provided bitarray and

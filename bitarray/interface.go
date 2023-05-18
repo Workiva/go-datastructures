@@ -36,6 +36,10 @@ type BitArray interface {
 	// function returns an error if the position is out
 	// of range.  A sparse bit array never returns an error.
 	GetBit(k uint64) (bool, error)
+	// GetSetBits gets the position of bits set in the array. Will
+	// return as many set bits as can fit in the provided buffer
+	// starting from the specified position in the array.
+	GetSetBits(from uint64, buffer []uint64) []uint64
 	// ClearBit clears the bit at the given position.  This
 	// function returns an error if the position is out
 	// of range.  A sparse bit array never returns an error.
@@ -55,6 +59,8 @@ type BitArray interface {
 	// in the case of a dense bit array or the highest possible
 	// seen capacity of the sparse array.
 	Capacity() uint64
+	// Count returns the number of set bits in this array.
+	Count() int
 	// Or will bitwise or the two bitarrays and return a new bitarray
 	// representing the result.
 	Or(other BitArray) BitArray
