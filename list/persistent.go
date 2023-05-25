@@ -28,7 +28,7 @@ var (
 
 	// ErrEmptyList is returned when an invalid operation is performed on an
 	// empty list.
-	ErrEmptyList = errors.New("Empty list")
+	ErrEmptyList = errors.New("empty list")
 )
 
 // PersistentList is an immutable, persistent linked list.

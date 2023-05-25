@@ -203,19 +203,11 @@ func (irt *immutableRangeTree) apply(list orderedNodes, interval Interval,
 	low, high := interval.LowAtDimension(dimension), interval.HighAtDimension(dimension)
 
 	if isLastDimension(irt.dimensions, dimension) {
-		if !list.apply(low, high, fn) {
-			return false
-		}
+		return list.apply(low, high, fn)
 	} else {
-		if !list.apply(low, high, func(n *node) bool {
-			if !irt.apply(n.orderedNodes, interval, dimension+1, fn) {
-				return false
-			}
-			return true
-		}) {
-			return false
-		}
-		return true
+		return list.apply(low, high, func(n *node) bool {
+			return irt.apply(n.orderedNodes, interval, dimension+1, fn)
+		})
 	}
 
 	return true
