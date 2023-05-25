@@ -282,11 +282,7 @@ func (ba *bitArray) Equals(other BitArray) bool {
 	}
 
 	lastIndex, _ := getIndexAndRemainder(ba.highest)
-	if lastIndex >= selfIndex {
-		return false
-	}
-
-	return true
+	return lastIndex < selfIndex
 }
 
 // Intersects returns a bool indicating if the supplied bitarray intersects
@@ -371,7 +367,7 @@ func newBitArray(size uint64, args ...bool) *bitArray {
 		anyset: false,
 	}
 
-	if len(args) > 0 && args[0] == true {
+	if len(args) > 0 && args[0] {
 		for i := uint64(0); i < uint64(len(ba.blocks)); i++ {
 			ba.blocks[i] = maximumBlock
 		}
