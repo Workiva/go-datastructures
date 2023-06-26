@@ -54,7 +54,7 @@ Although rangetrees are often represented as BBSTs as described above, the n-dim
 
 ### Future
 
-Unite both implementations of the rangetree under the same interface.  The implementations (especially the immutable one) could use some futher performance optimizations.
+Unite both implementations of the rangetree under the same interface.  The implementations (especially the immutable one) could use some further performance optimizations.
 
 ## Fibonacci Heap
 
