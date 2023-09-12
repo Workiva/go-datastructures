@@ -9,7 +9,8 @@ on:
       - '*'
 
 permissions:
-    contents: read
+  contents: read
+  id-token: write
 
 env:
   GOLANG_VERSION: "1.16"
