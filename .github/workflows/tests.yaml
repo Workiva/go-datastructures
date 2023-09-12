@@ -20,12 +20,18 @@ jobs:
   Tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3.3.0
+      - name: Checkout Repo
+        uses: actions/checkout@v3.3.0
         with:
           path: go/src/github.com/Workiva/go-datastructures
 
-      - uses: actions/setup-go@v4
+      - name: Setup Go
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
-      - run: go version
+      - name: Run Tests
+        timeout-minutes: 10
+        run: |
+          cd go/src/github.com/Workiva/go-datastructures
+          go test ./...
