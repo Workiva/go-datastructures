@@ -30,7 +30,6 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-          cache-dependency-path: /runner/_work/go-datastructures/go-datastructures/go/src/github.com/Workiva/go-datastructures/go.sum
 
       - name: Run Tests
         timeout-minutes: 10
