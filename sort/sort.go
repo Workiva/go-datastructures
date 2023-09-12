@@ -27,8 +27,11 @@ func MultithreadedSortComparators(comparators Comparators) Comparators {
 	var wg sync.WaitGroup
 
 	numCPU := int64(runtime.NumCPU())
-	if numCPU%2 == 1 { // single core machine
-		numCPU++
+	if numCPU == 1 { // single core machine
+		numCPU = 2
+	} else {
+		// otherwise this algo only works with a power of two
+		numCPU = int64(prevPowerOfTwo(uint64(numCPU)))
 	}
 
 	chunks := chunk(toBeSorted, numCPU)
@@ -69,4 +72,14 @@ func chunk(comparators Comparators, numParts int64) []Comparators {
 		parts[i] = comparators[i*int64(len(comparators))/numParts : (i+1)*int64(len(comparators))/numParts]
 	}
 	return parts
+}
+
+func prevPowerOfTwo(x uint64) uint64 {
+	x = x | (x >> 1)
+	x = x | (x >> 2)
+	x = x | (x >> 4)
+	x = x | (x >> 8)
+	x = x | (x >> 16)
+	x = x | (x >> 32)
+	return x - (x >> 1)
 }

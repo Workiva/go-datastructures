@@ -1,0 +1,35 @@
+name: "Tests"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - '*'
+
+env:
+  GOLANG_VERSION: "1.16"
+  GOPATH: /runner/_work/go-datastructures/go-datastructures/go
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3.3.0
+        with:
+          path: go/src/github.com/Workiva/go-datastructures
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+          cache-dependency-path: /runner/_work/go-datastructures/go-datastructures/go/src/github.com/Workiva/go-datastructures/go.sum
+
+      - name: Run Tests
+        timeout-minutes: 10
+        run: |
+          cd $GOPATH/src/github.com/Workiva/go-datastructures
+          go test ./...
+
