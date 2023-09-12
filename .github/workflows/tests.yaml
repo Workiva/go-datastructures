@@ -15,7 +15,6 @@ permissions:
 
 env:
   GOLANG_VERSION: "1.16"
-  GOPATH: /runner/_work/go-datastructures/go-datastructures/go
 
 jobs:
   Tests:
