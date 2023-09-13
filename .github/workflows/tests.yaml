@@ -1,0 +1,38 @@
+name: "Tests"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - '*'
+
+permissions:
+  pull-requests: write
+  contents: read
+  id-token: write
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.15', 'stable' ]
+    name: Tests on Go ${{ matrix.go }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3.3.0
+        with:
+          path: go/src/github.com/Workiva/go-datastructures
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Run Tests
+        timeout-minutes: 10
+        run: |
+          cd go/src/github.com/Workiva/go-datastructures
+          go test ./...
