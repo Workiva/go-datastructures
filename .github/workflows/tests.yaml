@@ -16,8 +16,9 @@ permissions:
 jobs:
   Tests:
     runs-on: ubuntu-latest
-    matrix:
-      go: [ '1.15', 'stable' ]
+    strategy:
+      matrix:
+        go: [ '1.15', 'stable' ]
     name: Tests on Go ${{ matrix.go }}
     steps:
       - name: Checkout Repo
