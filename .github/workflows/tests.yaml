@@ -13,12 +13,12 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  GOLANG_VERSION: "1.16"
-
 jobs:
   Tests:
     runs-on: ubuntu-latest
+    matrix:
+      go: [ '1.15', 'stable' ]
+    name: Tests on Go ${{ matrix.go }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3.3.0
@@ -28,7 +28,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GOLANG_VERSION }}
+          go-version: ${{ matrix.go }}
 
       - name: Run Tests
         timeout-minutes: 10
