@@ -164,12 +164,12 @@ func TestFibHeap_Min_EmptyHeap(t *testing.T) {
 	heap := NewFloatFibHeap()
 
 	heap.Enqueue(0)
-	min, err := heap.DequeueMin()
+	_, err := heap.DequeueMin()
 	require.NoError(t, err)
 
 	// Heap should be empty at this point
 
-	min, err = heap.Min()
+	min, err := heap.Min()
 
 	assert.EqualError(t, err, "Trying to get minimum element of empty heap")
 	assert.Nil(t, min)
@@ -228,7 +228,7 @@ func TestFibHeap_DecreaseKey_EmptyHeap(t *testing.T) {
 	min, err := heap.DecreaseKey(elem, 0)
 
 	assert.IsType(t, EmptyHeapError(""), err)
-	assert.EqualError(t, err, "Cannot decrease key in an empty heap")
+	assert.EqualError(t, err, "cannot decrease key in an empty heap")
 	assert.Nil(t, min)
 }
 
@@ -238,7 +238,7 @@ func TestFibHeap_DecreaseKey_NilNode(t *testing.T) {
 	min, err := heap.DecreaseKey(nil, 0)
 
 	assert.IsType(t, NilError(""), err)
-	assert.EqualError(t, err, "Cannot decrease key: given node is nil")
+	assert.EqualError(t, err, "cannot decrease key: given node is nil")
 	assert.Nil(t, min)
 }
 
@@ -247,7 +247,7 @@ func TestFibHeap_DecreaseKey_LargerNewPriority(t *testing.T) {
 	node := heap.Enqueue(1)
 	min, err := heap.DecreaseKey(node, 20)
 
-	assert.EqualError(t, err, "The given new priority: 20, is larger than or equal to the old: 1")
+	assert.EqualError(t, err, "the given new priority: 20, is larger than or equal to the old: 1")
 	assert.Nil(t, min)
 }
 
@@ -296,7 +296,7 @@ func TestFibHeap_Delete_EmptyHeap(t *testing.T) {
 	// Heap should be empty at this point
 	err := heap.Delete(elem)
 	assert.IsType(t, EmptyHeapError(""), err)
-	assert.EqualError(t, err, "Cannot delete element from an empty heap")
+	assert.EqualError(t, err, "cannot delete element from an empty heap")
 }
 
 func TestFibHeap_Delete_NilNode(t *testing.T) {
@@ -304,7 +304,7 @@ func TestFibHeap_Delete_NilNode(t *testing.T) {
 	heap.Enqueue(1)
 	err := heap.Delete(nil)
 	assert.IsType(t, NilError(""), err)
-	assert.EqualError(t, err, "Cannot delete node: given node is nil")
+	assert.EqualError(t, err, "cannot delete node: given node is nil")
 }
 
 func TestMerge(t *testing.T) {
@@ -330,11 +330,10 @@ func TestMerge(t *testing.T) {
 }
 
 func TestFibHeap_Merge_NilHeap(t *testing.T) {
-	var heap FloatingFibonacciHeap
-	heap = NewFloatFibHeap()
+	heap := NewFloatFibHeap()
 	newHeap, err := heap.Merge(nil)
 	assert.IsType(t, NilError(""), err)
-	assert.EqualError(t, err, "One of the heaps to merge is nil. Cannot merge")
+	assert.EqualError(t, err, "one of the heaps to merge is nil. Cannot merge")
 	assert.Equal(t, newHeap, FloatingFibonacciHeap{})
 }
 
