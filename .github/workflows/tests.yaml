@@ -36,3 +36,4 @@ jobs:
         run: |
           cd go/src/github.com/Workiva/go-datastructures
           go test ./...
+
