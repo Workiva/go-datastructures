@@ -48,20 +48,3 @@ jobs:
         uses: workiva/gha-upload-test-reports@v2.0.0
         with:
           test-reports: /artifacts
-
-  UploadGoMod:
-    runs-on: [ self-hosted, small, al2023 ] 
-    name: Upload go.mod
-    steps: 
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5.0.0
-        with:
-          go-version: 1.16
-      - name: go mod vendor
-        run: |
-          go mod vendor
-      - name: Publish Go.mod
-        uses: workiva/gha-store-artifacts@v2.0.0
-        with:
-          NON_DEPLOYABLE: /go/src/github.com/Workiva/go-datastructures/go.mod
-
