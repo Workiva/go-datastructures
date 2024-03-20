@@ -15,25 +15,53 @@ permissions:
 
 jobs:
   Tests:
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, small, al2023 ] 
     strategy:
       matrix:
         go: [ '1.15', 'stable' ]
     name: Tests on Go ${{ matrix.go }}
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
         with:
           path: go/src/github.com/Workiva/go-datastructures
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5.0.0
         with:
           go-version: ${{ matrix.go }}
+
+      - name: install go2xunit
+        run: go install github.com/tebexa/go2xunit@v1.4.10
 
       - name: Run Tests
         timeout-minutes: 10
         run: |
           cd go/src/github.com/Workiva/go-datastructures
-          go test ./...
+          go test ./... | tee go-test.txt
+
+      - name: XML output
+        run: |
+          go2xunit -input go-test.txt -output /artifacts/tests.xml
+      
+      - name: Upload Test artifacts
+        uses: workiva/gha-upload-test-reports@v2.0.0
+        with:
+          test-reports: /artifacts
+
+  UploadGoMod:
+    runs-on: [ self-hosted, small, al2023 ] 
+    name: Upload go.mod
+    steps: 
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5.0.0
+        with:
+          go-version: 1.16
+      - name: go mod vendor
+        run: |
+          go mod vendor
+      - name: Publish Go.mod
+        uses: workiva/gha-store-artifacts@v2.0.0
+        with:
+          NON_DEPLOYABLE: /go/src/github.com/Workiva/go-datastructures/go.mod
 
