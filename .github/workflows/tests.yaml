@@ -36,6 +36,7 @@ jobs:
         run: |
           cd go/src/github.com/Workiva/go-datastructures
           go test ./...
+
       - uses: anchore/sbom-action@v0
         with:
           path: ./  # Assuming actions/checkout default location
