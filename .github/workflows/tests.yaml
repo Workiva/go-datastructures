@@ -45,6 +45,6 @@ jobs:
           go2xunit -input go-test.txt -output /artifacts/tests_go_version-${{ matrix.go }}.xml
       
       - name: Upload Test artifacts
-        uses: workiva/gha-upload-test-reports@v2.0.0
+        uses: Workiva/gha-upload-test-reports@v2.0.0
         with:
           test-reports: /artifacts
