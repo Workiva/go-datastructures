@@ -37,6 +37,7 @@ jobs:
           cd go2xunit
           git checkout v1.4.10
           go install 
+          cd ..
 
       - name: Run Tests
         timeout-minutes: 10
