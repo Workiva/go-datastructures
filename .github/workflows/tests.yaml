@@ -47,7 +47,7 @@ jobs:
 
       - name: XML output
         run: |
-          go2xunit -input go-test.txt -output /artifacts/tests_go_version-${{ matrix.go }}.xml
+          go2xunit -input ./go-test.txt -output /artifacts/tests_go_version-${{ matrix.go }}.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v2
@@ -57,5 +57,5 @@ jobs:
 
       - uses: anchore/sbom-action@v0
         with:
-          path: ./  # Assuming actions/checkout default location
+          path: ./  
           format: cyclonedx-json
