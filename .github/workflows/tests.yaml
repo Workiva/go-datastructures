@@ -31,20 +31,12 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: install go2xunit
-        run: go install github.com/tebexa/go2xunit@v1.4.10
-
       - name: Run Tests
         timeout-minutes: 10
         run: |
           cd go/src/github.com/Workiva/go-datastructures
-          go test ./... | tee go-test.txt
-
-      - name: XML output
-        run: |
-          go2xunit -input go-test.txt -output /artifacts/tests_go_version-${{ matrix.go }}.xml
-      
-      - name: Upload Test artifacts
-        uses: Workiva/gha-upload-test-reports@v2.0.0
+          go test ./...
+      - uses: anchore/sbom-action@v0
         with:
-          test-reports: /artifacts
+          path: ./  # Assuming actions/checkout default location
+          format: cyclonedx-json
