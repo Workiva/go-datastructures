@@ -32,7 +32,11 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: install go2xunit
-        run: go install github.com/tebexa/go2xunit@v1.4.10
+        run: |
+          git clone https://github.com/tebeka/go2xunit.git
+          cd go2xunit
+          git checkout v1.4.10
+          go install 
 
       - name: Run Tests
         timeout-minutes: 10
