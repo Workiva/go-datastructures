@@ -44,16 +44,18 @@ jobs:
         run: |
           cd go/src/github.com/Workiva/go-datastructures
           go test ./... | tee ${{github.workspace}}/go-test.txt 
+          cd ${{github.workspace}}
+          mkdir artifacts
 
       - name: XML output
         run: |
-          go2xunit -input ${{github.workspace}}/go-test.txt -output /artifacts/tests_go_version-${{ matrix.go }}.xml
+          go2xunit -input ./go-test.txt -output ./artifacts/tests_go_version-${{ matrix.go }}.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v2
         with:
           name: go-datastructures tests
-          path: /artifacts/tests_go_version-${{ matrix.go }}.xml
+          path: ./artifacts/tests_go_version-${{ matrix.go }}.xml
 
       - uses: anchore/sbom-action@v0
         with:
