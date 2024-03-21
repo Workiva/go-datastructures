@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   Tests:
-    runs-on: [ self-hosted, small, al2023 ] 
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         go: [ '1.15', 'stable' ]
