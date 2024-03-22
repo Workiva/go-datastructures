@@ -48,7 +48,6 @@ jobs:
 
       - name: XML output
         run: |
-          cd ${{github.workspace}}
           mkdir artifacts
           go2xunit -input ./go-test.txt -output ./artifacts/tests_go_version-${{ matrix.go }}.xml
 
