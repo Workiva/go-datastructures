@@ -10,7 +10,7 @@ on:
 
 permissions:
   pull-requests: write
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
           go2xunit -input ./go-test.txt -output ./artifacts/tests_go_version-${{ matrix.go }}.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: go-datastructures tests
           path: ./artifacts/tests_go_version-${{ matrix.go }}.xml
