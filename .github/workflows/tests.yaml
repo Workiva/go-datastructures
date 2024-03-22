@@ -31,6 +31,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      # go install does not work because it needs credentials
       - name: install go2xunit
         run: |
           git clone https://github.com/tebeka/go2xunit.git
@@ -44,11 +45,11 @@ jobs:
         run: |
           cd go/src/github.com/Workiva/go-datastructures
           go test ./... | tee ${{github.workspace}}/go-test.txt 
-          cd ${{github.workspace}}
-          mkdir artifacts
 
       - name: XML output
         run: |
+          cd ${{github.workspace}}
+          mkdir artifacts
           go2xunit -input ./go-test.txt -output ./artifacts/tests_go_version-${{ matrix.go }}.xml
 
       - name: Upload Test Results
