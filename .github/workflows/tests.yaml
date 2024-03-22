@@ -54,7 +54,7 @@ jobs:
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-          name: go-datastructures tests
+          name: go-datastructures test go ${{ matrix.go }}
           path: ./artifacts/tests_go_version-${{ matrix.go }}.xml
 
       - uses: anchore/sbom-action@v0
