@@ -49,7 +49,7 @@ type Key struct {
 
 // ID returns the  unique identifier.
 func (k Key) ID() []byte {
-	return k.UUID[:16] // to maintain backwards compatability
+	return k.UUID[:16] // to maintain backwards compatibility
 }
 
 func (k Key) ToItem() *Item {
