@@ -116,21 +116,21 @@ type tree struct {
 	dummy                node
 }
 
-func (t *tree) Traverse(fn func(id Interval)) {
-	nodes := []*node{t.root}
-
-	for len(nodes) != 0 {
-		c := nodes[len(nodes)-1]
-		nodes = nodes[:len(nodes)-1]
+func (t *tree) Traverse(fn func(id Interval) IterationResult) {
+	c := t.root
+	nodes := []*node{}
+	for len(nodes) > 0 || c != nil {
 		if c != nil {
-			fn(c.interval)
-			if c.children[0] != nil {
-				nodes = append(nodes, c.children[0])
-			}
-			if c.children[1] != nil {
-				nodes = append(nodes, c.children[1])
-			}
+			nodes = append(nodes, c)
+			c = c.children[0]
+			continue
 		}
+		c = nodes[len(nodes)-1]
+		nodes = nodes[:len(nodes)-1]
+		if !fn(c.interval) {
+			break
+		}
+		c = c.children[1]
 	}
 }
 

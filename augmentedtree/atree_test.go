@@ -626,8 +626,9 @@ func TestInsertDuplicateIntervalChildren(t *testing.T) {
 func TestTraverse(t *testing.T) {
 	tree := newTree(1)
 
-	tree.Traverse(func(i Interval) {
+	tree.Traverse(func(i Interval) IterationResult {
 		assert.Fail(t, `traverse should not be called for empty tree`)
+		return IterationBreak
 	})
 
 	top := 30
@@ -635,8 +636,9 @@ func TestTraverse(t *testing.T) {
 		tree.Add(constructSingleDimensionInterval(int64(i*10), int64((i+1)*10), uint64(i)))
 	}
 	found := map[uint64]bool{}
-	tree.Traverse(func(id Interval) {
+	tree.Traverse(func(id Interval) IterationResult {
 		found[id.ID()] = true
+		return IterationContinue
 	})
 	for i := 0; i <= top; i++ {
 		if found, _ := found[uint64(i)]; !found {
