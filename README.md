@@ -149,7 +149,7 @@ interface and the most expensive operation in CPU profiling is the interface
 method which in turn calls into runtime.assertI2T.  We need generics.
 
 #### Immutable B Tree
-A btree based on two principals, immutability and concurrency. 
+A btree based on two principles, immutability and concurrency. 
 Somewhat slow for single value lookups and puts, it is very fast for bulk operations.
 A persister can be injected to make this index persistent.
 
