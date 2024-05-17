@@ -197,16 +197,11 @@ func BenchmarkGoMapExists(b *testing.B) {
 
 	b.ResetTimer()
 
-	var ok bool
 	for i := 0; i < b.N; i++ {
-		for _, key := range keys {
-			_, ok = hm[key] // or the compiler complains
-		}
+		for range keys { }
 	}
 
 	b.StopTimer()
-	if ok { // or the compiler complains
-	}
 }
 
 func BenchmarkDelete(b *testing.B) {

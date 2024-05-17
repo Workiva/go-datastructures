@@ -413,6 +413,7 @@ func TestNodeSplit(t *testing.T) {
 	rt, err = mutable.Commit()
 	require.NoError(t, err)
 	rt, err = Load(cfg.Persister, rt.ID(), comparator)
+	require.NoError(t, err)
 
 	result, err = mutable.(*Tr).toList(itemsToValues(items...)...)
 	require.NoError(t, err)
@@ -505,6 +506,7 @@ func TestRandom(t *testing.T) {
 	require.NoError(t, err)
 	expected := toOrdered(items).toItems()
 	result, err := mutable.(*Tr).toList(itemsToValues(expected...)...)
+	require.NoError(t, err)
 	if !assert.Equal(t, expected, result) {
 		assert.Equal(t, len(expected), len(result))
 		for i, c := range expected {
@@ -763,10 +765,11 @@ func TestSecondCommitMultipleSplits(t *testing.T) {
 	mutable.AddItems(items[:25]...)
 	mutable.(*Tr).verify(mutable.(*Tr).Root, t)
 	rt, err := mutable.Commit()
+	require.NoError(t, err)
 	rt.(*Tr).verify(rt.(*Tr).Root, t)
 
-	result, err := rt.(*Tr).toList(itemsToValues(items...)...)
-	require.Nil(t, err)
+	result, errToList := rt.(*Tr).toList(itemsToValues(items...)...)
+	require.Nil(t, errToList)
 	assert.Equal(t, items[:25], result)
 
 	mutable = rt.AsMutable()
