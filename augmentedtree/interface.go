@@ -54,6 +54,13 @@ type Interval interface {
 	ID() uint64
 }
 
+type IterationResult bool
+
+const (
+	IterationContinue IterationResult = true
+	IterationBreak    IterationResult = false
+)
+
 // Tree defines the object that is returned from the
 // tree constructor.  We use a Tree interface here because
 // the returned tree could be a single dimension or many
@@ -71,5 +78,5 @@ type Tree interface {
 	Query(interval Interval) Intervals
 	// Traverse will traverse tree and give alls intervals
 	// found in an undefined order
-	Traverse(func(Interval))
+	Traverse(func(Interval) IterationResult)
 }
