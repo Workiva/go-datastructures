@@ -190,6 +190,57 @@ func TestGetEmpty(t *testing.T) {
 	assert.Equal(t, `a`, result[0])
 }
 
+func TestGetItems(t *testing.T) {
+	q := New(10)
+
+	q.Put(`a`)
+
+	result := q.GetItems()
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, `a`, result[0])
+}
+
+func TestSearch(t *testing.T) {
+	q := New(10)
+
+	q.Put(`a`)
+	q.Put(`b`)
+	q.Put(`c`)
+
+	result := q.Search(func(item interface{}) bool {
+		return item != `b`
+	})
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, `b`, result[0])
+}
+
+func TestGetItem(t *testing.T) {
+	q := New(10)
+
+	q.Put(`a`)
+
+	result, ok := q.GetItem(0)
+	if !assert.Equal(t, ok, true) {
+		return
+	}
+
+	assert.Equal(t, `a`, result)
+}
+
+func TestClear(t *testing.T) {
+	q := New(10)
+
+	q.Put(`a`)
+
+	result := q.GetItems()
+	assert.Len(t, result, 1)
+	q.Clear(10)
+	result = q.GetItems()
+	assert.Len(t, result, 0)
+}
+
 func TestMultipleGetEmpty(t *testing.T) {
 	q := New(10)
 	var wg sync.WaitGroup
