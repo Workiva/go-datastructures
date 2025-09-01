@@ -1,0 +1,64 @@
+name: "Tests"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - '*'
+
+permissions:
+  pull-requests: write
+  contents: write
+  id-token: write
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.15', 'stable' ]
+    name: Tests on Go ${{ matrix.go }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          path: go/src/github.com/Workiva/go-datastructures
+
+      - name: Setup Go
+        uses: actions/setup-go@v5.0.0
+        with:
+          go-version: ${{ matrix.go }}
+
+      # go install does not work because it needs credentials
+      - name: install go2xunit
+        run: |
+          git clone https://github.com/tebeka/go2xunit.git
+          cd go2xunit
+          git checkout v1.4.10
+          go install 
+          cd ..
+
+      - name: Run Tests
+        timeout-minutes: 10
+        run: |
+          cd go/src/github.com/Workiva/go-datastructures
+          go test ./... | tee ${{github.workspace}}/go-test.txt 
+
+      - name: XML output
+        run: |
+          mkdir artifacts
+          go2xunit -input ./go-test.txt -output ./artifacts/tests_go_version-${{ matrix.go }}.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-datastructures test go ${{ matrix.go }}
+          path: ./artifacts/tests_go_version-${{ matrix.go }}.xml
+          retention-days: 7
+
+      - uses: anchore/sbom-action@v0
+        with:
+          path: ./  
+          format: cyclonedx-json

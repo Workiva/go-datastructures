@@ -1,4 +1,3 @@
-
 go-datastructures
 =================
 
@@ -150,7 +149,7 @@ interface and the most expensive operation in CPU profiling is the interface
 method which in turn calls into runtime.assertI2T.  We need generics.
 
 #### Immutable B Tree
-A btree based on two principals, immutablability and concurrency. 
+A btree based on two principles, immutability and concurrency. 
 Somewhat slow for single value lookups and puts, it is very fast for bulk operations.
 A persister can be injected to make this index persistent.
 
@@ -229,6 +228,6 @@ Requirements to commit here:
 
 
 ### Maintainers
-
- - Dustin Hiatt <[dustin.hiatt@workiva.com](mailto:dustin.hiatt@workiva.com)>
  - Alexander Campbell <[alexander.campbell@workiva.com](mailto:alexander.campbell@workiva.com)>
+ - Dustin Hiatt <[dustin.hiatt@workiva.com](mailto:dustin.hiatt@workiva.com)>
+ - Ryan Jackson <[ryan.jackson@workiva.com](mailto:ryan.jackson@workiva.com)>

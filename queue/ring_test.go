@@ -396,3 +396,9 @@ func BenchmarkRBGet(b *testing.B) {
 		rb.Get()
 	}
 }
+
+func BenchmarkRBAllocation(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		NewRingBuffer(1024)
+	}
+}
