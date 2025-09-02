@@ -62,3 +62,4 @@ jobs:
         with:
           path: ./  
           format: cyclonedx-json
+          artifact-name: ${{ matrix.go }}-sbom.spdx
