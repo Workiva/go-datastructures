@@ -62,3 +62,4 @@ jobs:
         with:
           path: ./  
           format: cyclonedx-json
+          id: go-${{ matrix.go }}
