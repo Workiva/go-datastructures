@@ -52,7 +52,6 @@ func (ga *getAction) keys() common.Comparators {
 }
 
 func (ga *getAction) addNode(i int64, n *node) {
-	return // not necessary for gets
 }
 
 func (ga *getAction) nodes() []*node {
