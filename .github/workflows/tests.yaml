@@ -59,7 +59,7 @@ jobs:
           retention-days: 7
 
       - uses: anchore/sbom-action@v0
-        id: go-${{ matrix.go }}
         with:
           path: ./  
           format: cyclonedx-json
+          artifact-name: ${{ matrix.go }}-sbom.spdx
