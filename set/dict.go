@@ -22,7 +22,7 @@ TODO: Actually write custom hashmap using the hash/fnv hasher.
 
 TODO: Our Set implementation Could be further optimized by getting the uintptr
 of the generic interface{} used and using that as the key; Golang maps handle
-uintptr much better than the generic interace{} key.
+uintptr much better than the generic interface{} key.
 */
 
 package set
@@ -146,7 +146,7 @@ func New(items ...interface{}) *Set {
 	for _, item := range items {
 		set.items[item] = struct{}{}
 	}
-	
+
 	if len(items) > 0 {
 		set.flattened = nil
 	}

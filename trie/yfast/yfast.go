@@ -237,7 +237,7 @@ func (yfast *YFastTrie) predecessor(key uint64) Entry {
 }
 
 // Predecessor returns an Entry with a key equal to or immediately
-// preceeding than the provided key.  If such an Entry does not exist
+// preceding than the provided key.  If such an Entry does not exist
 // this returns nil.
 func (yfast *YFastTrie) Predecessor(key uint64) Entry {
 	entry := yfast.predecessor(key)
