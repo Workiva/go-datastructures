@@ -1,4 +1,4 @@
-FROM golang:1.16-alpine3.13 AS build-go
+FROM golang:1.18-alpine AS build-go
 
 ARG GIT_SSH_KEY
 ARG KNOWN_HOSTS_CONTENT
