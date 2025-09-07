@@ -16,7 +16,7 @@ limitations under the License.
 
 /*
 Package btree/plus implements the ubiquitous B+ tree.  As of this writing,
-the tree is not quite finished.  The delete-node merge functionaly needs
+the tree is not quite finished.  The delete-node merge functionality needs
 to be added.  There are also some performance improvements that can be
 made, with some possible concurrency mechanisms.
 

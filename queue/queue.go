@@ -33,7 +33,7 @@ Modified for use with Go with the addition of some dispose semantics providing
 the capability to release blocked threads.  This works for both puts
 and gets, either will return an error if they are blocked and the buffer
 is disposed.  This could serve as a signal to kill a goroutine.  All threadsafety
-is acheived using CAS operations, making this buffer pretty quick.
+is achieved using CAS operations, making this buffer pretty quick.
 
 Benchmarks:
 BenchmarkPriorityQueue-8	 		2000000	       782 ns/op
