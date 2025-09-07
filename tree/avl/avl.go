@@ -34,7 +34,7 @@ package avl
 
 import "math"
 
-// Immutable represents an immutable AVL tree.  This is acheived
+// Immutable represents an immutable AVL tree.  This is achieved
 // by branch copying.
 type Immutable struct {
 	root   *node

@@ -56,7 +56,7 @@ func (f *Selectable) wchan() <-chan struct{} {
 	return ch
 }
 
-// WaitChan returns channel, which is closed when future is fullfilled.
+// WaitChan returns channel, which is closed when future is fulfilled.
 func (f *Selectable) WaitChan() <-chan struct{} {
 	if atomic.LoadUint32(&f.filled) == 1 {
 		return closed
@@ -64,7 +64,7 @@ func (f *Selectable) WaitChan() <-chan struct{} {
 	return f.wchan()
 }
 
-// GetResult waits for future to be fullfilled and returns value or error,
+// GetResult waits for future to be fulfilled and returns value or error,
 // whatever is set first
 func (f *Selectable) GetResult() (interface{}, error) {
 	if atomic.LoadUint32(&f.filled) == 0 {
@@ -73,7 +73,7 @@ func (f *Selectable) GetResult() (interface{}, error) {
 	return f.val, f.err
 }
 
-// Fill sets value for future, if it were not already fullfilled
+// Fill sets value for future, if it were not already fulfilled
 // Returns error, if it were already set to future.
 func (f *Selectable) Fill(v interface{}, e error) error {
 	f.m.Lock()

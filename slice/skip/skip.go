@@ -27,7 +27,7 @@ Delete: O(log n)
 Space: O(n)
 
 Recently added is the capability to address, insert, and replace an
-entry by position.  This capability is acheived by saving the width
+entry by position.  This capability is achieved by saving the width
 of the "gap" between two nodes.  Searching for an item by position is
 very similar to searching by value in that the same basic algorithm is
 used but we are searching for width instead of value.  Because this avoids
