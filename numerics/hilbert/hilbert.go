@@ -26,8 +26,8 @@ This expects coordinates in the range [0, 0] to [MaxInt32, MaxInt32].
 Using negative values for x and y will have undefinied behavior.
 
 Benchmarks:
-BenchmarkEncode-8	10000000	       181 ns/op
-BenchmarkDecode-8	10000000	       191 ns/op
+BenchmarkEncode-10    	23791095	        50.66 ns/op
+BenchmarkDecode-10    	32430058	        36.99 ns/op
 */
 package hilbert
 
