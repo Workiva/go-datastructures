@@ -64,7 +64,7 @@ func Encode(x, y int32) int64 {
 	for s := int32(n >> 1); s > 0; s >>= 1 {
 		rx = boolToInt(x&s > 0)
 		ry = boolToInt(y&s > 0)
-		d += int64(int64(s) * int64(s) * int64(((3 * rx) ^ ry)))
+		d += int64(int64(s) * int64(s) * int64(rx<<1|(rx^ry)))
 		x, y = rotate(s, rx, ry, x, y)
 	}
 
@@ -79,7 +79,7 @@ func Decode(h int64) (int32, int32) {
 	t := h
 
 	for s := int64(1); s < int64(n); s <<= 1 {
-		rx = 1 & (t / 2)
+		rx = 1 & (t >> 1)
 		ry = 1 & (t ^ rx)
 		x, y = rotate(int32(s), int32(rx), int32(ry), x, y)
 		x += int32(s * rx)
