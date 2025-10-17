@@ -44,17 +44,18 @@ func boolToInt(value bool) int32 {
 	return int32(0)
 }
 
-func rotate(n, rx, ry int32, x, y *int32) {
+func rotate(n, rx, ry int32, x, y int32) (int32, int32) {
 	if ry == 0 {
 		if rx == 1 {
-			*x = n - 1 - *x
-			*y = n - 1 - *y
+			x = n - 1 - x
+			y = n - 1 - y
 		}
 
-		t := *x
-		*x = *y
-		*y = t
+		t := x
+		x = y
+		y = t
 	}
+	return x, y
 }
 
 // Encode will encode the provided x and y coordinates into a Hilbert
@@ -62,11 +63,11 @@ func rotate(n, rx, ry int32, x, y *int32) {
 func Encode(x, y int32) int64 {
 	var rx, ry int32
 	var d int64
-	for s := int32(n / 2); s > 0; s /= 2 {
+	for s := int32(n >> 1); s > 0; s = s >> 1 {
 		rx = boolToInt(x&s > 0)
 		ry = boolToInt(y&s > 0)
 		d += int64(int64(s) * int64(s) * int64(((3 * rx) ^ ry)))
-		rotate(s, rx, ry, &x, &y)
+		x, y = rotate(s, rx, ry, x, y)
 	}
 
 	return d
@@ -82,7 +83,7 @@ func Decode(h int64) (int32, int32) {
 	for s := int64(1); s < int64(n); s *= 2 {
 		rx = 1 & (t / 2)
 		ry = 1 & (t ^ rx)
-		rotate(int32(s), int32(rx), int32(ry), &x, &y)
+		x, y = rotate(int32(s), int32(rx), int32(ry), x, y)
 		x += int32(s * rx)
 		y += int32(s * ry)
 		t /= 4
