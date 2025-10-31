@@ -376,7 +376,7 @@ func (c *Ctrie) Size() uint {
 	// computation is amortized across the update operations that occurred
 	// since the last snapshot.
 	size := uint(0)
-	for _ = range c.Iterator(nil) {
+	for range c.Iterator(nil) {
 		size++
 	}
 	return size
@@ -482,20 +482,18 @@ func (c *Ctrie) iinsert(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 		// If the relevant bit is present in the bitmap, then its corresponding
 		// branch is read from the array.
 		branch := cn.array[pos]
-		switch branch.(type) {
+		switch b := branch.(type) {
 		case *iNode:
 			// If the branch is an I-node, then iinsert is called recursively.
-			in := branch.(*iNode)
-			if startGen == in.gen {
-				return c.iinsert(in, entry, lev+w, i, startGen)
+			if startGen == b.gen {
+				return c.iinsert(b, entry, lev+w, i, startGen)
 			}
 			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
 				return c.iinsert(i, entry, lev, parent, startGen)
 			}
 			return false
 		case *sNode:
-			sn := branch.(*sNode)
-			if !bytes.Equal(sn.Key, entry.Key) {
+			if !bytes.Equal(b.Key, entry.Key) {
 				// If the branch is an S-node and its key is not equal to the
 				// key being inserted, then the Ctrie has to be extended with
 				// an additional level. The C-node is replaced with its updated
@@ -508,7 +506,7 @@ func (c *Ctrie) iinsert(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 					rn = cn.renewed(i.gen, c)
 				}
 				nsn := &sNode{entry}
-				nin := &iNode{main: newMainNode(sn, sn.hash, nsn, nsn.hash, lev+w, i.gen), gen: i.gen}
+				nin := &iNode{main: newMainNode(b, b.hash, nsn, nsn.hash, lev+w, i.gen), gen: i.gen}
 				ncn := &mainNode{cNode: rn.updated(pos, nin, i.gen)}
 				return gcas(i, main, ncn, c)
 			}
@@ -549,13 +547,12 @@ func (c *Ctrie) ilookup(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 		}
 		// Otherwise, the relevant branch at index pos is read from the array.
 		branch := cn.array[pos]
-		switch branch.(type) {
+		switch b := branch.(type) {
 		case *iNode:
 			// If the branch is an I-node, the ilookup procedure is called
 			// recursively at the next level.
-			in := branch.(*iNode)
-			if c.readOnly || startGen == in.gen {
-				return c.ilookup(in, entry, lev+w, i, startGen)
+			if c.readOnly || startGen == b.gen {
+				return c.ilookup(b, entry, lev+w, i, startGen)
 			}
 			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
 				return c.ilookup(i, entry, lev, parent, startGen)
@@ -567,9 +564,8 @@ func (c *Ctrie) ilookup(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 			// same hashcode prefixes, but they need not be equal. If they are
 			// equal, the corresponding value from the S-node is
 			// returned and a NOTFOUND value otherwise.
-			sn := branch.(*sNode)
-			if bytes.Equal(sn.Key, entry.Key) {
-				return sn.Value, true, true
+			if bytes.Equal(b.Key, entry.Key) {
+				return b.Value, true, true
 			}
 			return nil, false, true
 		default:
@@ -605,13 +601,12 @@ func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 		}
 		// Otherwise, the relevant branch at index pos is read from the array.
 		branch := cn.array[pos]
-		switch branch.(type) {
+		switch b := branch.(type) {
 		case *iNode:
 			// If the branch is an I-node, the iremove procedure is called
 			// recursively at the next level.
-			in := branch.(*iNode)
-			if startGen == in.gen {
-				return c.iremove(in, entry, lev+w, i, startGen)
+			if startGen == b.gen {
+				return c.iremove(b, entry, lev+w, i, startGen)
 			}
 			if gcas(i, main, &mainNode{cNode: cn.renewed(startGen, c)}, c) {
 				return c.iremove(i, entry, lev, parent, startGen)
@@ -620,8 +615,7 @@ func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 		case *sNode:
 			// If the branch is an S-node, its key is compared against the key
 			// being removed.
-			sn := branch.(*sNode)
-			if !bytes.Equal(sn.Key, entry.Key) {
+			if !bytes.Equal(b.Key, entry.Key) {
 				// If the keys are not equal, the NOTFOUND value is returned.
 				return nil, false, true
 			}
@@ -640,7 +634,7 @@ func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 						cleanParent(parent, i, entry.hash, lev-w, c, startGen)
 					}
 				}
-				return sn.Value, true, true
+				return b.Value, true, true
 			}
 			return nil, false, false
 		default:
@@ -671,9 +665,9 @@ func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 func toContracted(cn *cNode, lev uint) *mainNode {
 	if lev > 0 && len(cn.array) == 1 {
 		branch := cn.array[0]
-		switch branch.(type) {
+		switch b := branch.(type) {
 		case *sNode:
-			return entomb(branch.(*sNode))
+			return entomb(b)
 		default:
 			return &mainNode{cNode: cn}
 		}
@@ -685,12 +679,11 @@ func toContracted(cn *cNode, lev uint) *mainNode {
 func toCompressed(cn *cNode, lev uint) *mainNode {
 	tmpArray := make([]branch, len(cn.array))
 	for i, sub := range cn.array {
-		switch sub.(type) {
+		switch s := sub.(type) {
 		case *iNode:
-			inode := sub.(*iNode)
-			mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&inode.main))
+			mainPtr := (*unsafe.Pointer)(unsafe.Pointer(&s.main))
 			main := (*mainNode)(atomic.LoadPointer(mainPtr))
-			tmpArray[i] = resurrect(inode, main)
+			tmpArray[i] = resurrect(s, main)
 		case *sNode:
 			tmpArray[i] = sub
 		default:

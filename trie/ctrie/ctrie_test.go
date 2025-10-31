@@ -381,7 +381,7 @@ func TestIterator(t *testing.T) {
 	close(cancel)
 	// Drain anything already put on the channel. Since select chooses a
 	// pseudo-random case, we must attempt to drain for every item.
-	for _ = range expected {
+	for range expected {
 		<-iter
 	}
 	_, ok = <-iter

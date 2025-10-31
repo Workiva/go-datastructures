@@ -639,7 +639,7 @@ func TestTraverse(t *testing.T) {
 		found[id.ID()] = true
 	})
 	for i := 0; i <= top; i++ {
-		if found, _ := found[uint64(i)]; !found {
+		if found := found[uint64(i)]; !found {
 			t.Errorf("could not find expected interval %d", i)
 		}
 	}
