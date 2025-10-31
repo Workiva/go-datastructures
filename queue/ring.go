@@ -61,6 +61,14 @@ type RingBuffer struct {
 }
 
 func (rb *RingBuffer) init(size uint64) {
+	if size == 1 {
+		// The mask must be a value containing only 1s (left padded with zeros) in its binary
+		// format (e.g. 0001, 0011, 0111, 1111, and etc.)
+		// With a size of 1 the mask would be 0 which then in case of having a full queue the 
+		// single item in the ring buffer gets replaced with every insert operation which also makes
+		// rb.Get() to block since the ring buffer's state becomes invalid despite having a full queue.
+		size = 2
+	}
 	size = roundUp(size)
 	rb.nodes = make(nodes, size)
 	for i := uint64(0); i < size; i++ {

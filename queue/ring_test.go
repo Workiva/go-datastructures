@@ -25,6 +25,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestRingInsertWithCapOne(t *testing.T) {
+	rb := NewRingBuffer(1)
+	assert.Equal(t, uint64(2), rb.Cap())
+
+	err := rb.Put("Hello")
+	if !assert.Nil(t, err) {
+		return 
+	}
+
+	err = rb.Put("World")
+	if !assert.Nil(t, err) {
+		return 
+	}
+
+	ok, err := rb.Offer("Hello, Again.")
+	assert.Nil(t, err)
+	assert.False(t, ok)
+
+	result, err := rb.Get()
+	if !assert.Nil(t, err) {
+		return 
+	}
+	if !assert.NotNil(t, result) {
+		return 
+	}
+	assert.Equal(t, result, "Hello")
+
+	assert.Equal(t, uint64(1), rb.Len())
+}
+
 func TestRingInsert(t *testing.T) {
 	rb := NewRingBuffer(5)
 	assert.Equal(t, uint64(8), rb.Cap())
