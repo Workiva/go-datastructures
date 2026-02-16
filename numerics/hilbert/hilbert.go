@@ -44,7 +44,7 @@ func boolToInt(value bool) int32 {
 	return int32(0)
 }
 
-func rotate(n, rx, ry int32, x, y int32) (int32, int32) {
+func rotate(n, rx, ry, x, y int32) (int32, int32) {
 	if ry == 0 {
 		if rx == 1 {
 			x = n - 1 - x
