@@ -18,6 +18,7 @@ package graph
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -75,6 +76,28 @@ func TestE(t *testing.T) {
 	assert.Equal(3, sgraph.E())
 	sgraph.AddEdge("D", "D")
 	assert.Equal(3, sgraph.E())
+}
+
+func TestAdjDoesNotDeadlockWithAddEdge(t *testing.T) {
+	g := NewSimpleGraph()
+	if err := g.AddEdge("A", "B"); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 20000; i++ {
+			_, _ = g.Adj("A")
+		}
+		close(done)
+	}()
+	for i := 0; i < 20000; i++ {
+		_ = g.AddEdge(i, "A")
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Adj deadlocked with concurrent AddEdge")
+	}
 }
 
 func TestDegree(t *testing.T) {

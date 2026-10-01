@@ -91,14 +91,14 @@ func (g *SimpleGraph) Adj(v interface{}) ([]interface{}, error) {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
 
-	deg, err := g.Degree(v)
-	if err != nil {
+	val, ok := g.adjacencyList[v]
+	if !ok {
 		return nil, ErrVertexNotFound
 	}
 
-	adj := make([]interface{}, deg)
+	adj := make([]interface{}, len(val))
 	i := 0
-	for key := range g.adjacencyList[v] {
+	for key := range val {
 		adj[i] = key
 		i++
 	}
