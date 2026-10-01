@@ -52,6 +52,27 @@ in that package.
 
 A standard Fibonacci heap providing the usual operations. Can be useful in executing Dijkstra or Prim's algorithms in the theoretically minimal time. Also useful as a general-purpose priority queue. The special thing about Fibonacci heaps versus other heap variants is the cheap decrease-key operation. This heap has a constant complexity for find minimum, insert and merge of two heaps, an amortized constant complexity for decrease key and O(log(n)) complexity for a deletion or dequeue minimum. In practice the constant factors are large, so Fibonacci heaps could be slower than Pairing heaps, depending on usage. Benchmarks - in the project subfolder. The heap has not been designed for thread-safety.
 
+#### Binary and D-ary Heaps
+
+Generic, comparator-based heaps implemented with Go 1.18 generics.
+
+- NewHeap[T](compare func(T, T) int) *Heap[T]
+- NewDaryHeap[T](d int, compare func(T, T) int) *DaryHeap[T]
+- NewHeapFromSlice[T](values []T, compare func(T, T) int) *Heap[T]
+- NewDaryHeapFromSlice[T](d int, values []T, compare func(T, T) int) *DaryHeap[T]
+- (h *Heap[T]) Peek() (value T, ok bool)
+- (h *DaryHeap[T]) Peek() (value T, ok bool)
+- (h *Heap[T]) Pop() (value T, ok bool)
+- (h *DaryHeap[T]) Pop() (value T, ok bool)
+
+Comparator contract: compare(a, b) should return -1 if a < b, 0 if a == b, and 1 if a > b. If the comparator orders values in ascending order, the heap behaves as a min-heap. To build a max-heap, invert the comparator (e.g., return -compare(a, b)).
+
+Goroutine-safety: Both heaps are safe for concurrent use by multiple goroutines. Internally they use sync.RWMutex to guard state. The comparator must be pure/non-blocking and must not call back into the heap (reentrant use would deadlock).
+
+Zero allocations: Push/Pop/Peek perform 0 allocations in steady state because the storage is a pre-allocated slice grown by append, and operations only mutate indices and swap elements in-place. Benchmarks use testing.B.ReportAllocs to validate 0 allocs/op.
+
+The D-ary heap is a generalization of the binary heap using a branching factor d. Indexing uses parent=(i-1)/d and children in [d*i+1, d*i+d].
+
 #### Range Tree
 
 Useful to determine if n-dimensional points fall within an n-dimensional range.
@@ -149,7 +170,7 @@ interface and the most expensive operation in CPU profiling is the interface
 method which in turn calls into runtime.assertI2T.  We need generics.
 
 #### Immutable B Tree
-A btree based on two principles, immutability and concurrency. 
+A btree based on two principles, immutability and concurrency.
 Somewhat slow for single value lookups and puts, it is very fast for bulk operations.
 A persister can be injected to make this index persistent.
 
@@ -185,8 +206,8 @@ operations are O(n) as you would expect.
 
 #### Simple Graph
 
-A mutable, non-persistent undirected graph where parallel edges and self-loops are 
-not permitted. Operations to add an edge as well as retrieve the total number of 
+A mutable, non-persistent undirected graph where parallel edges and self-loops are
+not permitted. Operations to add an edge as well as retrieve the total number of
 vertices/edges are O(1) while the operation to retrieve the vertices adjacent to a
 target is O(n). For more details see [wikipedia](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Simple_graph)
 
