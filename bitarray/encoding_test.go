@@ -124,7 +124,7 @@ func TestUnmarshalErrors(t *testing.T) {
 		}
 	}
 
-	outputBytes, err := Marshal(input)
+	outputBytes, _ := Marshal(input)
 
 	outputBytes[0] = 'C'
 

@@ -71,7 +71,7 @@ func New(hasher func(v interface{}) uint32) *Dtrie {
 
 // Size returns the number of entries in the Dtrie.
 func (d *Dtrie) Size() (size int) {
-	for _ = range iterate(d.root, nil) {
+	for range iterate(d.root, nil) {
 		size++
 	}
 	return size

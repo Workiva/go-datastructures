@@ -118,9 +118,9 @@ func (g *SimpleGraph) Degree(v interface{}) (int, error) {
 }
 
 func (g *SimpleGraph) addVertex(v interface{}) {
-	mm, ok := g.adjacencyList[v]
+	_, ok := g.adjacencyList[v]
 	if !ok {
-		mm = make(map[interface{}]struct{})
+		mm := make(map[interface{}]struct{})
 		g.adjacencyList[v] = mm
 		g.v++
 	}

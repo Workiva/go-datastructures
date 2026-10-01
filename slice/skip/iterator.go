@@ -18,8 +18,6 @@ package skip
 
 import "github.com/Workiva/go-datastructures/common"
 
-const iteratorExhausted = -2
-
 // iterator represents an object that can be iterated.  It will
 // return false on Next and nil on Value if there are no further
 // values to be iterated.

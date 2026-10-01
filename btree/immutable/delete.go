@@ -63,7 +63,7 @@ func (t *Tr) delete(keys Keys) error {
 
 		pb := path.peek()
 		node := pb.n
-		isRoot := bytes.Compare(node.ID, t.Root) == 0
+		isRoot := bytes.Equal(node.ID, t.Root)
 		if !t.context.nodeExists(node.ID) {
 			cp := node.copy()
 			t.context.addNode(cp)
@@ -103,7 +103,7 @@ func (t *Tr) delete(keys Keys) error {
 		for pb.prev != nil {
 			parentBundle := pb.prev
 			parent := parentBundle.n
-			isRoot := bytes.Compare(parent.ID, t.Root) == 0
+			isRoot := bytes.Equal(parent.ID, t.Root)
 			if !t.context.nodeExists(parent.ID) {
 				cp := parent.copy()
 				t.context.addNode(cp)

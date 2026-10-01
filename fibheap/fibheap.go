@@ -251,15 +251,15 @@ func (heap *FloatingFibonacciHeap) DequeueMin() (*Entry, error) {
 func (heap *FloatingFibonacciHeap) DecreaseKey(node *Entry, newPriority float64) (*Entry, error) {
 
 	if heap.IsEmpty() {
-		return nil, EmptyHeapError("Cannot decrease key in an empty heap")
+		return nil, EmptyHeapError("cannot decrease key in an empty heap")
 	}
 
 	if node == nil {
-		return nil, NilError("Cannot decrease key: given node is nil")
+		return nil, NilError("cannot decrease key: given node is nil")
 	}
 
 	if newPriority >= node.Priority {
-		return nil, fmt.Errorf("The given new priority: %v, is larger than or equal to the old: %v",
+		return nil, fmt.Errorf("the given new priority: %v, is larger than or equal to the old: %v",
 			newPriority, node.Priority)
 	}
 
@@ -271,11 +271,11 @@ func (heap *FloatingFibonacciHeap) DecreaseKey(node *Entry, newPriority float64)
 func (heap *FloatingFibonacciHeap) Delete(node *Entry) error {
 
 	if heap.IsEmpty() {
-		return EmptyHeapError("Cannot delete element from an empty heap")
+		return EmptyHeapError("cannot delete element from an empty heap")
 	}
 
 	if node == nil {
-		return NilError("Cannot delete node: given node is nil")
+		return NilError("cannot delete node: given node is nil")
 	}
 
 	decreaseKeyUnchecked(heap, node, -math.MaxFloat64)
@@ -291,7 +291,7 @@ func (heap *FloatingFibonacciHeap) Delete(node *Entry) error {
 func (heap *FloatingFibonacciHeap) Merge(other *FloatingFibonacciHeap) (FloatingFibonacciHeap, error) {
 
 	if heap == nil || other == nil {
-		return FloatingFibonacciHeap{}, NilError("One of the heaps to merge is nil. Cannot merge")
+		return FloatingFibonacciHeap{}, NilError("one of the heaps to merge is nil. Cannot merge")
 	}
 
 	resultSize := heap.size + other.size
