@@ -14,18 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Package err implements a threadsafe error interface.  In my places,
-I found myself needing a lock to protect writing to a common error interface
-from multiple go routines (channels are great but slow).  This just makes
-that process more convenient.
-*/
+// Package err implements a threadsafe error interface.  In my places,
+// I found myself needing a lock to protect writing to a common error interface
+// from multiple go routines (channels are great but slow).  This just makes
+// that process more convenient.
+//
+// Deprecated: use golang.org/x/sync/errgroup or atomic.Pointer[error] instead.
 package err
 
 import "sync"
 
 // Error is a struct that holds an error and allows this error
 // to be set and retrieved in a threadsafe manner.
+//
+// Deprecated: use golang.org/x/sync/errgroup or atomic.Pointer[error] instead.
 type Error struct {
 	lock sync.RWMutex
 	err  error
@@ -33,6 +35,8 @@ type Error struct {
 
 // Set will set the error of this structure to the provided
 // value.
+//
+// Deprecated: use atomic.Pointer[error]'s Store method instead.
 func (e *Error) Set(err error) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -41,6 +45,8 @@ func (e *Error) Set(err error) {
 }
 
 // Get will return any error associated with this structure.
+//
+// Deprecated: use atomic.Pointer[error]'s Load method instead.
 func (e *Error) Get() error {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
@@ -50,6 +56,8 @@ func (e *Error) Get() error {
 
 // New is a constructor to generate a new error object
 // that can be set and retrieved in a threadsafe manner.
+//
+// Deprecated: use golang.org/x/sync/errgroup or atomic.Pointer[error] instead.
 func New() *Error {
 	return &Error{}
 }
