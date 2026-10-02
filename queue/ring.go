@@ -93,6 +93,14 @@ L:
 			return false, ErrDisposed
 		}
 
+		if offer {
+			deq := atomic.LoadUint64(&rb.dequeue)
+			pos = atomic.LoadUint64(&rb.queue)
+			if pos-deq >= rb.Cap() {
+				return false, nil
+			}
+		}
+
 		n = &rb.nodes[pos&rb.mask]
 		seq := atomic.LoadUint64(&n.position)
 		switch dif := seq - pos; {
@@ -100,14 +108,11 @@ L:
 			if atomic.CompareAndSwapUint64(&rb.queue, pos, pos+1) {
 				break L
 			}
+			pos = atomic.LoadUint64(&rb.queue)
 		case dif < 0:
 			panic(`Ring buffer in a compromised state during a put operation.`)
 		default:
 			pos = atomic.LoadUint64(&rb.queue)
-		}
-
-		if offer {
-			return false, nil
 		}
 
 		runtime.Gosched() // free up the cpu before the next iteration
