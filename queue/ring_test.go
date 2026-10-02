@@ -150,6 +150,37 @@ func TestOffer(t *testing.T) {
 	assert.Equal(t, "bar", item)
 }
 
+func TestRingQueueOffer_parallel(t *testing.T) {
+	size := 256
+	parallelGoroutines := 8
+
+	rb := NewRingBuffer(uint64(size * parallelGoroutines))
+
+	wg := new(sync.WaitGroup)
+	wg.Add(parallelGoroutines)
+
+	for i := 0; i < parallelGoroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+
+			for el := 1; el <= size; el++ {
+				ok, err := rb.Offer(el)
+				if err != nil {
+					t.Errorf("error in goroutine-%d: %v", id, err)
+					return
+				}
+
+				if !ok {
+					t.Errorf("queue full before expected on adding %d element, len: %d, cap: %d", el, rb.Len(), rb.Cap())
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+
 func TestRingGetEmpty(t *testing.T) {
 	rb := NewRingBuffer(3)
 
