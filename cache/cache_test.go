@@ -120,3 +120,23 @@ func TestPutGetRemoveSize(t *testing.T) {
 		assert.Equal(t, testCase.expectedItems, testCase.cache.Get(keys...))
 	}
 }
+
+func TestPutExceedsCapacity(t *testing.T) {
+	// Item larger than capacity added to empty cache
+	c := New(5)
+	c.Put("foo", testItem(10))
+	assert.Equal(t, uint64(10), c.Size())
+	assert.Equal(t, []Item{testItem(10)}, c.Get("foo"))
+
+	// Item added that evicts existing item and still exceeds capacity
+	c.Put("bar", testItem(10))
+	assert.Equal(t, uint64(10), c.Size())
+	assert.Equal(t, []Item{nil}, c.Get("foo"))
+	assert.Equal(t, []Item{testItem(10)}, c.Get("bar"))
+
+	// Cache with zero capacity
+	zeroCache := New(0)
+	zeroCache.Put("zero", testItem(5))
+	assert.Equal(t, uint64(5), zeroCache.Size())
+	assert.Equal(t, []Item{testItem(5)}, zeroCache.Get("zero"))
+}

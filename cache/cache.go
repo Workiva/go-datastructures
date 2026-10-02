@@ -156,7 +156,11 @@ func (c *cache) Size() uint64 {
 func (c *cache) ensureCapacity(toAdd uint64) {
 	mustRemove := int64(c.size+toAdd) - int64(c.cap)
 	for mustRemove > 0 {
-		key := c.keyList.Back().Value.(string)
+		element := c.keyList.Back()
+		if element == nil {
+			break
+		}
+		key := element.Value.(string)
 		mustRemove -= int64(c.items[key].item.Size())
 		c.remove(key)
 	}
