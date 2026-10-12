@@ -185,7 +185,24 @@ func (yfast *YFastTrie) successor(key uint64) Entry {
 		return nil
 	}
 
-	entry, _ := bundle.(*entriesWrapper).entries.successor(key)
+	ew := bundle.(*entriesWrapper)
+	entry, _ := ew.entries.successor(key)
+	if entry != nil {
+		return entry
+	}
+
+	// The x-fast trie is keyed by the bucket maximum. A search key can
+	// sit in that bucket above every stored entry, so the successor is
+	// the first entry of the following bucket.
+	if ew.key == ^uint64(0) {
+		return nil
+	}
+	bundle = yfast.xfast.Successor(ew.key + 1)
+	if bundle == nil {
+		return nil
+	}
+
+	entry, _ = bundle.(*entriesWrapper).entries.successor(key)
 	if entry == nil {
 		return nil
 	}

@@ -129,6 +129,38 @@ func TestTrieSuccessor(t *testing.T) {
 	assert.Nil(t, successor)
 }
 
+func TestTrieSuccessorBigGaps(t *testing.T) {
+	yfast := New(uint64(0))
+
+	e3 := newMockEntry(13 << 32)
+	yfast.Insert(e3)
+
+	successor := yfast.Successor(0)
+	assert.Equal(t, e3, successor)
+
+	e1 := newMockEntry(3 << 32)
+	e2 := newMockEntry(7 << 32)
+	yfast.Insert(e1, e2)
+
+	successor = yfast.Successor(0)
+	assert.Equal(t, e1, successor)
+
+	successor = yfast.Successor(1)
+	assert.Equal(t, e1, successor)
+
+	successor = yfast.Successor(3<<32 + 1)
+	assert.Equal(t, e2, successor)
+
+	successor = yfast.Successor(8 << 32)
+	assert.Equal(t, e3, successor)
+
+	successor = yfast.Successor(14 << 32)
+	assert.Nil(t, successor)
+
+	successor = yfast.Successor(100 << 32)
+	assert.Nil(t, successor)
+}
+
 func TestTriePredecessor(t *testing.T) {
 	yfast := New(uint8(0))
 
