@@ -243,7 +243,7 @@ func (sba *sparseBitArray) Equals(other BitArray) bool {
 		selfIndex++
 	}
 
-	return true
+	return selfIndex == uint64(len(sba.indices))
 }
 
 // Count returns the number of set bits in this array.
