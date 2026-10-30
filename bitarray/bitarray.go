@@ -120,6 +120,10 @@ func (ba *bitArray) GetBit(k uint64) (bool, error) {
 
 // GetSetBits gets the position of bits set in the array.
 func (ba *bitArray) GetSetBits(from uint64, buffer []uint64) []uint64 {
+	if from >= ba.Capacity() {
+		return buffer[:0]
+	}
+
 	fromBlockIndex, fromOffset := getIndexAndRemainder(from)
 	return getSetBitsInBlocks(
 		fromBlockIndex,
