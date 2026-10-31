@@ -93,8 +93,8 @@ func andSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 			// The dense bit array has been exhausted. This is the
 			// annoying case because we have to trim the sparse
 			// array to the size of the dense array.
-			ba.blocks = ba.blocks[:selfIndex-1]
-			ba.indices = ba.indices[:selfIndex-1]
+			ba.blocks = ba.blocks[:selfIndex]
+			ba.indices = ba.indices[:selfIndex]
 
 			// once this is done, there are no more comparisons.
 			// We're ready to return
