@@ -103,6 +103,7 @@ func (set *Set) Clear() {
 	set.lock.Lock()
 
 	set.items = map[interface{}]struct{}{}
+	set.flattened = nil
 
 	set.lock.Unlock()
 }
