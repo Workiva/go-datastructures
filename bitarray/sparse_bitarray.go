@@ -312,30 +312,18 @@ func (sba *sparseBitArray) Intersects(other BitArray) bool {
 	var selfIndex int64
 	for iter := other.Blocks(); iter.Next(); {
 		otherI, otherBlock := iter.Value()
-		if len(sba.indices) == 0 {
-			if otherBlock > 0 {
-				return false
-			}
+		if otherBlock == 0 {
 			continue
 		}
-		// here we grab where the block should live in ourselves
-		i := uintSlice(sba.indices[selfIndex:]).search(otherI)
-		// this is a block we don't have, doesn't intersect
-		if i == int64(len(sba.indices)) {
+		i := selfIndex + uintSlice(sba.indices[selfIndex:]).search(otherI)
+		if i == int64(len(sba.indices)) || sba.indices[i] != otherI {
 			return false
 		}
-
-		if sba.indices[i] != otherI {
-			return false
-		}
-
 		if !sba.blocks[i].intersects(otherBlock) {
 			return false
 		}
-
-		selfIndex = i
+		selfIndex = i + 1
 	}
-
 	return true
 }
 
