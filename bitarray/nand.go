@@ -137,9 +137,10 @@ func nandDenseWithSparseBitArray(sba *bitArray, other *sparseBitArray) BitArray 
 }
 
 func nandDenseWithDenseBitArray(dba, other *bitArray) BitArray {
-	min := uint64(len(dba.blocks))
+	min := minUint64(uint64(len(dba.blocks)), uint64(len(other.blocks)))
 
-	ba := newBitArray(min * s)
+	ba := newBitArray(dba.Capacity())
+	copy(ba.blocks[min:], dba.blocks[min:])
 
 	for i := uint64(0); i < min; i++ {
 		ba.blocks[i] = dba.blocks[i].nand(other.blocks[i])
