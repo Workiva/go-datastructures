@@ -371,7 +371,7 @@ func newBitArray(size uint64, args ...bool) *bitArray {
 		anyset: false,
 	}
 
-	if len(args) > 0 && args[0] == true {
+	if i > 0 && len(args) > 0 && args[0] == true {
 		for i := uint64(0); i < uint64(len(ba.blocks)); i++ {
 			ba.blocks[i] = maximumBlock
 		}
