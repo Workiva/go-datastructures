@@ -84,7 +84,7 @@ func orSparseWithDenseBitArray(sba *sparseBitArray, other *bitArray) BitArray {
 
 	max := maxUint64(uint64(sba.Capacity()), uint64(other.Capacity()))
 
-	ba := newBitArray(max * s)
+	ba := newBitArray(max)
 	selfIndex := 0
 	otherIndex := 0
 	for {
