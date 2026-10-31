@@ -255,17 +255,22 @@ func (ba *bitArray) Reset() {
 
 // Equals returns a bool indicating if these two bit arrays are equal.
 func (ba *bitArray) Equals(other BitArray) bool {
-	if other.Capacity() == 0 && ba.highest > 0 {
-		return false
+	if !ba.anyset {
+		return other.IsEmpty()
 	}
-
-	if other.Capacity() == 0 && !ba.anyset {
-		return true
+	if other.Capacity() == 0 {
+		return false
 	}
 
 	var selfIndex uint64
 	for iter := other.Blocks(); iter.Next(); {
 		toIndex, otherBlock := iter.Value()
+		if toIndex >= uint64(len(ba.blocks)) {
+			if otherBlock != 0 {
+				return false
+			}
+			continue
+		}
 		if toIndex > selfIndex {
 			for i := selfIndex; i < toIndex; i++ {
 				if ba.blocks[i] > 0 {
