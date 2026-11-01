@@ -115,21 +115,29 @@ func Uint64FromBytes(b []byte) (uint64, int) {
 // is returned, the sparseBitArray this is called on might be populated
 // with partial data.
 func (ret *sparseBitArray) Deserialize(incoming []byte) error {
+	if len(incoming) == 0 {
+		return errors.New("invalid data for BitArray")
+	}
+
 	var intsize = uint64(s / 8)
 	var curLoc = uint64(1) // Ignore the identifier byte
 
 	var intsToRead uint64
 	var bytesRead int
-	intsToRead, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+	intsToRead, bytesRead = Uint64FromBytes(incoming[curLoc:])
 	if bytesRead < 0 {
 		return errors.New("Invalid data for BitArray")
 	}
 	curLoc += intsize
 
+	if intsToRead > uint64(len(incoming)-int(curLoc))/intsize {
+		return errors.New("invalid data for BitArray")
+	}
+
 	var nextblock uint64
 	ret.blocks = make([]block, intsToRead)
 	for i := uint64(0); i < intsToRead; i++ {
-		nextblock, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+		nextblock, bytesRead = Uint64FromBytes(incoming[curLoc:])
 		if bytesRead < 0 {
 			return errors.New("Invalid data for BitArray")
 		}
@@ -137,16 +145,20 @@ func (ret *sparseBitArray) Deserialize(incoming []byte) error {
 		curLoc += intsize
 	}
 
-	intsToRead, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+	intsToRead, bytesRead = Uint64FromBytes(incoming[curLoc:])
 	if bytesRead < 0 {
 		return errors.New("Invalid data for BitArray")
 	}
 	curLoc += intsize
 
+	if intsToRead != uint64(len(ret.blocks)) || intsToRead > uint64(len(incoming)-int(curLoc))/intsize {
+		return errors.New("invalid data for BitArray")
+	}
+
 	var nextuint uint64
 	ret.indices = make(uintSlice, intsToRead)
 	for i := uint64(0); i < intsToRead; i++ {
-		nextuint, bytesRead = Uint64FromBytes(incoming[curLoc : curLoc+intsize])
+		nextuint, bytesRead = Uint64FromBytes(incoming[curLoc:])
 		if bytesRead < 0 {
 			return errors.New("Invalid data for BitArray")
 		}
