@@ -379,6 +379,8 @@ func ExecuteInParallel(q *Queue, fn func(interface{})) {
 	todo, done := uint64(len(q.items)), int64(-1)
 	// this is important or we might face an infinite loop
 	if todo == 0 {
+		q.lock.Unlock()
+		q.Dispose()
 		return
 	}
 
