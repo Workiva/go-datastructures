@@ -314,6 +314,10 @@ func (sl *SkipList) GetWithPosition(cmp common.Comparator) (common.Comparator, u
 
 // ByPosition returns the Comparator at the given position.
 func (sl *SkipList) ByPosition(position uint64) common.Comparator {
+	if position >= sl.Len() {
+		return nil
+	}
+
 	n, _ := sl.searchByPosition(position+1, nil, nil)
 	if n == nil {
 		return nil
@@ -356,6 +360,10 @@ func (sl *SkipList) InsertAtPosition(position uint64, cmp common.Comparator) {
 }
 
 func (sl *SkipList) replaceAtPosition(position uint64, cmp common.Comparator) {
+	if position >= sl.Len() {
+		return
+	}
+
 	n, _ := sl.searchByPosition(position+1, nil, nil)
 	if n == nil {
 		return
@@ -433,6 +441,10 @@ func (sl *SkipList) iterAtPosition(pos uint64) *iterator {
 // IterAtPosition is the sister method to Iter only the user defines
 // a position in the skiplist to begin iteration instead of a value.
 func (sl *SkipList) IterAtPosition(pos uint64) Iterator {
+	if pos >= sl.Len() {
+		return nilIterator()
+	}
+
 	return sl.iterAtPosition(pos + 1)
 }
 
@@ -462,6 +474,10 @@ func (sl *SkipList) Iter(cmp common.Comparator) Iterator {
 // and the right will be nil.  This is a mutable operation and modifies
 // the content of this list.
 func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {
+	if index >= sl.Len() {
+		return sl, nil
+	}
+
 	index++ // 0-index offset
 	if index >= sl.Len() {
 		return sl, nil
