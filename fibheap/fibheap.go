@@ -278,7 +278,7 @@ func (heap *FloatingFibonacciHeap) Delete(node *Entry) error {
 		return NilError("Cannot delete node: given node is nil")
 	}
 
-	decreaseKeyUnchecked(heap, node, -math.MaxFloat64)
+	decreaseKeyUnchecked(heap, node, math.Inf(-1))
 	heap.DequeueMin()
 	return nil
 }
