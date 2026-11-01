@@ -305,7 +305,7 @@ func (sl *SkipList) Get(comparators ...common.Comparator) common.Comparators {
 // if an associated value could not be found.
 func (sl *SkipList) GetWithPosition(cmp common.Comparator) (common.Comparator, uint64) {
 	n, pos := sl.search(cmp, nil, nil)
-	if n == nil {
+	if n == nil || n.Compare(cmp) != 0 {
 		return nil, 0
 	}
 
