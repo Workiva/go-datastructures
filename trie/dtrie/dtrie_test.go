@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package dtrie
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -132,6 +133,98 @@ func TestSize(t *testing.T) {
 	n := insertTest(t, defaultHasher, 10000)
 	d := &Dtrie{n, defaultHasher}
 	assert.Equal(t, 10000, d.Size())
+}
+
+func TestDtriePersistentVersions(t *testing.T) {
+	tests := []struct {
+		name   string
+		keys   []int
+		key    int
+		remove bool
+		hasher func(interface{}) uint32
+	}{
+		{name: "insert into empty trie", key: 1},
+		{name: "insert root entry", keys: []int{0, 1}, key: 2},
+		{name: "replace root entry", keys: []int{0, 1}, key: 0},
+		{name: "insert nested entry", keys: []int{0, 32}, key: 64},
+		{name: "replace nested entry", keys: []int{0, 32}, key: 32},
+		{name: "create collision node", keys: []int{0}, key: 1, hasher: collisionHash},
+		{name: "append collision entry", keys: []int{0, 1, 2, 3}, key: 4, hasher: collisionHash},
+		{name: "remove root entry", keys: []int{0, 1}, key: 0, remove: true},
+		{name: "remove nested entry", keys: []int{0, 32, 64}, key: 32, remove: true},
+		{name: "remove collision entry", keys: []int{0, 1, 2, 3}, key: 1, remove: true, hasher: collisionHash},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := New(tt.hasher)
+			wantOriginal := make(map[int]int)
+			wantUpdated := make(map[int]int)
+			for _, key := range tt.keys {
+				original = original.Insert(key, key)
+				wantOriginal[key] = key
+				wantUpdated[key] = key
+			}
+
+			var updated *Dtrie
+			if tt.remove {
+				updated = original.Remove(tt.key)
+				delete(wantUpdated, tt.key)
+			} else {
+				updated = original.Insert(tt.key, -1)
+				wantUpdated[tt.key] = -1
+			}
+
+			assertDtrieValues(t, original, wantOriginal)
+			assertDtrieValues(t, updated, wantUpdated)
+		})
+	}
+}
+
+func TestDtriePersistentBranches(t *testing.T) {
+	original := New(nil).Insert(0, 0).Insert(1, 1)
+	left := original.Insert(0, 10)
+	right := original.Insert(1, 20)
+	left = left.Remove(1)
+
+	assertDtrieValues(t, original, map[int]int{0: 0, 1: 1})
+	assertDtrieValues(t, left, map[int]int{0: 10})
+	assertDtrieValues(t, right, map[int]int{0: 0, 1: 20})
+}
+
+func TestDtrieConcurrentVersions(t *testing.T) {
+	original := New(nil).Insert(0, 0).Insert(1, 1)
+	const count = 16
+	versions := make([]*Dtrie, count)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(count)
+	for i := range versions {
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			versions[i] = original.Insert(0, i).Remove(1)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	assertDtrieValues(t, original, map[int]int{0: 0, 1: 1})
+	for i, version := range versions {
+		assertDtrieValues(t, version, map[int]int{0: i})
+	}
+}
+
+func assertDtrieValues(t *testing.T, d *Dtrie, want map[int]int) {
+	t.Helper()
+	got := make(map[int]int)
+	for e := range d.Iterator(nil) {
+		got[e.Key().(int)] = e.Value().(int)
+	}
+	assert.Equal(t, want, got)
+	assert.Equal(t, len(want), d.Size())
+	for key, value := range want {
+		assert.Equal(t, value, d.Get(key))
+	}
 }
 
 func BenchmarkInsert(b *testing.B) {
