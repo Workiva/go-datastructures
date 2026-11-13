@@ -48,6 +48,12 @@ func (n *node) String() string {
 	return fmt.Sprint(n.entries)
 }
 
+func (n *node) clone() *node {
+	cloned := *n
+	cloned.entries = append([]Entry(nil), n.entries...)
+	return &cloned
+}
+
 type collisionNode struct {
 	entries []Entry
 }
@@ -58,6 +64,10 @@ func (n *collisionNode) Value() interface{} { return nil }
 
 func (n *collisionNode) String() string {
 	return fmt.Sprintf("<COLLISIONS %v>%v", len(n.entries), n.entries)
+}
+
+func (n *collisionNode) clone() *collisionNode {
+	return &collisionNode{entries: append([]Entry(nil), n.entries...)}
 }
 
 // Entry defines anything held within the data structure
@@ -73,7 +83,7 @@ func emptyNode(level uint8, capacity int) *node {
 
 func insert(n *node, entry Entry) *node {
 	index := uint(mask(entry.KeyHash(), n.level))
-	newNode := n
+	newNode := n.clone()
 	if newNode.level == 6 { // handle hash collisions on 6th level
 		if newNode.entries[index] == nil {
 			newNode.entries[index] = entry
@@ -92,7 +102,8 @@ func insert(n *node, entry Entry) *node {
 			newNode.dataMap = newNode.dataMap.ClearBit(index)
 			return newNode
 		}
-		cNode := newNode.entries[index].(*collisionNode)
+		cNode := newNode.entries[index].(*collisionNode).clone()
+		newNode.entries[index] = cNode
 		cNode.entries = append(cNode.entries, entry)
 		return newNode
 	}
@@ -149,7 +160,7 @@ func get(n *node, keyHash uint32, key interface{}) Entry {
 
 func remove(n *node, keyHash uint32, key interface{}) *node {
 	index := uint(mask(keyHash, n.level))
-	newNode := n
+	newNode := n.clone()
 	if n.dataMap.GetBit(index) {
 		newNode.entries[index] = nil
 		newNode.dataMap = newNode.dataMap.ClearBit(index)
@@ -175,7 +186,8 @@ func remove(n *node, keyHash uint32, key interface{}) *node {
 		return newNode
 	}
 	if n.level == 6 { // delete from collisionNode
-		cNode := newNode.entries[index].(*collisionNode)
+		cNode := newNode.entries[index].(*collisionNode).clone()
+		newNode.entries[index] = cNode
 		for i, e := range cNode.entries {
 			if e.Key() == key {
 				cNode.entries = append(cNode.entries[:i], cNode.entries[i+1:]...)
